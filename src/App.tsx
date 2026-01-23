@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Mic, MicOff, Sparkles, Target, Clock, Rocket, Share2, ChevronRight, CheckCircle, Users, FileText, Mail, Link2, 
+  Mic, MicOff, Sparkles, Target, Clock, Rocket, ChevronRight, CheckCircle, Users, FileText, Mail, Link2, 
   User, UserPlus, Settings, LogOut, Plus, Trash2, Edit2, Save, ChevronDown, Eye, EyeOff, MessageSquare, RefreshCw,
-  Lock, Wand2, Copy, ExternalLink, Shield, Edit3, Download, FileDown, Volume2, VolumeX, Brain, Activity, Wifi, WifiOff, Globe, Printer
+  Lock, Wand2, Copy, ExternalLink, Shield, Edit3, Download, FileDown, Brain, Activity, Printer, Search, Folder,
+  Home, Layout, Star, MoreHorizontal, X, Check, FolderPlus, Search as SearchIcon, AutoSave
 } from 'lucide-react';
 
 // Types
@@ -17,7 +18,6 @@ interface User {
   privateNotes: PrivateNote[];
   lastActive: Date;
   preferences: UserPreferences;
-  cursor?: { x: number; y: number };
 }
 
 interface PrivateNote {
@@ -46,6 +46,7 @@ interface Board {
   updatedAt: Date;
   magicLink?: string;
   magicLinkPermissions: 'view' | 'edit';
+  isFavorite?: boolean;
 }
 
 interface VisualNode {
@@ -108,29 +109,159 @@ const generateAIQuestions = (phase: string): PrivateNote[] => {
   }));
 };
 
-// Real-time Collaboration Indicator
-const CollaboratorsView = ({ users, currentUser }: { users: User[]; currentUser: User }) => {
+// Board Sidebar
+const BoardSidebar = ({ 
+  boards, currentBoard, onSelectBoard, onCreateBoard, onDeleteBoard, onToggleFavorite,
+  searchQuery, onSearchChange, searchResults, onSearchResultClick
+}: { 
+  boards: Board[]; currentBoard: Board; 
+  onSelectBoard: (id: string) => void; onCreateBoard: () => void; 
+  onDeleteBoard: (id: string) => void; onToggleFavorite: (id: string) => void;
+  searchQuery: string; onSearchChange: (q: string) => void;
+  searchResults: { boardId: string; boardName: string; node: VisualNode }[];
+  onSearchResultClick: (boardId: string) => void;
+}) => {
+  const [showCreate, setShowCreate] = useState(false);
+  const [newBoardName, setNewBoardName] = useState('');
+  const [showBoards, setShowBoards] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const favoriteBoards = boards.filter(b => b.isFavorite);
+  const recentBoards = boards.filter(b => !b.isFavorite);
+
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex -space-x-2">
-        {users.slice(0, 4).map(user => (
-          <motion.div key={user.id} initial={{ scale: 0 }} animate={{ scale: 1 }} className="relative">
-            <div className="w-8 h-8 rounded-full border-2 border-gray-900 flex items-center justify-center text-white text-xs font-medium" style={{ backgroundColor: user.color }} title={user.name}>
-              {user.name.charAt(0).toUpperCase()}
-            </div>
-            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-900" />
-          </motion.div>
-        ))}
+    <motion.div 
+      initial={{ x: -20, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      className={`bg-white/10 backdrop-blur-xl rounded-2xl p-4 flex flex-col ${isCollapsed ? 'w-16' : 'w-64'}`}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <motion.button onClick={() => setIsCollapsed(!isCollapsed)} whileHover={{ scale: 1.05 }} className="p-2 bg-white/10 rounded-lg">
+          <Layout className="w-5 h-5" />
+        </motion.button>
+        {!isCollapsed && (
+          <motion.button onClick={() => setShowCreate(true)} whileHover={{ scale: 1.05 }} className="p-2 bg-primary-500 rounded-lg">
+            <Plus className="w-5 h-5 text-white" />
+          </motion.button>
+        )}
       </div>
-      <span className="text-xs text-green-400 flex items-center gap-1">
-        <Activity className="w-3 h-3" />
-        {users.length} active
-      </span>
-    </div>
+
+      {!isCollapsed && (
+        <>
+          <div className="mb-4">
+            <div className="relative">
+              <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input 
+                type="text"
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder="Search all boards..."
+                className="w-full pl-10 pr-4 py-2 bg-white/10 rounded-xl text-sm placeholder-gray-400"
+              />
+            </div>
+            
+            {searchResults.length > 0 && (
+              <div className="mt-2 bg-gray-900 rounded-xl p-2 max-h-48 overflow-y-auto">
+                {searchResults.map((result, i) => (
+                  <motion.div 
+                    key={i}
+                    onClick={() => onSearchResultClick(result.boardId)}
+                    whileHover={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+                    className="p-2 rounded-lg cursor-pointer"
+                  >
+                    <p className="text-xs text-gray-400">{result.boardName}</p>
+                    <p className="text-sm text-white truncate">{result.node.content}</p>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2 flex-1 overflow-y-auto">
+            {favoriteBoards.length > 0 && (
+              <>
+                <button onClick={() => setShowBoards(!showBoards)} className="flex items-center gap-2 text-xs text-gray-400 hover:text-white w-full">
+                  <Star className="w-4 h-4 text-amber-400" /> Favorites
+                </button>
+                {favoriteBoards.map(board => (
+                  <BoardItem key={board.id} board={board} isActive={board.id === currentBoard.id} onSelect={onSelectBoard} onToggleFavorite={onToggleFavorite} onDelete={onDeleteBoard} />
+                ))}
+              </>
+            )}
+
+            <button onClick={() => setShowBoards(!showBoards)} className="flex items-center gap-2 text-xs text-gray-400 hover:text-white w-full mt-4">
+              <Folder className="w-4 h-4" /> All Boards
+            </button>
+            {recentBoards.map(board => (
+              <BoardItem key={board.id} board={board} isActive={board.id === currentBoard.id} onSelect={onSelectBoard} onToggleFavorite={onToggleFavorite} onDelete={onDeleteBoard} />
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-gray-400 mt-4 pt-4 border-t border-white/10">
+            <AutoSave className="w-4 h-4" />
+            <span>Auto-saving</span>
+          </div>
+        </>
+      )}
+
+      <AnimatePresence>
+        {showCreate && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCreate(false)}>
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-2xl p-6 w-80" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-bold mb-4 text-gray-900 flex items-center gap-2"><FolderPlus className="w-5 h-5" /> New Board</h3>
+              <input 
+                type="text"
+                value={newBoardName}
+                onChange={(e) => setNewBoardName(e.target.value)}
+                placeholder="Board name..."
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl mb-4"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button onClick={() => setShowCreate(false)} className="flex-1 py-2 bg-gray-100 rounded-xl text-gray-600">Cancel</button>
+                <button 
+                  onClick={() => { if (newBoardName) { onCreateBoard(newBoardName); setNewBoardName(''); setShowCreate(false); }}} 
+                  disabled={!newBoardName}
+                  className="flex-1 py-2 bg-primary-500 text-white rounded-xl disabled:opacity-50"
+                >
+                  Create
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
-// PDF Export Modal
+const BoardItem = ({ board, isActive, onSelect, onToggleFavorite, onDelete }: { board: Board; isActive: boolean; onSelect: (id: string) => void; onToggleFavorite: (id: string) => void; onDelete: (id: string) => void; }) => (
+  <motion.div 
+    onClick={() => onSelect(board.id)}
+    whileHover={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+    className={`p-2 rounded-lg cursor-pointer flex items-center gap-2 ${isActive ? 'bg-primary-500/20' : ''}`}
+  >
+    <Folder className="w-4 h-4 text-gray-400" />
+    <span className="flex-1 text-sm truncate">{board.name}</span>
+    <button onClick={(e) => { e.stopPropagation(); onToggleFavorite(board.id); }}>
+      <Star className={`w-4 h-4 ${board.isFavorite ? 'text-amber-400 fill-amber-400' : 'text-gray-400'}`} />
+    </button>
+  </motion.div>
+);
+
+const AutoSaveIndicator = ({ saved, saving }: { saved: boolean; saving: boolean }) => (
+  <div className="flex items-center gap-2 text-sm">
+    <motion.div animate={{ opacity: saving ? 1 : 0.5 }} className="flex items-center gap-1">
+      <RefreshCw className={`w-4 h-4 ${saving ? 'animate-spin' : ''}`} />
+      <span className="text-gray-400">{saving ? 'Saving...' : 'All changes saved'}</span>
+    </motion.div>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: saved ? 1 : 0 }} className="flex items-center gap-1 text-green-400">
+      <Check className="w-4 h-4" />
+      <span>Saved</span>
+    </motion.div>
+  </div>
+);
+
 const PDFExportModal = ({ board, onClose }: { board: Board; onClose: () => void; }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'summary' | 'detailed' | 'presentation'>('summary');
@@ -139,8 +270,7 @@ const PDFExportModal = ({ board, onClose }: { board: Board; onClose: () => void;
     setIsExporting(true);
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    const exportContent = `
-STRATEGIC CANVAS - ${board.name}
+    const exportContent = `STRATEGIC CANVAS - ${board.name}
 ================================
 Generated: ${new Date().toLocaleDateString()}
 
@@ -157,8 +287,7 @@ ${board.visualNodes.filter(n => n.type === 'risk').map(n => `- ${n.content}`).jo
 ${board.visualNodes.filter(n => n.type === 'action').map(n => `- ${n.content}`).join('\n') || 'None captured'}
 
 ---
-Generated by Strategic Canvas
-    `.trim();
+Generated by Strategic Canvas`.trim();
 
     const blob = new Blob([exportContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -180,38 +309,25 @@ Generated by Strategic Canvas
             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><Printer className="w-5 h-5" /></div>
             <h2 className="text-xl font-bold">Export to PDF</h2>
           </div>
-          <p className="text-white/80 text-sm">Generate a professional document for your client</p>
         </div>
 
         <div className="p-6 space-y-6">
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-700">Export Format</label>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { id: 'summary', label: 'Summary', desc: 'Key points only' },
-                { id: 'detailed', label: 'Detailed', desc: 'Full analysis' },
-                { id: 'presentation', label: 'Presentation', desc: 'Client-ready' }
-              ].map(fmt => (
-                <motion.button key={fmt.id} onClick={() => setExportFormat(fmt.id as typeof exportFormat)} whileHover={{ scale: 1.02 }} className={`p-3 rounded-xl border-2 ${exportFormat === fmt.id ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}`}>
-                  <p className="font-medium text-sm">{fmt.label}</p>
-                  <p className="text-xs text-gray-500">{fmt.desc}</p>
-                </motion.button>
-              ))}
-            </div>
-          </div>
-
-          <div className="p-4 bg-blue-50 rounded-xl flex items-start gap-3">
-            <FileDown className="w-5 h-5 text-blue-600 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-blue-800">Ready to export</p>
-              <p className="text-xs text-blue-600 mt-1">Your board will be formatted as a professional document.</p>
-            </div>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { id: 'summary', label: 'Summary' },
+              { id: 'detailed', label: 'Detailed' },
+              { id: 'presentation', label: 'Presentation' }
+            ].map(fmt => (
+              <motion.button key={fmt.id} onClick={() => setExportFormat(fmt.id as typeof exportFormat)} whileHover={{ scale: 1.02 }} className={`p-3 rounded-xl border-2 ${exportFormat === fmt.id ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}`}>
+                <p className="font-medium text-sm">{fmt.label}</p>
+              </motion.button>
+            ))}
           </div>
         </div>
 
-        <div className="p-6 border-t border-gray-100 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 bg-gray-100 rounded-xl text-gray-700 font-medium">Cancel</button>
-          <motion.button onClick={handleExport} disabled={isExporting} whileHover={{ scale: isExporting ? 1 : 1.02 }} whileTap={{ scale: isExporting ? 1 : 0.98 }} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 disabled:opacity-50">
+        <div className="p-6 border-t flex gap-3">
+          <button onClick={onClose} className="flex-1 py-3 bg-gray-100 rounded-xl font-medium">Cancel</button>
+          <motion.button onClick={handleExport} disabled={isExporting} whileHover={{ scale: 1.02 }} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-medium flex items-center justify-center gap-2">
             {isExporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             {isExporting ? 'Generating...' : 'Export'}
           </motion.button>
@@ -221,156 +337,32 @@ Generated by Strategic Canvas
   );
 };
 
-// AI Transcription Panel
-const TranscriptionPanel = ({ isRecording, onToggleRecording, transcription, onTranscriptionUpdate, useWhisper }: { isRecording: boolean; onToggleRecording: () => void; transcription: string; onTranscriptionUpdate: (text: string) => void; useWhisper: boolean; }) => {
-  const [audioLevel, setAudioLevel] = useState(0);
-  const [whisperStatus, setWhisperStatus] = useState<'idle' | 'recording' | 'processing'>('idle');
-  const recognitionRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (isRecording && 'webkitSpeechRecognition' in window) {
-      const recognition = new (window as any).webkitSpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.onresult = (event: any) => {
-        const last = event.results.length - 1;
-        const transcript = event.results[last][0].transcript;
-        onTranscriptionUpdate(transcription + ' ' + transcript);
-      };
-      recognitionRef.current = recognition;
-      recognition.start();
-    }
-    return () => { if (recognitionRef.current) recognitionRef.current.stop(); };
-  }, [isRecording]);
-
-  useEffect(() => {
-    if (isRecording) {
-      const interval = setInterval(() => setAudioLevel(Math.random() * 0.5 + 0.1), 100);
-      return () => clearInterval(interval);
-    }
-  }, [isRecording]);
-
-  const simulateWhisperTranscription = () => {
-    setWhisperStatus('processing');
-    setTimeout(() => {
-      setWhisperStatus('idle');
-      onTranscriptionUpdate(transcription + ' [Whisper: High-accuracy transcription enabled] ');
-    }, 2000);
-  };
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/10 backdrop-blur-xl rounded-2xl p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-xl ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-600'}`}>
-            {isRecording ? <Mic className="w-5 h-5 text-white" /> : <MicOff className="w-5 h-5 text-gray-400" />}
-          </div>
-          <div>
-            <h3 className="font-medium">Voice Transcription</h3>
-            <div className="flex items-center gap-2 text-xs text-gray-400">
-              {useWhisper ? <span className="flex items-center gap-1 text-purple-400"><Brain className="w-3 h-3" /> OpenAI Whisper</span> : <span className="flex items-center gap-1"><Activity className="w-3 h-3" /> Web Speech API</span>}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {useWhisper && (
-            <motion.button onClick={simulateWhisperTranscription} whileHover={{ scale: 1.05 }} className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-lg text-sm flex items-center gap-1">
-              <Brain className="w-3 h-3" /> Test
-            </motion.button>
-          )}
-          <motion.button onClick={onToggleRecording} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className={`px-4 py-2 rounded-xl ${isRecording ? 'bg-red-500' : 'bg-primary-500'} text-white font-medium`}>
-            {isRecording ? 'Stop' : 'Start Recording'}
-          </motion.button>
-        </div>
-      </div>
-
-      {isRecording && (
-        <div className="mb-4">
-          <div className="flex items-center gap-1 h-8">
-            {Array.from({ length: 20 }).map((_, i) => (
-              <motion.div key={i} animate={{ height: isRecording ? [`${Math.random() * 60 + 20}%`, `${Math.random() * 80 + 20}%`] : '20%' }} transition={{ duration: 0.1, repeat: Infinity, repeatType: 'reverse' }} className="flex-1 rounded-full bg-green-500" />
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="bg-gray-900/50 rounded-xl p-4 min-h-[120px] max-h-[200px] overflow-y-auto">
-        {transcription ? <p className="text-sm text-gray-300 whitespace-pre-wrap">{transcription}</p> : <p className="text-sm text-gray-500 italic">Start recording to capture conversation...</p>}
-      </div>
-
-      {useWhisper && (
-        <div className="mt-4 p-3 bg-purple-500/10 rounded-xl flex items-start gap-2">
-          <Brain className="w-4 h-4 text-purple-400 mt-0.5" />
-          <div className="text-xs text-purple-300">
-            <p className="font-medium">OpenAI Whisper Integration</p>
-            <p className="mt-1 opacity-75">Add OpenAI API key for production-grade transcription with speaker detection.</p>
-          </div>
-        </div>
-      )}
-    </motion.div>
-  );
-};
-
-// Magic Link Modal
 const MagicLinkModal = ({ board, onClose, onRegenerate }: { board: Board; onClose: () => void; onRegenerate: () => void; }) => {
   const [copied, setCopied] = useState(false);
-  const [permissions, setPermissions] = useState<Board['magicLinkPermissions']>(board.magicLinkPermissions);
-  const [expiryDays, setExpiryDays] = useState(7);
   const magicLink = board.magicLink || generateMagicLink(board.id).link;
-  
   const handleCopy = async () => { await navigator.clipboard.writeText(magicLink); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+      <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white rounded-3xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="bg-gradient-to-r from-primary-500 to-purple-500 p-6 text-white">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><Link2 className="w-5 h-5" /></div>
             <h2 className="text-xl font-bold">Share Board</h2>
           </div>
-          <p className="text-white/80 text-sm">Generate a magic link to share without signup</p>
         </div>
 
-        <div className="p-6 space-y-6">
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-700">Magic Link</label>
-            <div className="flex gap-2">
-              <input type="text" readOnly value={magicLink} className="flex-1 px-4 py-3 bg-gray-50 rounded-xl text-sm font-mono text-gray-600" />
-              <motion.button onClick={handleCopy} whileHover={{ scale: 1.05 }} className={`px-4 py-2 rounded-xl flex items-center gap-2 ${copied ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700'}`}>
-                {copied ? <CheckCircle className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                {copied ? 'Copied!' : 'Copy'}
-              </motion.button>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-700">Access Level</label>
-            <div className="grid grid-cols-2 gap-3">
-              <motion.button onClick={() => setPermissions('view')} whileHover={{ scale: 1.02 }} className={`p-4 rounded-xl border-2 ${permissions === 'view' ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}`}>
-                <EyeOff className="w-5 h-5 mb-2 text-gray-600" />
-                <p className="font-medium text-sm">View Only</p>
-              </motion.button>
-              <motion.button onClick={() => setPermissions('edit')} whileHover={{ scale: 1.02 }} className={`p-4 rounded-xl border-2 ${permissions === 'edit' ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}`}>
-                <Edit3 className="w-5 h-5 mb-2 text-primary-600" />
-                <p className="font-medium text-sm">Full Access</p>
-              </motion.button>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-700">Link Expiration</label>
-            <div className="grid grid-cols-4 gap-2">
-              {[1, 7, 30, 0].map(days => (
-                <motion.button key={days} onClick={() => setExpiryDays(days)} whileHover={{ scale: 1.05 }} className={`p-3 rounded-xl text-sm ${expiryDays === days ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700'}`}>
-                  {days === 0 ? 'Never' : `${days}d`}
-                </motion.button>
-              ))}
-            </div>
+        <div className="p-6 space-y-4">
+          <div className="flex gap-2">
+            <input type="text" readOnly value={magicLink} className="flex-1 px-4 py-3 bg-gray-50 rounded-xl text-sm font-mono" />
+            <motion.button onClick={handleCopy} whileHover={{ scale: 1.05 }} className={`px-4 py-2 rounded-xl flex items-center gap-2 ${copied ? 'bg-green-500 text-white' : 'bg-gray-100'}`}>
+              {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+            </motion.button>
           </div>
         </div>
 
-        <div className="p-6 border-t border-gray-100 flex gap-3">
-          <motion.button onClick={onRegenerate} whileHover={{ scale: 1.02 }} className="flex-1 py-3 bg-gray-100 rounded-xl text-gray-700 font-medium flex items-center justify-center gap-2"><RefreshCw className="w-4 h-4" /> Regenerate</motion.button>
+        <div className="p-6 border-t flex gap-3">
+          <motion.button onClick={onRegenerate} whileHover={{ scale: 1.02 }} className="flex-1 py-3 bg-gray-100 rounded-xl font-medium">Regenerate</motion.button>
           <motion.button onClick={onClose} whileHover={{ scale: 1.02 }} className="flex-1 py-3 bg-gradient-to-r from-primary-500 to-purple-500 text-white rounded-xl font-medium">Done</motion.button>
         </div>
       </motion.div>
@@ -378,7 +370,6 @@ const MagicLinkModal = ({ board, onClose, onRegenerate }: { board: Board; onClos
   );
 };
 
-// Private Notes Panel
 const PrivateNotesPanel = ({ user, onAddNote, onToggleResolve, currentPhase }: { user: User; onAddNote: (note: Omit<PrivateNote, 'id' | 'createdAt'>) => void; onToggleResolve: (id: string) => void; currentPhase: string; }) => {
   const [showPanel, setShowPanel] = useState(false);
   const [newNote, setNewNote] = useState('');
@@ -417,12 +408,12 @@ const PrivateNotesPanel = ({ user, onAddNote, onToggleResolve, currentPhase }: {
             <div className="p-4 border-b border-gray-100">
               <div className="flex gap-2 mb-2">
                 {(['note', 'question', 'followup'] as const).map(type => (
-                  <button key={type} onClick={() => setNoteType(type)} className={`px-3 py-1 rounded-full text-xs capitalize ${noteType === type ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'}`}>{type}</button>
+                  <button key={type} onClick={() => setNoteType(type)} className={`px-3 py-1 rounded-full text-xs capitalize ${noteType === type ? 'bg-primary-100 text-primary-700' : 'bg-gray-100'}`}>{type}</button>
                 ))}
               </div>
               <div className="flex gap-2">
                 <input type="text" value={newNote} onChange={(e) => setNewNote(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddNote()} placeholder="Add note..." className="flex-1 px-3 py-2 bg-gray-50 rounded-lg text-sm" />
-                <motion.button onClick={handleAddNote} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="p-2 bg-primary-500 text-white rounded-lg"><Plus className="w-5 h-5" /></motion.button>
+                <motion.button onClick={handleAddNote} whileHover={{ scale: 1.05 }} className="p-2 bg-primary-500 text-white rounded-lg"><Plus className="w-5 h-5" /></motion.button>
               </div>
             </div>
 
@@ -433,7 +424,7 @@ const PrivateNotesPanel = ({ user, onAddNote, onToggleResolve, currentPhase }: {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         {note.aiSuggested && <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full flex items-center gap-1"><Sparkles className="w-3 h-3" /> AI</span>}
-                        <span className="text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full capitalize">{note.type}</span>
+                        <span className="text-xs px-2 py-0.5 bg-gray-200 rounded-full capitalize">{note.type}</span>
                       </div>
                       <p className="text-sm text-gray-800">{note.content}</p>
                     </div>
@@ -449,7 +440,6 @@ const PrivateNotesPanel = ({ user, onAddNote, onToggleResolve, currentPhase }: {
   );
 };
 
-// User Management
 const UserManagement = ({ users, currentUser, onAddUser, onLogout }: { users: User[]; currentUser: User; onAddUser: (user: Omit<User, 'id' | 'lastActive' | 'privateNotes'>) => void; onLogout: () => void; }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
@@ -510,7 +500,7 @@ const UserManagement = ({ users, currentUser, onAddUser, onLogout }: { users: Us
               <div className="space-y-4">
                 <div><label className="text-sm text-gray-600 mb-1 block">Name</label><input type="text" value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
                 <div><label className="text-sm text-gray-600 mb-1 block">Email</label><input type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
-                <div><label className="text-sm text-gray-600 mb-1 block">Role</label><select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value as User['role'] })} className="w-full px-4 py-2 border border-gray-200 rounded-xl"><option value="member">Member</option><option value="admin">Admin</option><option value="viewer">Viewer</option></select></div>
+                <div><label className="text-sm text-gray-600 mb-1 block">Role</label><select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value as User['role'] })} className="w-full px-4 py-2 border border-gray-200 rounded-xl"><option value="member">Member</option><option value="admin">Admin</option></select></div>
                 <div className="flex gap-2">
                   <button onClick={() => setShowInvite(false)} className="flex-1 py-2 bg-gray-100 rounded-xl text-gray-600">Cancel</button>
                   <button onClick={() => { if (newUser.name && newUser.email) { onAddUser({ ...newUser, color: availableColors[0] }); setNewUser({ name: '', email: '', role: 'member' }); setShowInvite(false); }}} disabled={!newUser.name || !newUser.email} className="flex-1 py-2 bg-primary-500 text-white rounded-xl disabled:opacity-50">Send Invite</button>
@@ -524,6 +514,29 @@ const UserManagement = ({ users, currentUser, onAddUser, onLogout }: { users: Us
   );
 };
 
-// Main App
 export default function MeetingCompanion() {
-  const [currentUser, setCurrentUser] = useState<User
+  const [currentUser, setCurrentUser] = useState<User>({
+    id: '1', name: 'Scott Jones', email: 'scott@example.com', role: 'owner', color: '#10b981',
+    personalNotes: '', privateNotes: [], lastActive: new Date(), preferences: { autoTranscribe: true, notifications: true, theme: 'dark' }
+  });
+
+  const [users, setUsers] = useState<User[]>([currentUser]);
+  const [boards, setBoards] = useState<Board[]>([
+    { id: 'board-1', name: 'Q1 Strategy Planning', ownerId: '1', sharedWith: ['1'], visualNodes: [], createdAt: new Date(), updatedAt: new Date(), isFavorite: true },
+    { id: 'board-2', name: 'Client Onboarding - Acme Corp', ownerId: '1', sharedWith: ['1'], visualNodes: [], createdAt: new Date(), updatedAt: new Date() },
+  ]);
+  const [currentBoardId, setCurrentBoardId] = useState('board-1');
+  const [showMagicLink, setShowMagicLink] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [sessionStart, setSessionStart] = useState<Date | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [currentPhase, setCurrentPhase] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [autoSaveState, setAutoSaveState] = useState({ saved: false, saving: false });
+
+  const currentBoard = boards.find(b => b.id === currentBoardId) || boards[0];
+
+  useEffect(() => {
+    if (sessionStart) {
+      const interval = setInterval(() => setElapsedTime(Math.floor((Date.now
