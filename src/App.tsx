@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Mic, MicOff, Sparkles, Target, Clock, Search, Rocket, Share2, 
@@ -6,7 +6,8 @@ import {
   FileText, Mail, Link2, RotateCcw, User, UserPlus, Settings, LogOut,
   Building2, Bell, Menu, X, Plus, Trash2, Edit2, Save, ChevronDown,
   Eye, EyeOff, MessageSquare, Zap, Lightbulb, HelpCircle, RefreshCw,
-  Lock, Unlock, Send, PlusCircle, Wand2
+  Lock, Unlock, Send, PlusCircle, Wand2, Copy, ExternalLink, Shield,
+  EyeOff as ViewOff, Edit3, Calendar, Clock3, Zap as ZapIcon
 } from 'lucide-react';
 
 // Types
@@ -40,14 +41,6 @@ interface UserPreferences {
   defaultView: 'grid' | 'list';
 }
 
-interface Team {
-  id: string;
-  name: string;
-  members: User[];
-  boards: Board[];
-  createdAt: Date;
-}
-
 interface Board {
   id: string;
   name: string;
@@ -57,6 +50,9 @@ interface Board {
   visualNodes: VisualNode[];
   createdAt: Date;
   updatedAt: Date;
+  magicLink?: string;
+  magicLinkExpiry?: Date;
+  magicLinkPermissions: 'view' | 'edit';
 }
 
 interface VisualNode {
@@ -94,6 +90,7 @@ interface MeetingPhase {
 
 // Constants
 const TEAM_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+const MAGIC_LINK_BASE = 'https://strategic-canvas.app/join';
 
 const MEETING_PHASES = [
   { id: 'intro', name: 'Introduction', subtitle: 'Understanding your business', icon: '👋', duration: 15, prompts: ['Tell me about your business', 'What does success look like?', 'What are you most proud of?'] },
@@ -104,56 +101,25 @@ const MEETING_PHASES = [
   { id: 'next-steps', name: 'Next Steps', subtitle: 'Committing to action', icon: '🚀', duration: 10, prompts: ['What\'s your commitment for this week?', 'When should we follow up?', 'Any final thoughts or concerns?'] }
 ];
 
-// AI-Generated Questions based on context
+// Utility to generate magic link
+const generateMagicLink = (boardId: string): { link: string; code: string } => {
+  const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+  const link = `${MAGIC_LINK_BASE}/${boardId}/${code}`;
+  return { link, code };
+};
+
+// AI-Generated Questions
 const generateAIQuestions = (phase: string, context: string[], previousNotes: PrivateNote[]): PrivateNote[] => {
   const baseQuestions: Record<string, string[]> = {
-    intro: [
-      'What inspired you to start your business?',
-      'Describe your ideal customer in detail',
-      'What\'s the biggest win you\'ve had recently?',
-      'How did you hear about us?',
-      'What are your expectations for this engagement?'
-    ],
-    discovery: [
-      'Walk me through a typical day in your business',
-      'Where do you feel like you\'re wasting the most time?',
-      'What systems have you tried before and why didn\'t they work?',
-      'Who else is involved in the decision-making process?',
-      'What does your current tech stack look like?'
-    ],
-    opportunities: [
-      'If you could wave a magic wand and change one thing, what would it be?',
-      'What would a successful 12-month look like for you?',
-      'What\'s the ROI expectation for this investment?',
-      'Are there any adjacent markets you\'ve considered?',
-      'What\'s preventing you from scaling now?'
-    ],
-    risk: [
-      'What\'s your biggest competitor doing right?',
-      'What happens if you do nothing for the next 6 months?',
-      'What\'s the biggest threat to your business model?',
-      'Are there any regulatory concerns to be aware of?',
-      'What\'s your exit strategy or long-term vision?'
-    ],
-    strategy: [
-      'What\'s the lowest-hanging fruit we could tackle first?',
-      'What resources (budget, people, time) can we realistically commit?',
-      'Who will be the key stakeholders we need to align?',
-      'What could go wrong in the first 30 days?',
-      'How will we know if we\'re succeeding?'
-    ],
-    'next-steps': [
-      'What\'s the one thing you want to accomplish by next week?',
-      'Can we schedule the kickoff call for early next week?',
-      'Who should be invited to the next planning session?',
-      'What questions should we come prepared with?',
-      'What\'s your preferred communication method?'
-    ]
+    intro: ['What inspired you to start your business?', 'Describe your ideal customer in detail', 'What\'s the biggest win you\'ve had recently?', 'How did you hear about us?', 'What are your expectations for this engagement?'],
+    discovery: ['Walk me through a typical day in your business', 'Where do you feel like you\'re wasting the most time?', 'What systems have you tried before and why didn\'t they work?', 'Who else is involved in the decision-making process?', 'What does your current tech stack look like?'],
+    opportunities: ['If you could wave a magic wand and change one thing, what would it be?', 'What would a successful 12-month look like for you?', 'What\'s the ROI expectation for this investment?', 'Are there any adjacent markets you\'ve considered?', 'What\'s preventing you from scaling now?'],
+    risk: ['What\'s your biggest competitor doing right?', 'What happens if you do nothing for the next 6 months?', 'What\'s the biggest threat to your business model?', 'Are there any regulatory concerns to be aware of?', 'What\'s your exit strategy or long-term vision?'],
+    strategy: ['What\'s the lowest-hanging fruit we could tackle first?', 'What resources (budget, people, time) can we realistically commit?', 'Who will be the key stakeholders we need to align?', 'What could go wrong in the first 30 days?', 'How will we know if we\'re succeeding?'],
+    'next-steps': ['What\'s the one thing you want to accomplish by next week?', 'Can we schedule the kickoff call for early next week?', 'Who should be invited to the next planning session?', 'What questions should we come prepared with?', 'What\'s your preferred communication method?']
   };
 
   const questions = baseQuestions[phase] || baseQuestions.intro;
-  
-  // Generate suggested questions
   return questions.slice(0, 3).map((content, i) => ({
     id: `ai-${Date.now()}-${i}`,
     content,
@@ -165,20 +131,101 @@ const generateAIQuestions = (phase: string, context: string[], previousNotes: Pr
   }));
 };
 
+// Magic Link Share Modal
+const MagicLinkModal = ({ board, onClose, onRegenerate }: { board: Board; onClose: () => void; onRegenerate: () => void; }) => {
+  const [copied, setCopied] = useState(false);
+  const [permissions, setPermissions] = useState<Board['magicLinkPermissions']>(board.magicLinkPermissions);
+  const [expiryDays, setExpiryDays] = useState(7);
+  
+  const magicLink = board.magicLink || generateMagicLink(board.id).link;
+  
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(magicLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleOpenLink = () => {
+    window.open(magicLink, '_blank');
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="bg-gradient-to-r from-primary-500 to-purple-500 p-6 text-white">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><Link2 className="w-5 h-5" /></div>
+            <h2 className="text-xl font-bold">Share Board</h2>
+          </div>
+          <p className="text-white/80 text-sm">Generate a magic link to share this board without requiring signup</p>
+        </div>
+
+        <div className="p-6 space-y-6">
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-700">Magic Link</label>
+            <div className="flex gap-2">
+              <input type="text" readOnly value={magicLink} className="flex-1 px-4 py-3 bg-gray-50 rounded-xl text-sm font-mono text-gray-600" />
+              <motion.button onClick={handleCopy} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className={`px-4 py-2 rounded-xl flex items-center gap-2 ${copied ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700'}`}>
+                {copied ? <CheckCircle className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                {copied ? 'Copied!' : 'Copy'}
+              </motion.button>
+              <motion.button onClick={handleOpenLink} whileHover={{ scale: 1.05 }} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl flex items-center gap-2">
+                <ExternalLink className="w-5 h-5" /> Open
+              </motion.button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-700">Access Level</label>
+            <div className="grid grid-cols-2 gap-3">
+              <motion.button onClick={() => setPermissions('view')} whileHover={{ scale: 1.02 }} className={`p-4 rounded-xl border-2 transition-all ${permissions === 'view' ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}`}>
+                <EyeOff className="w-5 h-5 mb-2 text-gray-600" />
+                <p className="font-medium text-sm">View Only</p>
+                <p className="text-xs text-gray-500">Can view but not edit</p>
+              </motion.button>
+              <motion.button onClick={() => setPermissions('edit')} whileHover={{ scale: 1.02 }} className={`p-4 rounded-xl border-2 transition-all ${permissions === 'edit' ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}`}>
+                <Edit3 className="w-5 h-5 mb-2 text-primary-600" />
+                <p className="font-medium text-sm">Full Access</p>
+                <p className="text-xs text-gray-500">Can view and edit</p>
+              </motion.button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-700">Link Expiration</label>
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 7, 30, 0].map(days => (
+                <motion.button key={days} onClick={() => setExpiryDays(days)} whileHover={{ scale: 1.05 }} className={`p-3 rounded-xl text-sm ${expiryDays === days ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700'}`}>
+                  {days === 0 ? 'Never' : `${days}d`}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-4 bg-amber-50 rounded-xl flex items-start gap-3">
+            <Shield className="w-5 h-5 text-amber-600 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-amber-800">No signup required</p>
+              <p className="text-xs text-amber-600 mt-1">Anyone with this link can access the board. The link is unique and hard to guess.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-gray-100 flex gap-3">
+          <motion.button onClick={onRegenerate} whileHover={{ scale: 1.02 }} className="flex-1 py-3 bg-gray-100 rounded-xl text-gray-700 font-medium flex items-center justify-center gap-2">
+            <RefreshCw className="w-4 h-4" /> Regenerate Link
+          </motion.button>
+          <motion.button onClick={onClose} whileHover={{ scale: 1.02 }} className="flex-1 py-3 bg-gradient-to-r from-primary-500 to-purple-500 text-white rounded-xl font-medium">
+            Done
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 // Private Notes Panel Component
-const PrivateNotesPanel = ({ 
-  user, 
-  onUpdateNotes, 
-  onAddNote,
-  onToggleResolve,
-  currentPhase 
-}: { 
-  user: User; 
-  onUpdateNotes: (notes: PrivateNote[]) => void;
-  onAddNote: (note: Omit<PrivateNote, 'id' | 'createdAt'>) => void;
-  onToggleResolve: (id: string) => void;
-  currentPhase: string;
-}) => {
+const PrivateNotesPanel = ({ user, onAddNote, onToggleResolve, currentPhase }: { user: User; onAddNote: (note: Omit<PrivateNote, 'id' | 'createdAt'>) => void; onToggleResolve: (id: string) => void; currentPhase: string; }) => {
   const [showPanel, setShowPanel] = useState(false);
   const [newNote, setNewNote] = useState('');
   const [noteType, setNoteType] = useState<PrivateNote['type']>('note');
@@ -187,7 +234,6 @@ const PrivateNotesPanel = ({
   const userNotes = user.privateNotes || [];
   const phaseNotes = userNotes.filter(n => !n.phase || n.phase === currentPhase);
   const unresolvedNotes = phaseNotes.filter(n => !n.isResolved);
-  const resolvedNotes = phaseNotes.filter(n => n.isResolved);
 
   const handleGenerateQuestions = () => {
     setIsGenerating(true);
@@ -207,11 +253,7 @@ const PrivateNotesPanel = ({
 
   return (
     <div className="relative">
-      <motion.button 
-        onClick={() => setShowPanel(!showPanel)}
-        whileHover={{ scale: 1.05 }}
-        className={`px-4 py-2 rounded-xl flex items-center gap-2 ${showPanel ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-white/10'}`}
-      >
+      <motion.button onClick={() => setShowPanel(!showPanel)} whileHover={{ scale: 1.05 }} className={`px-4 py-2 rounded-xl flex items-center gap-2 ${showPanel ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-white/10'}`}>
         <Lock className="w-4 h-4" />
         Private Notes
         {unresolvedNotes.length > 0 && <span className="w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center">{unresolvedNotes.length}</span>}
@@ -219,21 +261,11 @@ const PrivateNotesPanel = ({
 
       <AnimatePresence>
         {showPanel && (
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="absolute right-0 top-12 w-96 bg-white rounded-2xl shadow-2xl overflow-hidden z-50 max-h-[80vh] flex flex-col"
-          >
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-0 top-12 w-96 bg-white rounded-2xl shadow-2xl overflow-hidden z-50 max-h-[80vh] flex flex-col">
             <div className="p-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold flex items-center gap-2"><Lock className="w-4 h-4" /> Private Notes & Questions</h3>
-                <motion.button 
-                  onClick={handleGenerateQuestions}
-                  disabled={isGenerating}
-                  whileHover={{ scale: 1.05 }}
-                  className="px-3 py-1 bg-white/20 rounded-lg text-sm flex items-center gap-1"
-                >
+                <motion.button onClick={handleGenerateQuestions} disabled={isGenerating} whileHover={{ scale: 1.05 }} className="px-3 py-1 bg-white/20 rounded-lg text-sm flex items-center gap-1">
                   {isGenerating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                   AI Suggest
                 </motion.button>
@@ -241,63 +273,23 @@ const PrivateNotesPanel = ({
               <p className="text-sm opacity-80 mt-1">Only you can see these notes</p>
             </div>
 
-            {/* Add Note */}
             <div className="p-4 border-b border-gray-100">
               <div className="flex gap-2 mb-2">
                 {(['note', 'question', 'followup'] as const).map(type => (
-                  <button
-                    key={type}
-                    onClick={() => setNoteType(type)}
-                    className={`px-3 py-1 rounded-full text-xs capitalize ${noteType === type ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'}`}
-                  >
-                    {type}
-                  </button>
+                  <button key={type} onClick={() => setNoteType(type)} className={`px-3 py-1 rounded-full text-xs capitalize ${noteType === type ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'}`}>{type}</button>
                 ))}
               </div>
               <div className="flex gap-2">
-                <input 
-                  type="text"
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
-                  placeholder={noteType === 'question' ? 'Ask a question...' : 'Add a private note...'}
-                  className="flex-1 px-3 py-2 bg-gray-50 rounded-lg text-sm border-0 focus:ring-2 focus:ring-primary-500"
-                />
-                <motion.button 
-                  onClick={handleAddNote}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="p-2 bg-primary-500 text-white rounded-lg"
-                >
-                  <Plus className="w-5 h-5" />
-                </motion.button>
+                <input type="text" value={newNote} onChange={(e) => setNewNote(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddNote()} placeholder={noteType === 'question' ? 'Ask a question...' : 'Add a private note...'} className="flex-1 px-3 py-2 bg-gray-50 rounded-lg text-sm" />
+                <motion.button onClick={handleAddNote} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="p-2 bg-primary-500 text-white rounded-lg"><Plus className="w-5 h-5" /></motion.button>
               </div>
             </div>
 
-            {/* Notes List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-96">
-              {isGenerating && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-4">
-                  <RefreshCw className="w-6 h-6 mx-auto animate-spin text-amber-500" />
-                  <p className="text-sm text-gray-500 mt-2">Generating questions...</p>
-                </motion.div>
-              )}
-
-              {unresolvedNotes.length === 0 && resolvedNotes.length === 0 && !isGenerating && (
-                <div className="text-center py-8 text-gray-400">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>No private notes yet</p>
-                  <p className="text-sm mt-1">Click "AI Suggest" to generate questions</p>
-                </div>
-              )}
-
+              {isGenerating && (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-4"><RefreshCw className="w-6 h-6 mx-auto animate-spin text-amber-500" /><p className="text-sm text-gray-500 mt-2">Generating questions...</p></motion.div>)}
+              
               {unresolvedNotes.map(note => (
-                <motion.div 
-                  key={note.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`p-3 rounded-xl ${note.type === 'question' ? 'bg-purple-50 border border-purple-200' : note.type === 'followup' ? 'bg-amber-50 border border-amber-200' : 'bg-gray-50'}`}
-                >
+                <motion.div key={note.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`p-3 rounded-xl ${note.type === 'question' ? 'bg-purple-50 border border-purple-200' : note.type === 'followup' ? 'bg-amber-50 border border-amber-200' : 'bg-gray-50'}`}>
                   <div className="flex items-start gap-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -306,32 +298,10 @@ const PrivateNotesPanel = ({
                       </div>
                       <p className="text-sm text-gray-800">{note.content}</p>
                     </div>
-                    <motion.button 
-                      onClick={() => onToggleResolve(note.id)}
-                      whileHover={{ scale: 1.1 }}
-                      className="p-1 text-green-500 hover:bg-green-100 rounded"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                    </motion.button>
+                    <motion.button onClick={() => onToggleResolve(note.id)} whileHover={{ scale: 1.1 }} className="p-1 text-green-500 hover:bg-green-100 rounded"><CheckCircle className="w-4 h-4" /></motion.button>
                   </div>
                 </motion.div>
               ))}
-
-              {resolvedNotes.length > 0 && (
-                <div className="pt-2 border-t border-gray-100">
-                  <p className="text-xs text-gray-400 mb-2">Resolved ({resolvedNotes.length})</p>
-                  {resolvedNotes.map(note => (
-                    <motion.div 
-                      key={note.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="p-2 rounded-lg bg-gray-50 opacity-50 line-through mb-1"
-                    >
-                      <p className="text-sm text-gray-600">{note.content}</p>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
             </div>
           </motion.div>
         )}
@@ -341,21 +311,16 @@ const PrivateNotesPanel = ({
 };
 
 // User Management Component
-const UserManagement = ({ users, currentUser, onUpdateUser, onAddUser, onRemoveUser, onLogout }: { users: User[]; currentUser: User; onUpdateUser: (user: User) => void; onAddUser: (user: Omit<User, 'id' | 'lastActive' | 'privateNotes'>) => void; onRemoveUser: (id: string) => void; onLogout: () => void; }) => {
+const UserManagement = ({ users, currentUser, onAddUser, onLogout }: { users: User[]; currentUser: User; onAddUser: (user: Omit<User, 'id' | 'lastActive' | 'privateNotes'>) => void; onLogout: () => void; }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'member' as User['role'] });
-  const [editingUser, setEditingUser] = useState<string | null>(null);
-  const [editNotes, setEditNotes] = useState('');
-
   const availableColors = TEAM_COLORS.filter(c => !users.some(u => u.color === c));
 
   return (
     <div className="relative">
       <motion.button onClick={() => setShowDropdown(!showDropdown)} whileHover={{ scale: 1.05 }} className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-xl">
-        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-medium" style={{ backgroundColor: currentUser.color }}>
-          {currentUser.name.charAt(0).toUpperCase()}
-        </div>
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-medium" style={{ backgroundColor: currentUser.color }}>{currentUser.name.charAt(0).toUpperCase()}</div>
         <span className="hidden md:block text-sm font-medium">{currentUser.name}</span>
         <ChevronDown className="w-4 h-4" />
       </motion.button>
@@ -365,9 +330,7 @@ const UserManagement = ({ users, currentUser, onUpdateUser, onAddUser, onRemoveU
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden z-50">
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-medium" style={{ backgroundColor: currentUser.color }}>
-                  {currentUser.name.charAt(0).toUpperCase()}
-                </div>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-medium" style={{ backgroundColor: currentUser.color }}>{currentUser.name.charAt(0).toUpperCase()}</div>
                 <div className="flex-1">
                   <p className="font-medium text-gray-900">{currentUser.name}</p>
                   <p className="text-sm text-gray-500">{currentUser.email}</p>
@@ -385,9 +348,7 @@ const UserManagement = ({ users, currentUser, onUpdateUser, onAddUser, onRemoveU
                 {users.map(user => (
                   <div key={user.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium" style={{ backgroundColor: user.color }}>{user.name.charAt(0).toUpperCase()}</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                    </div>
+                    <div className="flex-1 min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{user.name}</p></div>
                     <span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full capitalize">{user.role}</span>
                   </div>
                 ))}
@@ -429,25 +390,23 @@ export default function MeetingCompanion() {
   const [currentUser, setCurrentUser] = useState<User>({
     id: '1', name: 'Scott Jones', email: 'scott@example.com', role: 'owner', color: '#10b981',
     personalNotes: 'Focus on AI automation and revenue growth. Client prefers data-driven decisions.',
-    privateNotes: [
-      { id: 'q1', content: 'Ask about their current marketing spend', type: 'question', phase: 'opportunities', createdAt: new Date(), isResolved: false, aiSuggested: false },
-      { id: 'q2', content: 'Follow up on the automation workflow discussion', type: 'followup', phase: 'discovery', createdAt: new Date(), isResolved: false, aiSuggested: true }
-    ],
+    privateNotes: [{ id: 'q1', content: 'Ask about their current marketing spend', type: 'question', phase: 'opportunities', createdAt: new Date(), isResolved: false, aiSuggested: false }],
     lastActive: new Date(),
     preferences: { autoTranscribe: true, notifications: true, theme: 'dark', defaultView: 'grid' }
   });
 
   const [users, setUsers] = useState<User[]>([currentUser]);
-  const [currentBoard, setCurrentBoard] = useState({ id: 'board-1', name: 'Q1 Strategy Planning', teamId: 'team-1', ownerId: '1', sharedWith: ['1'], visualNodes: [], createdAt: new Date(), updatedAt: new Date() });
+  const [currentBoard, setCurrentBoard] = useState<Board>({
+    id: 'board-1', name: 'Q1 Strategy Planning', teamId: 'team-1', ownerId: '1', sharedWith: ['1'], visualNodes: [], createdAt: new Date(), updatedAt: new Date(),
+    magicLink: undefined, magicLinkPermissions: 'edit'
+  });
+  const [showMagicLink, setShowMagicLink] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [audioLevel, setAudioLevel] = useState(0);
   const [sessionStart, setSessionStart] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [currentPhase, setCurrentPhase] = useState(0);
   const [completedPhases, setCompletedPhases] = useState<number[]>([]);
-
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   useEffect(() => {
     if (sessionStart) {
@@ -457,13 +416,7 @@ export default function MeetingCompanion() {
   }, [sessionStart]);
 
   const formatTime = (s: number) => Math.floor(s / 60) + ':' + (s % 60).toString().padStart(2, '0');
-
   const startSession = () => { setSessionStart(new Date()); setCurrentPhase(0); setCompletedPhases([]); setShowOnboarding(false); };
-
-  const handleUpdateUser = (user: User) => {
-    setUsers(prev => prev.map(u => u.id === user.id ? user : u));
-    if (user.id === currentUser.id) setCurrentUser(user);
-  };
 
   const handleAddUser = (user: Omit<User, 'id' | 'lastActive' | 'privateNotes'>) => {
     const newUser = { ...user, id: Date.now().toString(), lastActive: new Date(), privateNotes: [] };
@@ -472,13 +425,19 @@ export default function MeetingCompanion() {
 
   const handleAddPrivateNote = (note: Omit<PrivateNote, 'id' | 'createdAt'>) => {
     const newNote = { ...note, id: `note-${Date.now()}`, createdAt: new Date() };
-    const updatedUser = { ...currentUser, privateNotes: [...(currentUser.privateNotes || []), newNote] };
-    handleUpdateUser(updatedUser);
+    setCurrentUser(prev => ({ ...prev, privateNotes: [...(prev.privateNotes || []), newNote] }));
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, privateNotes: [...(u.privateNotes || []), newNote] } : u));
   };
 
   const handleToggleNoteResolve = (noteId: string) => {
     const updatedNotes = currentUser.privateNotes?.map(n => n.id === noteId ? { ...n, isResolved: !n.isResolved } : n) || [];
-    handleUpdateUser({ ...currentUser, privateNotes: updatedNotes });
+    setCurrentUser(prev => ({ ...prev, privateNotes: updatedNotes }));
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, privateNotes: updatedNotes } : u));
+  };
+
+  const handleRegenerateLink = () => {
+    const { link } = generateMagicLink(currentBoard.id);
+    setCurrentBoard(prev => ({ ...prev, magicLink: link }));
   };
 
   const handleLogout = () => { setShowOnboarding(true); setSessionStart(null); };
@@ -501,7 +460,7 @@ export default function MeetingCompanion() {
               <Rocket className="w-10 h-10 text-white" />
             </motion.div>
             <h1 className="text-3xl font-bold mb-2">Strategic Canvas</h1>
-            <p className="text-gray-400">Team collaboration with private notes & AI questions</p>
+            <p className="text-gray-400">Team collaboration with magic link sharing</p>
           </div>
           <div className="space-y-4">
             <div className="p-4 bg-white/5 rounded-xl flex items-center gap-3">
@@ -517,6 +476,10 @@ export default function MeetingCompanion() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-gray-900 overflow-hidden">
+      <AnimatePresence>
+        {showMagicLink && <MagicLinkModal board={currentBoard} onClose={() => setShowMagicLink(false)} onRegenerate={handleRegenerateLink} />}
+      </AnimatePresence>
+
       <motion.header initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative z-20 px-6 py-4">
         <div className="max-w-full mx-auto">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
@@ -530,46 +493,4 @@ export default function MeetingCompanion() {
             <div className="flex items-center gap-3">
               <div className="flex -space-x-2">
                 {users.slice(0, 4).map(user => (
-                  <div key={user.id} className="w-8 h-8 rounded-full border-2 border-gray-900 flex items-center justify-center text-white text-xs font-medium" style={{ backgroundColor: user.color }} title={user.name}>{user.name.charAt(0).toUpperCase()}</div>
-                ))}
-              </div>
-              <PrivateNotesPanel user={currentUser} onUpdateNotes={() => {}} onAddNote={handleAddPrivateNote} onToggleResolve={handleToggleNoteResolve} currentPhase={MEETING_PHASES[currentPhase].id} />
-              <UserManagement users={users} currentUser={currentUser} onUpdateUser={handleUpdateUser} onAddUser={handleAddUser} onRemoveUser={() => {}} onLogout={handleLogout} />
-            </div>
-          </div>
-          <div className="flex items-center gap-2 px-4 py-3 bg-white/10 backdrop-blur-xl rounded-2xl overflow-x-auto">
-            {MEETING_PHASES.map((phase, index) => (
-              <div key={phase.id} className="flex items-center">
-                <motion.button onClick={() => setCurrentPhase(index)} whileHover={{ scale: 1.05 }} className={`px-4 py-2 rounded-xl transition-all ${index === currentPhase ? 'bg-gradient-to-r from-primary-500 to-purple-500 text-white' : completedPhases.includes(index) ? 'bg-green-500/20 text-green-300' : 'bg-white/5 text-gray-400'}`}>
-                  <span className="text-lg mr-2">{phase.icon}</span>
-                  <span className="hidden md:inline font-medium text-sm">{phase.name}</span>
-                </motion.button>
-                {index < MEETING_PHASES.length - 1 && <div className={`w-8 h-0.5 mx-2 ${completedPhases.includes(index) ? 'bg-green-500' : 'bg-white/10'}`} />}
-              </div>
-            ))}
-          </div>
-        </div>
-      </motion.header>
-
-      <div className="relative z-10 flex-1 p-6">
-        <div className="max-w-full mx-auto">
-          <div className="grid lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-1 space-y-6">
-              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-white/10 backdrop-blur-xl rounded-2xl p-6">
-                <div className="flex items-center gap-3 mb-4"><span className="text-3xl">{MEETING_PHASES[currentPhase].icon}</span><div><h2 className="text-xl font-bold">{MEETING_PHASES[currentPhase].name}</h2><p className="text-sm text-gray-400">{MEETING_PHASES[currentPhase].subtitle}</p></div></div>
-                <div className="space-y-3">
-                  {MEETING_PHASES[currentPhase].prompts.map((prompt, i) => (<motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.1 }} className="flex items-start gap-2 text-sm"><ChevronRight className="w-4 h-4 text-primary-400 mt-0.5" /><span className="text-gray-300">{prompt}</span></motion.div>))}
-                </div>
-              </motion.div>
-            </div>
-            <div className="lg:col-span-3">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-purple-500/5 backdrop-blur-3xl rounded-3xl border border-white/10 overflow-hidden flex items-center justify-center">
-                <p className="text-gray-400">Canvas area</p>
-              </motion.div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+                  <div key={user.id} className="w-8 h-8 rounded-full border-2 border-gray-900 flex items-center justify-center text-white text-xs font-medium" style={{ backgroundColor: user.color }} title={user
