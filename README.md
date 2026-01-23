@@ -1,102 +1,95 @@
-# Strategic Canvas
+# Meeting Companion
 
-AI-powered business planning whiteboard with voice input for strategic thinking, opportunity assessment, and business model development.
+AI-powered meeting companion for client engagements with real-time whiteboard building, opportunity mapping, and structured onboarding workflows.
 
-## Features
+## 🎯 Key Features
 
-### 🎨 Visual Planning
-- Drag-and-drop whiteboard for business strategy
-- Multiple node types: stickies, cards, text blocks
-- Color-coded by status (opportunities, risks, ideas, tasks, milestones)
-- Connectors between related items
+### Real-Time Meeting Companion
+- **Live Context Capture** - Record key points during meetings
+- **Audio Recording** - Record sessions with visual level indicator
+- **Quick Capture Buttons** - Rapidly log opportunities, risks, and action items
+- **Live Context Stream** - See all captured items in real-time
 
-### 🎤 Voice Input (AI-Powered)
-Record your ideas verbally and watch them transform into structured whiteboard nodes!
+### Connected Opportunity Mapping
+- **Auto-Link Opportunities → Next Steps** - One click connects opportunities to related tasks
+- **Visual Relationship Map** - See the connection between strategy and execution
+- **Keyword-Based Linking** - AI detects relationships and creates connectors automatically
 
-**How it works:**
-1. Click the **Voice Input** button
-2. Speak naturally about your business
-3. AI automatically:
-   - Transcribes your speech
-   - Categorizes items (opportunity, risk, idea, task, milestone)
-   - Extracts priorities (high, medium, low)
-   - Identifies monetary values
-   - Generates relevant tags
-   - Creates structured nodes on the canvas
+### Client Onboarding Workflows
+**Discovery Session Structure:**
+1. **Introduction (15 min)** - Business background, challenges, goals
+2. **Discovery (20 min)** - Current workflows, tools, inefficiencies
+3. **Opportunities (20 min)** - Top opportunities, values, risks
+4. **Next Steps (15 min)** - Priorities, resources, follow-up schedule
 
-**Example voice prompts:**
-- "Our main opportunity is targeting small businesses with $5-10M revenue"
-- "Key risk is competition from ServiceTitan"
-- "I want to build custom AI agents"
-- "First milestone: reach $75K monthly recurring revenue"
-- "Revenue will be $10K per month retainers"
+### Meeting Stats Dashboard
+- Real-time session timer
+- Progress through onboarding phases
+- Count of opportunities, actions, and decisions captured
+- Session status (active/paused/completed)
 
-### 🤖 AI-Powered Insights
-- **Automatic Analysis** - Get insights on opportunities vs risks
-- **Recommendations** - AI suggests next steps
-- **Priority Extraction** - Automatically identifies high-priority items
-- **Value Detection** - Captures financial figures from speech
+## 🎤 Voice Recording
+- Browser-native audio recording
+- Visual audio level feedback
+- Auto-transcription ready (Whisper API integration)
 
-### 📋 Smart Templates
-- **AI Consulting Business Canvas** - Complete business model
-- **SWOT Analysis** - Strategy matrix
-- **Opportunity Matrix** - Prioritize by impact/effort
-- **Business Mind Map** - Visual brainstorming
-- **Project Kanban** - Task management
-
-### 💾 Work Saving
-- Auto-saves to your browser
-- Export/Import as JSON files
-- Share whiteboards easily
-
-## Getting Started
+## 🚀 Quick Start
 
 ```bash
+cd ~/Documents/GitHub/strategic-canvas
 npm install
 npm run dev
 ```
 
 Open http://localhost:5176
 
-## Voice Input Setup
+## Usage Workflow
 
-### Option 1: Web Speech API (No API Key Required)
-- Works in Chrome, Edge, Safari
-- No configuration needed
-- Click "Voice Input" and speak
+### 1. Start New Client Meeting
+- Enter client name
+- Click "Start Discovery Session"
+- Meeting timer begins
 
-### Option 2: OpenAI Whisper (Higher Accuracy)
-For production use, add your OpenAI API key:
+### 2. During the Meeting
+- Click **Record** to start audio recording
+- Type key points in Quick Capture
+- Click **Opportunity / Risk / Action** to categorize
+- Watch nodes appear on the whiteboard automatically
 
-```bash
-# Create .env file
-echo "OPENAI_API_KEY=your-key-here" > .env
-```
+### 3. After Discussion
+- Click **Map Connections** to auto-link opportunities → tasks
+- See visual connectors between strategy and execution
+- Export meeting for client records
 
-The app will automatically use Whisper for more accurate transcription.
+## Meeting Panel
+
+| Section | Purpose |
+|---------|---------|
+| Phase Progress | Track where you are in the onboarding workflow |
+| Quick Capture | Rapidly log items during conversation |
+| Live Context | See all captured items in real-time |
+| Stats | Count of opportunities, actions, decisions |
+
+## Export Options
+- JSON export with all nodes, connectors, and context
+- Include meeting metadata (client name, duration, session stats)
+- Import later for follow-up meetings
 
 ## Tech Stack
-
-- React 18
-- TypeScript
-- Vite
-- Tailwind CSS
-- Web Speech API / OpenAI Whisper
+- React 18 + TypeScript
+- Vite + Tailwind CSS
+- Web Speech API ready
+- localStorage persistence
 
 ## Project Structure
-
 ```
 strategic-canvas/
 ├── src/
-│   ├── App.tsx           # Main application with voice & whiteboard
-│   ├── main.tsx          # Entry point
-│   ├── index.css         # Styles
+│   ├── App.tsx           # Meeting Companion with real-time features
 │   ├── types/
-│   │   └── whiteboard.ts # TypeScript definitions
+│   │   └── whiteboard.ts # TypeScript interfaces
 │   └── lib/
-│       └── whiteboard-engine.ts # Core logic
+│       └── whiteboard-engine.ts
 ├── index.html
-├── package.json
-├── vite.config.ts
 └── README.md
 ```
