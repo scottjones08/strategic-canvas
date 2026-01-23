@@ -1,92 +1,227 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Plus, Trash2, Move, Mic, MicOff, Volume2, Play, Pause, RefreshCw,
-  Sparkles, Users, Clock, Target, Zap, MessageSquare, CheckCircle,
-  ZoomIn, ZoomOut, Download, Upload, Link2, ArrowRight, ChevronRight, X
+  Mic, MicOff, Sparkles, Target, Clock, Brain, 
+  Rocket, Download, ChevronRight, X, ArrowRight, CheckCircle
 } from 'lucide-react';
-import type { Whiteboard, WhiteboardNode, NodeStatus } from './types/whiteboard';
-import { whiteboardEngine, BUSINESS_TEMPLATES } from './lib/whiteboard-engine';
-import { STATUS_COLORS } from './types/whiteboard';
 
-const STATUS_OPTIONS: { id: NodeStatus; label: string; color: string }[] = [
-  { id: 'opportunity', label: 'Opportunity', color: '#10b981' },
-  { id: 'risk', label: 'Risk', color: '#ef4444' },
-  { id: 'idea', label: 'Idea', color: '#f59e0b' },
-  { id: 'task', label: 'Task', color: '#3b82f6' },
-  { id: 'milestone', label: 'Milestone', color: '#8b5cf6' },
-  { id: 'note', label: 'Note', color: '#6b7280' },
-];
-
-interface MeetingSession {
-  id: string;
-  name: string;
-  clientName: string;
-  startTime: string;
-  status: 'active' | 'paused' | 'completed';
-  contextLog: ContextEntry[];
-  opportunities: string[];
-  actionItems: string[];
-  decisions: string[];
-}
-
+// Types
 interface ContextEntry {
   id: string;
   timestamp: string;
-  type: 'topic' | 'opportunity' | 'risk' | 'decision' | 'action' | 'note';
+  type: 'opportunity' | 'risk' | 'idea' | 'action' | 'milestone';
   content: string;
-  speaker: 'client' | 'scott';
-  relatedNodeId?: string;
-  tags: string[];
+  speaker: 'client' | 'host';
+  enrichedContent?: string;
 }
 
-const CLIENT_ONBOARDING_PHASES = [
-  { name: 'Introduction', duration: 15, prompts: ['Business background', 'Current challenges', 'Goals'] },
-  { name: 'Discovery', duration: 20, prompts: ['Current workflows', 'Tools & systems', 'Time sinks'] },
-  { name: 'Opportunities', duration: 20, prompts: ['Top opportunities', 'Estimated values', 'Risks'] },
-  { name: 'Next Steps', duration: 15, prompts: ['First priorities', 'Available resources', 'Follow-up schedule'] }
+interface VisualNode {
+  id: string;
+  type: 'opportunity' | 'risk' | 'action' | 'milestone';
+  x: number;
+  y: number;
+  content: string;
+  enrichedContent: string;
+  phase: string;
+}
+
+interface MeetingPhase {
+  id: string;
+  name: string;
+  subtitle: string;
+  icon: string;
+  duration: number;
+  prompts: string[];
+}
+
+const MEETING_PHASES: MeetingPhase[] = [
+  { id: 'intro', name: 'Introduction', subtitle: 'Understanding your business', icon: '👋', duration: 15, prompts: ['Tell me about your business', 'What does success look like?', 'What are you most proud of?'] },
+  { id: 'discovery', name: 'Discovery', subtitle: 'Current state & challenges', icon: '🔍', duration: 20, prompts: ['Walk me through your workflow', 'Where are bottlenecks?', 'What tools do you use?'] },
+  { id: 'opportunities', name: 'Opportunities', subtitle: 'Growth possibilities', icon: '💡', duration: 25, prompts: ['Top 3 opportunities?', 'Doubling revenue?', 'What holds you back?'] },
+  { id: 'strategy', name: 'Strategy', subtitle: 'Building action plan', icon: '🎯', duration: 20, prompts: ['First priority?', 'Available resources?', 'Success metrics?'] },
+  { id: 'next-steps', name: 'Next Steps', subtitle: 'Committing to action', icon: '🚀', duration: 10, prompts: ['This week commitment?', 'Follow up date?', 'Final thoughts?'] }
 ];
 
+// Animated Background
+const FloatingParticles = () => {
+  const particles = Array.from({ length: 25 }, (_, i) => ({
+    id: i, x: Math.random() * 100, y: Math.random() * 100,
+    size: Math.random() * 6 + 2, duration: Math.random() * 30 + 20, delay: Math.random() * 5
+  }));
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {particles.map((p) => (
+        <motion.div key={p.id} className="absolute rounded-full bg-gradient-to-r from-primary-400/30 to-purple-500/30 blur-sm"
+          style={{ left: `${p.x}%`, top: `${p.y}%`, width: p.size, height: p.size }}
+          animate={{ y: [0, -150, 0], opacity: [0, 0.6, 0] }}
+          transition={{ duration: p.duration, repeat: Infinity, delay: p.delay, ease: "linear" }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// Animated Icons
+const OpportunityIcon = () => (
+  <svg viewBox="0 0 60 60" className="w-full h-full"><defs><linearGradient id="og" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#10b981"/><stop offset="100%" stopColor="#34d399"/></linearGradient></defs>
+    <motion.circle cx="30" cy="30" r="25" fill="url(#og)" initial={{ scale: 0 }} animate={{ scale: [0, 1.1, 1] }} transition={{ duration: 0.5 }}/>
+    <motion.path d="M20 30 L27 37 L40 22" stroke="white" strokeWidth="3" fill="none" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.3, delay: 0.3 }}/>
+  </svg>
+);
+
+const RiskIcon = () => (
+  <svg viewBox="0 0 60 60" className="w-full h-full"><defs><linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#ef4444"/><stop offset="100%" stopColor="#f87171"/></linearGradient></defs>
+    <motion.polygon points="30,5 55,50 5,50" fill="url(#rg)" initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ duration: 0.5, type: "spring" }}/>
+    <motion.text x="30" y="42" textAnchor="middle" fill="white" fontSize="24" fontWeight="bold">!</motion.text>
+  </svg>
+);
+
+const ActionIcon = () => (
+  <svg viewBox="0 0 60 60" className="w-full h-full"><defs><linearGradient id="ag" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#3b82f6"/><stop offset="100%" stopColor="#60a5fa"/></linearGradient></defs>
+    <motion.rect x="8" y="8" width="44" height="44" rx="8" fill="url(#ag)" initial={{ scale: 0 }} animate={{ scale: [0, 1.1, 1] }} transition={{ duration: 0.4 }}/>
+    <motion.line x1="18" y1="22" x2="42" y2="22" stroke="white" strokeWidth="3" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}/>
+    <motion.line x1="18" y1="30" x2="35" y2="30" stroke="white" strokeWidth="3" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 0.1 }}/>
+    <motion.line x1="18" y1="38" x2="28" y2="38" stroke="white" strokeWidth="3" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 0.2 }}/>
+  </svg>
+);
+
+const MilestoneIcon = () => (
+  <svg viewBox="0 0 60 60" className="w-full h-full"><defs><linearGradient id="mg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#8b5cf6"/><stop offset="100%" stopColor="#a78bfa"/></linearGradient></defs>
+    <motion.path d="M30 5 L50 15 L50 40 C50 50 30 55 30 55 C30 55 10 50 10 40 L10 15 Z" fill="url(#mg)" initial={{ scale: 0 }} animate={{ scale: [0, 1.1, 1] }} transition={{ duration: 0.5 }}/>
+    <motion.rect x="22" y="25" width="16" height="20" fill="white" rx="2" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 0.3 }}/>
+  </svg>
+);
+
+// Animated Node Card
+const AnimatedNode = ({ node, index }: { node: VisualNode; index: number }) => {
+  const colors: Record<string, string> = {
+    opportunity: 'from-green-500/90 to-emerald-600/90',
+    risk: 'from-red-500/90 to-red-600/90',
+    action: 'from-blue-500/90 to-blue-600/90',
+    milestone: 'from-purple-500/90 to-purple-600/90'
+  };
+  const icons: Record<string, JSX.Element> = { opportunity: <OpportunityIcon />, risk: <RiskIcon />, action: <ActionIcon />, milestone: <MilestoneIcon /> };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0, y: 100, rotate: -5 }}
+      animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
+      transition={{ duration: 0.8, delay: index * 0.15, type: "spring", stiffness: 150, damping: 15 }}
+      whileHover={{ scale: 1.05, y: -8 }}
+      className={`absolute cursor-pointer rounded-2xl p-5 bg-gradient-to-br ${colors[node.type]} text-white shadow-2xl backdrop-blur-xl overflow-hidden`}
+      style={{ left: node.x, top: node.y, width: '300px' }}
+    >
+      <div className="absolute inset-0 opacity-20"><div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '15px 15px' }} /></div>
+      <motion.div className="absolute inset-0 rounded-2xl" animate={{ boxShadow: ['inset 0 0 0 2px rgba(255,255,255,0.2)', 'inset 0 0 0 2px rgba(255,255,255,0.4)', 'inset 0 0 0 2px rgba(255,255,255,0.2)'] }} transition={{ duration: 2, repeat: Infinity }} />
+      <div className="relative z-10 flex gap-4">
+        <div className="w-14 h-14 flex-shrink-0">{icons[node.type]}</div>
+        <div className="flex-1 min-w-0">
+          <motion.div className="text-xs uppercase tracking-wider opacity-80 mb-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>{node.type}</motion.div>
+          <h3 className="font-semibold text-lg leading-tight mb-2">{node.content}</h3>
+          <p className="text-sm opacity-90">{node.enrichedContent}</p>
+        </div>
+      </div>
+      <motion.div className="absolute -right-1 -bottom-1 w-6 h-6 bg-white/30 rounded-full" animate={{ scale: [1, 1.5, 1] }} transition={{ duration: 2, repeat: Infinity }} />
+    </motion.div>
+  );
+};
+
+// Progress Flow
+const ProgressFlow = ({ phases, currentPhase, completedPhases, onPhaseClick }: { phases: MeetingPhase[], currentPhase: number, completedPhases: number[], onPhaseClick: (i: number) => void }) => (
+  <div className="flex items-center justify-between px-4 py-3 bg-white/10 backdrop-blur-xl rounded-2xl overflow-x-auto">
+    {phases.map((phase, index) => {
+      const isCompleted = completedPhases.includes(index);
+      const isCurrent = index === currentPhase;
+      return (
+        <div key={phase.id} className="flex items-center flex-shrink-0">
+          <motion.button onClick={() => onPhaseClick(index)} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+            className={`relative flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
+              isCurrent ? 'bg-gradient-to-r from-primary-500 to-purple-500 text-white shadow-lg' :
+              isCompleted ? 'bg-green-500/20 text-green-300' : 'bg-white/5 text-gray-400'
+            }`}
+          >
+            <span className="text-lg">{phase.icon}</span>
+            <span className="hidden sm:block font-medium text-sm">{phase.name}</span>
+            {isCompleted && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center"><CheckCircle className="w-2.5 h-2.5 text-white" /></motion.div>}
+            {isCurrent && <motion.div className="absolute inset-0 rounded-xl border-2 border-white/30" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 2, repeat: Infinity }} />}
+          </motion.button>
+          {index < phases.length - 1 && <motion.div className={`w-6 sm:w-10 h-0.5 mx-1 sm:mx-2 ${isCompleted ? 'bg-green-500' : 'bg-white/10'}`} />}
+        </div>
+      );
+    })}
+  </div>
+);
+
+// Quick Capture
+const QuickCapture = ({ onCapture, recording }: { onCapture: (text: string, type: string) => void; recording: boolean }) => {
+  const [text, setText] = useState('');
+  const [selectedType, setSelectedType] = useState('opportunity');
+  const types = [
+    { id: 'opportunity', label: 'Opportunity', color: 'bg-green-500', icon: '💡' },
+    { id: 'risk', label: 'Risk', color: 'bg-red-500', icon: '⚠️' },
+    { id: 'action', label: 'Action', color: 'bg-blue-500', icon: '✅' },
+    { id: 'milestone', label: 'Milestone', color: 'bg-purple-500', icon: '🎯' },
+  ];
+  const handleSubmit = () => { if (text.trim()) { onCapture(text, selectedType); setText(''); } };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/10 backdrop-blur-xl rounded-2xl p-6">
+      <AnimatePresence>{recording && <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-4 p-3 bg-red-500/20 rounded-xl flex items-center gap-2"><motion.div className="w-3 h-3 bg-red-500 rounded-full" animate={{ scale: [1, 1.3, 1] }} /><span className="text-red-300 font-medium">Recording in progress...</span></motion.div>}</AnimatePresence>
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">{types.map((type) => (<motion.button key={type.id} onClick={() => setSelectedType(type.id)} whileTap={{ scale: 0.95 }} className={`flex-shrink-0 px-4 py-2 rounded-xl flex flex-col items-center gap-1 ${selectedType === type.id ? `${type.color} text-white shadow-lg` : 'bg-white/5 text-gray-400'}`}><span>{type.icon}</span><span className="text-xs font-medium">{type.label}</span></motion.button>))}</div>
+      <div className="flex gap-3">
+        <input type="text" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSubmit()} placeholder="Capture insights..." className="flex-1 px-4 py-3 bg-white/10 rounded-xl border-0 focus:ring-2 focus:ring-primary-500 outline-none placeholder-gray-400" />
+        <motion.button onClick={handleSubmit} whileTap={{ scale: 0.95 }} className="px-6 py-3 bg-gradient-to-r from-primary-500 to-purple-500 rounded-xl font-medium shadow-lg flex items-center gap-2"><Sparkles className="w-4 h-4" />Capture</motion.button>
+      </div>
+    </motion.div>
+  );
+};
+
+// Live Context Stream
+const LiveContextStream = ({ entries }: { entries: ContextEntry[] }) => (
+  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="bg-white/10 backdrop-blur-xl rounded-2xl overflow-hidden">
+    <div className="p-4 border-b border-white/10 flex items-center gap-2"><Brain className="w-5 h-5 text-primary-400" /><h3 className="font-semibold">Live Insights</h3><motion.div className="ml-auto w-2 h-2 bg-green-500 rounded-full" animate={{ scale: [1, 1.5, 1] }} /></div>
+    <div className="max-h-80 overflow-y-auto">
+      <AnimatePresence mode="popLayout">
+        {entries.map((entry) => (
+          <motion.div key={entry.id} layout initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className={`p-4 border-b border-white/5 ${entry.type === 'opportunity' ? 'bg-green-500/10' : entry.type === 'risk' ? 'bg-red-500/10' : entry.type === 'action' ? 'bg-blue-500/10' : 'bg-white/5'}`}>
+            <div className="flex items-start gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${entry.type === 'opportunity' ? 'bg-green-500/20' : entry.type === 'risk' ? 'bg-red-500/20' : entry.type === 'action' ? 'bg-blue-500/20' : 'bg-white/10'}`}>{entry.type === 'opportunity' ? '💡' : entry.type === 'risk' ? '⚠️' : entry.type === 'action' ? '✅' : '🎯'}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1"><span className={`text-xs px-2 py-0.5 rounded-full ${entry.type === 'opportunity' ? 'bg-green-500/30 text-green-300' : entry.type === 'risk' ? 'bg-red-500/30 text-red-300' : 'bg-blue-500/30 text-blue-300'}`}>{entry.type.toUpperCase()}</span><span className="text-xs text-gray-400">{new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>
+                <p className="text-white">{entry.content}</p>
+                {entry.enrichedContent && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-gray-400 mt-2 italic">✨ {entry.enrichedContent}</motion.p>}
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+      {entries.length === 0 && <div className="p-8 text-center text-gray-400"><Brain className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>Start capturing insights</p></div>}
+    </div>
+  </motion.div>
+);
+
+// Main Component
 export default function MeetingCompanion() {
-  const [whiteboards, setWhiteboards] = useState<Whiteboard[]>([]);
-  const [currentWb, setCurrentWb] = useState<Whiteboard | null>(null);
-  const [selectedNode, setSelectedNode] = useState<WhiteboardNode | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [showAI, setShowAI] = useState(false);
-  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showMeetingPanel, setShowMeetingPanel] = useState(true);
-  const [newWbName, setNewWbName] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState('blank');
-  
-  // Meeting Session State
-  const [activeSession, setActiveSession] = useState<MeetingSession | null>(null);
   const [currentPhase, setCurrentPhase] = useState(0);
-  const [elapsedTime, setElapsedTime] = useState(0);
+  const [completedPhases, setCompletedPhases] = useState<number[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
-  const [liveContext, setLiveContext] = useState<ContextEntry[]>([]);
-  const [quickCapture, setQuickCapture] = useState('');
+  const [contextEntries, setContextEntries] = useState<ContextEntry[]>([]);
+  const [visualNodes, setVisualNodes] = useState<VisualNode[]>([]);
   const [clientName, setClientName] = useState('');
+  const [sessionStart, setSessionStart] = useState<Date | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [showOnboarding, setShowOnboarding] = useState(true);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const canvasRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
-  const sessionTimerRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    setWhiteboards(whiteboardEngine.getAllWhiteboards());
-  }, []);
-
-  useEffect(() => {
-    if (activeSession?.status === 'active') {
-      sessionTimerRef.current = setInterval(() => setElapsedTime(t => t + 1), 1000);
+    if (sessionStart) {
+      const interval = setInterval(() => setElapsedTime(Math.floor((Date.now() - sessionStart.getTime()) / 1000)), 1000);
+      return () => clearInterval(interval);
     }
-    return () => { if (sessionTimerRef.current) clearInterval(sessionTimerRef.current); };
-  }, [activeSession?.status]);
+  }, [sessionStart]);
 
   useEffect(() => {
     if (isRecording) {
@@ -105,335 +240,133 @@ export default function MeetingCompanion() {
         animationRef.current = requestAnimationFrame(updateLevel);
       };
       animationRef.current = requestAnimationFrame(updateLevel);
-    } else {
-      setAudioLevel(0);
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    }
+    } else { setAudioLevel(0); if (animationRef.current) cancelAnimationFrame(animationRef.current); }
     return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
   }, [isRecording]);
 
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
-  const createWhiteboard = () => {
-    if (!newWbName.trim()) return;
-    const wb = whiteboardEngine.createWhiteboard(newWbName, undefined, selectedTemplate);
-    setWhiteboards(whiteboardEngine.getAllWhiteboards());
-    setCurrentWb(wb);
-    setShowCreateModal(false);
-    setNewWbName('');
+  const startSession = () => { if (!clientName.trim()) return; setSessionStart(new Date()); setCurrentPhase(0); setCompletedPhases([]); setContextEntries([]); setVisualNodes([]); setShowOnboarding(false); };
+  const startRecording = async () => { try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); mediaRecorderRef.current = new MediaRecorder(stream); mediaRecorderRef.current.start(); setIsRecording(true); } catch (e) { console.error('Failed:', e); } };
+  const stopRecording = () => { if (mediaRecorderRef.current && isRecording) { mediaRecorderRef.current.stop(); mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop()); setIsRecording(false); } };
+
+  const enrichments: Record<string, string[]> = {
+    opportunity: ['Strategic priority for Q1.', 'Aligns with automation goals.', 'Could significantly impact revenue.'],
+    risk: ['Mitigation recommended.', 'Early detection minimizes impact.', 'Proactive monitoring required.'],
+    action: ['Supports implementation.', 'First sprint completion.', 'Assignee to be determined.'],
+    milestone: ['Marks key progress.', 'Unlocks capabilities.', 'On track for Q2.']
   };
 
-  const startMeetingSession = () => {
-    if (!currentWb || !clientName) return;
-    const session: MeetingSession = {
-      id: `session-${Date.now()}`,
-      name: 'Discovery Session',
-      clientName,
-      startTime: new Date().toISOString(),
-      status: 'active',
-      contextLog: [],
-      opportunities: [],
-      actionItems: [],
-      decisions: []
-    };
-    setActiveSession(session);
-    setElapsedTime(0);
-    setLiveContext([]);
-    setCurrentPhase(0);
-  };
+  const enrichContent = (type: string, content: string) => { const opts = enrichments[type] || []; return opts[Math.floor(Math.random() * opts.length)] || ''; };
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
-      chunksRef.current = [];
-      mediaRecorderRef.current.ondataavailable = e => e.data.size > 0 && chunksRef.current.push(e.data);
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-    } catch (e) { console.error('Failed to start recording:', e); }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
-      setIsRecording(false);
+  const captureInsight = (content: string, type: string) => {
+    const entry: ContextEntry = { id: `ctx-${Date.now()}`, timestamp: new Date().toISOString(), type: type as ContextEntry['type'], content, speaker: 'host', enrichedContent: enrichContent(type, content) };
+    setContextEntries(prev => [entry, ...prev]);
+    
+    const node: VisualNode = { id: `node-${Date.now()}`, type: type as VisualNode['type'], x: 100 + Math.random() * 500, y: 100 + Math.random() * 200, content, enrichedContent: entry.enrichedContent || '', phase: MEETING_PHASES[currentPhase].name };
+    setVisualNodes(prev => [...prev, node]);
+    
+    if (type === 'opportunity') {
+      setTimeout(() => { setVisualNodes(prev => [...prev, { ...node, id: `${node.id}-a`, type: 'action', x: node.x + 80, y: node.y + 60, content: `Implement: ${content.slice(0, 40)}...`, enrichedContent: enrichments.action[0] }]); }, 600);
+      setTimeout(() => { setVisualNodes(prev => [...prev, { ...node, id: `${node.id}-b`, type: 'milestone', x: node.x - 40, y: node.y + 120, content: `Complete: ${content.slice(0, 35)} by Q2`, enrichedContent: enrichments.milestone[0] }]); }, 900);
     }
   };
 
-  const addContextEntry = (type: ContextEntry['type'], content: string, speaker: ContextEntry['speaker'] = 'client') => {
-    if (!currentWb || !activeSession) return;
-    const entry: ContextEntry = { id: `ctx-${Date.now()}`, timestamp: new Date().toISOString(), type, content, speaker, tags: [] };
-    const updated = { ...activeSession, contextLog: [...activeSession.contextLog, entry] };
-    
-    if (type === 'opportunity') updated.opportunities.push(content);
-    if (type === 'action') updated.actionItems.push(content);
-    if (type === 'decision') updated.decisions.push(content);
-    
-    setActiveSession(updated);
-    setLiveContext(prev => [entry, ...prev]);
-    
-    // Auto-create node
-    if ((type === 'opportunity' || type === 'action' || type === 'risk') && currentWb) {
-      const status = type === 'opportunity' ? 'opportunity' : type === 'risk' ? 'risk' : 'task';
-      const node = whiteboardEngine.addNode(currentWb.id, {
-        type: 'card', status,
-        x: 100 + Math.random() * 400, y: 100 + Math.random() * 300,
-        width: 240, height: 120,
-        title: content.slice(0, 35),
-        content,
-        tags: [],
-        color: STATUS_COLORS[status].bg,
-        textColor: STATUS_COLORS[status].text
-      });
-      entry.relatedNodeId = node.id;
-      setCurrentWb(whiteboardEngine.getWhiteboard(currentWb.id)!);
-    }
-  };
+  const nextPhase = () => { if (!completedPhases.includes(currentPhase)) setCompletedPhases(prev => [...prev, currentPhase]); if (currentPhase < MEETING_PHASES.length - 1) setCurrentPhase(p => p + 1); };
+  const prevPhase = () => { if (currentPhase > 0) setCurrentPhase(p => p - 1); };
 
-  const handleQuickCapture = () => {
-    if (!quickCapture.trim()) return;
-    addContextEntry('note', quickCapture, 'client');
-    setQuickCapture('');
-  };
+  const stats = { opportunities: contextEntries.filter(e => e.type === 'opportunity').length, risks: contextEntries.filter(e => e.type === 'risk').length, actions: contextEntries.filter(e => e.type === 'action').length, milestones: contextEntries.filter(e => e.type === 'milestone').length };
 
-  const generateOpportunityMap = () => {
-    if (!currentWb) return;
-    const opps = currentWb.nodes.filter(n => n.status === 'opportunity');
-    const tasks = currentWb.nodes.filter(n => n.status === 'task');
-    
-    opps.forEach(opp => {
-      tasks.forEach(task => {
-        const exists = currentWb.connectors.some(c => c.fromNodeId === opp.id && c.toNodeId === task.id);
-        if (!exists && (opp.title.toLowerCase().split(' ').some(w => w.length > 3 && task.title.toLowerCase().includes(w)))) {
-          whiteboardEngine.addConnector(currentWb.id, { fromNodeId: opp.id, toNodeId: task.id, style: 'dashed', color: '#10b981' });
-        }
-      });
-    });
-    setCurrentWb(whiteboardEngine.getWhiteboard(currentWb.id)!);
-  };
-
-  const loadBoard = (wb: Whiteboard) => {
-    setCurrentWb(wb);
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-  };
-
-  const exportBoard = () => {
-    if (!currentWb) return;
-    const data = whiteboardEngine.exportWhiteboard(currentWb.id);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${currentWb.name.replace(/\s+/g, '-')}-meeting.json`;
-    a.click();
-  };
-
-  return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <Target className="w-8 h-8 text-purple-500" />
-              Meeting Companion
-            </h1>
-            {currentWb && <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">{currentWb.name}</span>}
-            
-            {activeSession && (
-              <div className="flex items-center gap-3 ml-4 pl-4 border-l border-gray-200">
-                <div className={`w-2 h-2 rounded-full ${activeSession.status === 'active' ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-                <span className="text-sm font-medium text-gray-700">{activeSession.clientName}</span>
-                <span className="text-sm text-gray-500 font-mono">{formatTime(elapsedTime)}</span>
-                <span className={`px-2 py-0.5 rounded text-xs ${activeSession.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{activeSession.status.toUpperCase()}</span>
-              </div>
-            )}
+  // Onboarding Screen
+  if (showOnboarding || !sessionStart) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-gray-900 flex items-center justify-center p-6">
+        <FloatingParticles />
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white/10 backdrop-blur-2xl rounded-3xl p-8 max-w-lg w-full relative z-10">
+          <div className="text-center mb-8">
+            <motion.div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-primary-400 to-purple-500 rounded-2xl flex items-center justify-center" animate={{ rotate: [0, 5, -5, 0] }} transition={{ duration: 4, repeat: Infinity }}>
+              <Rocket className="w-10 h-10 text-white" />
+            </motion.div>
+            <h1 className="text-3xl font-bold mb-2">Meeting Companion</h1>
+            <p className="text-gray-400">AI-powered strategic planning sessions</p>
           </div>
-          
-          <div className="flex items-center gap-2">
-            {!currentWb && <button onClick={() => setShowCreateModal(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"><Plus className="w-4 h-4" /> New Meeting</button>}
+          <div className="space-y-4">
+            <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Enter client name..." className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-center placeholder-gray-400" />
+            <motion.button onClick={startSession} disabled={!clientName.trim()} whileTap={{ scale: 0.98 }} className="w-full py-4 bg-gradient-to-r from-primary-500 to-purple-500 rounded-xl font-semibold shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"><Sparkles className="w-5 h-5" />Start Strategic Session</motion.button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Main Session View
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-gray-900 overflow-hidden">
+      <FloatingParticles />
+      <motion.header initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative z-20 px-6 py-4">
+        <div className="max-w-full mx-auto">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <motion.div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-purple-500 rounded-xl flex items-center justify-center" whileHover={{ scale: 1.1, rotate: 5 }}><Target className="w-6 h-6 text-white" /></motion.div>
+              <div>
+                <h1 className="text-xl font-bold">{clientName} - Strategic Session</h1>
+                <div className="flex items-center gap-2 text-sm text-gray-400"><Clock className="w-4 h-4" /><span>{formatTime(elapsedTime)}</span><span>•</span><span>{MEETING_PHASES[currentPhase].name}</span></div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <motion.button onClick={isRecording ? stopRecording : startRecording} whileTap={{ scale: 0.95 }} className={`px-4 py-2 rounded-xl flex items-center gap-2 ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gradient-to-r from-primary-500 to-purple-500'}`}>{isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}{isRecording ? 'Stop' : 'Record'}</motion.button>
+              {isRecording && <div className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-xl"><div className="w-6 h-6 bg-gradient-to-r from-green-400 to-red-500 rounded-full" style={{ transform: `scale(${0.5 + audioLevel * 0.8})` }} /></div>}
+              <motion.button whileTap={{ scale: 0.95 }} className="p-2 bg-white/10 rounded-xl"><Download className="w-5 h-5" /></motion.button>
+            </div>
+          </div>
+          <ProgressFlow phases={MEETING_PHASES} currentPhase={currentPhase} completedPhases={completedPhases} onPhaseClick={setCurrentPhase} />
+        </div>
+      </motion.header>
+
+      <div className="relative z-10 flex-1 p-6">
+        <div className="max-w-full mx-auto h-full">
+          <div className="grid lg:grid-cols-4 gap-6 h-full">
+            <div className="lg:col-span-1 space-y-6">
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-gradient-to-br from-primary-500/20 to-purple-500/20 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
+                <div className="flex items-center gap-3 mb-4"><span className="text-3xl">{MEETING_PHASES[currentPhase].icon}</span><div><h2 className="text-xl font-bold">{MEETING_PHASES[currentPhase].name}</h2><p className="text-sm text-gray-400">{MEETING_PHASES[currentPhase].subtitle}</p></div></div>
+                <div className="space-y-3">{MEETING_PHASES[currentPhase].prompts.map((prompt, i) => (<motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }} className="flex items-start gap-2 text-sm"><ChevronRight className="w-4 h-4 text-primary-400 mt-0.5 flex-shrink-0" /><span className="text-gray-300">{prompt}</span></motion.div>))}</div>
+                <div className="flex gap-2 mt-6">
+                  <motion.button onClick={prevPhase} disabled={currentPhase === 0} whileTap={{ scale: 0.95 }} className="flex-1 py-2 bg-white/10 rounded-xl disabled:opacity-30">Previous</motion.button>
+                  <motion.button onClick={nextPhase} whileTap={{ scale: 0.95 }} className="flex-1 py-2 bg-gradient-to-r from-primary-500 to-purple-500 rounded-xl flex items-center justify-center gap-2">Next<ArrowRight className="w-4 h-4" /></motion.button>
+                </div>
+              </motion.div>
+              <QuickCapture onCapture={captureInsight} recording={isRecording} />
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Opportunities', value: stats.opportunities, icon: '💡' },
+                  { label: 'Risks', value: stats.risks, icon: '⚠️' },
+                  { label: 'Actions', value: stats.actions, icon: '✅' },
+                  { label: 'Milestones', value: stats.milestones, icon: '🎯' },
+                ].map((stat) => (<motion.div key={stat.label} whileHover={{ scale: 1.05 }} className="p-3 bg-white/5 rounded-xl"><div className="flex items-center gap-2 mb-1"><span className="text-lg">{stat.icon}</span><span className="text-xs text-gray-400">{stat.label}</span></div><p className="text-2xl font-bold">{stat.value}</p></motion.div>))}
+              </motion.div>
+            </div>
             
-            {currentWb && (
-              <>
-                <button onClick={() => setShowMeetingPanel(!showMeetingPanel)} className={`px-3 py-2 rounded-lg flex items-center gap-2 ${showMeetingPanel ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>
-                  <Users className="w-4 h-4" /> Meeting Panel
-                </button>
-                
-                <button onClick={isRecording ? stopRecording : startRecording} className={`px-4 py-2 rounded-lg flex items-center gap-2 ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'}`}>
-                  {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                  {isRecording ? 'Stop' : 'Record'}
-                </button>
-                
-                {isRecording && (
-                  <div className="flex items-center gap-1 px-3 py-2 bg-gray-100 rounded-lg">
-                    <Volume2 className="w-4 h-4 text-gray-500" />
-                    <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-green-400 to-red-500 transition-all" style={{ width: `${audioLevel * 100}%` }} />
-                    </div>
+            <div className="lg:col-span-2 relative">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-purple-500/5 backdrop-blur-3xl rounded-3xl border border-white/10 overflow-hidden">
+                <AnimatePresence>{visualNodes.map((node, i) => (<AnimatedNode key={node.id} node={node} index={i} />))}</AnimatePresence>
+                {visualNodes.length === 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center text-gray-400">
+                      <Brain className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                      <p className="text-lg">Start capturing insights to build your strategy map</p>
+                      <p className="text-sm mt-2">Use the quick capture panel or speak during the meeting</p>
+                    </motion.div>
                   </div>
                 )}
-                
-                <div className="w-px h-6 bg-gray-200 mx-2" />
-                
-                <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="p-2 hover:bg-gray-100 rounded-lg"><ZoomIn className="w-5 h-5" /></button>
-                <span className="text-sm text-gray-500">{Math.round(zoom * 100)}%</span>
-                <button onClick={() => setZoom(z => Math.max(0.5, z - 0.1))} className="p-2 hover:bg-gray-100 rounded-lg"><ZoomOut className="w-5 h-5" /></button>
-                
-                <div className="w-px h-6 bg-gray-200 mx-2" />
-                
-                <button onClick={generateOpportunityMap} className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2">
-                  <Link2 className="w-4 h-4" /> Map Connections
-                </button>
-                
-                <button onClick={exportBoard} className="p-2 hover:bg-gray-100 rounded-lg"><Download className="w-5 h-5" /></button>
-              </>
-            )}
+              </motion.div>
+            </div>
+            
+            <div className="lg:col-span-1">
+              <LiveContextStream entries={contextEntries} />
+            </div>
           </div>
         </div>
       </div>
-
-      <div className="flex-1 flex">
-        {/* Sidebar */}
-        {!currentWb && (
-          <div className="w-80 bg-white border-r border-gray-200 p-4">
-            <h2 className="font-medium text-gray-900 mb-4">Active Meetings</h2>
-            <div className="space-y-2 mb-6">
-              {whiteboards.map(wb => (
-                <button key={wb.id} onClick={() => loadBoard(wb)} className="w-full p-3 text-left bg-gray-50 hover:bg-gray-100 rounded-lg">
-                  <p className="font-medium text-gray-900">{wb.name}</p>
-                  <p className="text-sm text-gray-500">{wb.nodes.length} items • {new Date(wb.updatedAt).toLocaleDateString()}</p>
-                </button>
-              ))}
-            </div>
-            
-            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
-              <h3 className="font-medium text-purple-900 mb-3 flex items-center gap-2"><Zap className="w-5 h-5" /> New Client Onboarding</h3>
-              <input type="text" placeholder="Client name" value={clientName} onChange={e => setClientName(e.target.value)} className="w-full px-3 py-2 border border-purple-200 rounded-lg text-sm mb-2" />
-              <button onClick={startMeetingSession} disabled={!clientName} className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm">Start Discovery Session</button>
-            </div>
-          </div>
-        )}
-
-        {/* Meeting Panel */}
-        {currentWb && showMeetingPanel && (
-          <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-medium text-gray-900 flex items-center gap-2"><Users className="w-5 h-5" /> Meeting Context</h3>
-                {activeSession && <button onClick={() => setActiveSession(s => s ? { ...s, status: s.status === 'active' ? 'paused' : 'active' } : null)} className="p-1 hover:bg-gray-100 rounded">{activeSession.status === 'active' ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}</button>}
-              </div>
-              
-              {activeSession && (
-                <div className="space-y-2">
-                  {CLIENT_ONBOARDING_PHASES.map((phase, idx) => (
-                    <div key={phase.name} className={`p-2 rounded-lg ${idx === currentPhase ? 'bg-purple-100 border border-purple-300' : idx < currentPhase ? 'bg-green-50' : 'bg-gray-50'}`}>
-                      <div className="flex items-center gap-2">
-                        {idx < currentPhase ? <CheckCircle className="w-4 h-4 text-green-500" /> : idx === currentPhase ? <Clock className="w-4 h-4 text-purple-500" /> : <div className="w-4 h-4 rounded-full border-2 border-gray-300" />}
-                        <span className="text-sm font-medium">{phase.name}</span>
-                        <span className="text-xs text-gray-500 ml-auto">{phase.duration}m</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center gap-2 mb-2"><Zap className="w-4 h-4 text-yellow-500" /><span className="text-sm font-medium">Quick Capture</span></div>
-              <textarea value={quickCapture} onChange={e => setQuickCapture(e.target.value)} placeholder="Type key points..." className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-2" rows={2} />
-              <div className="flex gap-2">
-                <button onClick={() => addContextEntry('opportunity', quickCapture, 'client')} className="flex-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs">Opportunity</button>
-                <button onClick={() => addContextEntry('risk', quickCapture, 'client')} className="flex-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs">Risk</button>
-                <button onClick={() => addContextEntry('action', quickCapture, 'scott')} className="flex-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">Action</button>
-                <button onClick={handleQuickCapture} className="px-3 py-1 bg-purple-600 text-white rounded text-xs">Add</button>
-              </div>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2"><MessageSquare className="w-4 h-4" /> Live Context ({liveContext.length})</h4>
-              <div className="space-y-2">
-                {liveContext.map(entry => (
-                  <div key={entry.id} className={`p-2 rounded-lg text-sm ${
-                    entry.type === 'opportunity' ? 'bg-green-50 border border-green-200' :
-                    entry.type === 'risk' ? 'bg-red-50 border border-red-200' :
-                    entry.type === 'action' ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-200'
-                  }`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${entry.type === 'opportunity' ? 'bg-green-200 text-green-800' : entry.type === 'risk' ? 'bg-red-200 text-red-800' : entry.type === 'action' ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-600'}`}>{entry.type.toUpperCase()}</span>
-                      <span className="text-xs text-gray-500">{entry.speaker === 'client' ? 'Client' : 'Scott'}</span>
-                      <span className="text-xs text-gray-400 ml-auto">{new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                    <p className="text-gray-700">{entry.content}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            {activeSession && (
-              <div className="p-4 bg-gray-50 border-t border-gray-200">
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="p-2 bg-green-100 rounded-lg"><p className="text-lg font-bold text-green-700">{activeSession.opportunities.length}</p><p className="text-xs text-green-600">Opportunities</p></div>
-                  <div className="p-2 bg-blue-100 rounded-lg"><p className="text-lg font-bold text-blue-700">{activeSession.actionItems.length}</p><p className="text-xs text-blue-600">Actions</p></div>
-                  <div className="p-2 bg-purple-100 rounded-lg"><p className="text-lg font-bold text-purple-700">{activeSession.decisions.length}</p><p className="text-xs text-purple-600">Decisions</p></div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Canvas */}
-        {currentWb && (
-          <>
-            <div className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto">
-              <h3 className="font-medium text-gray-900 mb-3">Add Node</h3>
-              <div className="space-y-2 mb-6">
-                {STATUS_OPTIONS.map(status => (
-                  <button key={status.id} onClick={() => { if (!currentWb) return; const node = whiteboardEngine.addNode(currentWb.id, { type: 'card', status, x: 200 + Math.random() * 200, y: 200 + Math.random() * 200, width: 220, height: 140, title: `New ${status.label}`, content: '', tags: [], color: STATUS_COLORS[status].bg, textColor: STATUS_COLORS[status].text }); setCurrentWb(whiteboardEngine.getWhiteboard(currentWb.id)!); setSelectedNode(node); }} className="w-full p-2 text-left flex items-center gap-2 hover:bg-gray-100 rounded-lg">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: status.color }} /><span className="text-sm">{status.label}</span>
-                  </button>
-                ))}
-              </div>
-              
-              <div className="p-3 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-100">
-                <h4 className="font-medium text-green-900 mb-2 flex items-center gap-2"><ArrowRight className="w-4 h-4" /> Auto-Link</h4>
-                <p className="text-xs text-green-700 mb-2">Connect opportunities → tasks automatically</p>
-                <button onClick={generateOpportunityMap} className="w-full px-3 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600">Generate Map</button>
-              </div>
-            </div>
-
-            <div ref={canvasRef} className="flex-1 relative overflow-hidden" style={{ backgroundImage: 'radial-gradient(circle, #e5e7eb 1px, transparent 1px)', backgroundSize: `${20 * zoom}px ${20 * zoom}px` }} onClick={() => setSelectedNode(null)}>
-              <div className="absolute inset-0" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0' }}>
-                {currentWb.connectors.map(conn => { const from = currentWb.nodes.find(n => n.id === conn.fromNodeId); const to = currentWb.nodes.find(n => n.id === conn.toNodeId); if (!from || !to) return null; return (<svg key={conn.id} className="absolute pointer-events-none" style={{ overflow: 'visible' }}><line x1={from.x + from.width/2} y1={from.y + from.height/2} x2={to.x + to.width/2} y2={to.y + to.height/2} stroke={conn.color} strokeWidth={2} strokeDasharray={conn.style === 'dashed' ? '8,4' : 'none'} /></svg>); })}
-                {currentWb.nodes.map(node => { const colors = STATUS_COLORS[node.status]; const isSel = selectedNode?.id === node.id; return (
-                  <div key={node.id} className="absolute cursor-move" style={{ left: node.x, top: node.y, width: node.width, height: node.height, backgroundColor: node.color, color: node.textColor, border: `2px solid ${isSel ? '#8b5cf6' : colors.border}`, borderRadius: '8px', boxShadow: isSel ? '0 0 0 4px rgba(139, 92, 246, 0.2)' : '0 2px 8px rgba(0,0,0,0.1)', padding: '12px' }} onMouseDown={(e) => { e.stopPropagation(); const rect = (e.target as HTMLElement).getBoundingClientRect(); setDragOffset({ x: e.clientX - rect.left, y: e.clientY - rect.top }); setIsDragging(true); setSelectedNode(node); }}>
-                    <div className="flex items-start justify-between mb-2"><p className="font-medium">{node.title}</p>{node.priority && <span className={`text-xs px-1.5 py-0.5 rounded ${node.priority === 'high' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>{node.priority}</span>}</div>
-                    {node.content && <p className="text-sm opacity-80">{node.content}</p>}
-                    {isSel && <div className="absolute -top-3 -right-3 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center"><div className="w-2 h-2 bg-white rounded-full" /></div>}
-                  </div>
-                );})}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-[400px]">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">New Meeting</h2>
-            <div className="space-y-4">
-              <div><label className="text-sm text-gray-500 mb-1 block">Meeting Name</label><input type="text" value={newWbName} onChange={e => setNewWbName(e.target.value)} placeholder="Client Discovery" className="w-full px-4 py-2 border border-gray-200 rounded-lg" autoFocus /></div>
-              <div><label className="text-sm text-gray-500 mb-1 block">Template</label><select value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-lg">{BUSINESS_TEMPLATES.map(t => (<option key={t.id} value={t.id}>{t.name}</option>))}</select></div>
-            </div>
-            <div className="flex gap-2 mt-6">
-              <button onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">Cancel</button>
-              <button onClick={createWhiteboard} disabled={!newWbName.trim()} className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">Create</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
