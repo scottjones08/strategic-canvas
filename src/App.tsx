@@ -4,7 +4,9 @@ import {
   Mic, MicOff, Sparkles, Target, Clock, Search, Rocket, Share2, 
   ChevronRight, ArrowRight, CheckCircle, Users, Crosshair, Maximize2, 
   FileText, Mail, Link2, RotateCcw, User, UserPlus, Settings, LogOut,
-  Building2, Bell, Menu, X, Plus, Trash2, Edit2, Save, ChevronDown
+  Building2, Bell, Menu, X, Plus, Trash2, Edit2, Save, ChevronDown,
+  Eye, EyeOff, MessageSquare, Zap, Lightbulb, HelpCircle, RefreshCw,
+  Lock, Unlock, Send, PlusCircle, Wand2
 } from 'lucide-react';
 
 // Types
@@ -16,8 +18,19 @@ interface User {
   role: 'owner' | 'admin' | 'member' | 'viewer';
   color: string;
   personalNotes: string;
+  privateNotes: PrivateNote[];
   lastActive: Date;
   preferences: UserPreferences;
+}
+
+interface PrivateNote {
+  id: string;
+  content: string;
+  type: 'note' | 'question' | 'followup';
+  phase?: string;
+  createdAt: Date;
+  isResolved: boolean;
+  aiSuggested: boolean;
 }
 
 interface UserPreferences {
@@ -40,7 +53,7 @@ interface Board {
   name: string;
   teamId: string;
   ownerId: string;
-  sharedWith: string[]; // user IDs
+  sharedWith: string[];
   visualNodes: VisualNode[];
   createdAt: Date;
   updatedAt: Date;
@@ -83,30 +96,252 @@ interface MeetingPhase {
 const TEAM_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
 const MEETING_PHASES = [
-  { id: 'intro', name: 'Introduction', subtitle: 'Understanding your business', icon: '👋', duration: 15, prompts: ['Tell me about your business', 'What does success look like?'] },
-  { id: 'discovery', name: 'Discovery', subtitle: 'Current state & challenges', icon: '🔍', duration: 20, prompts: ['Walk me through your workflow', 'Where are bottlenecks?'] },
-  { id: 'opportunities', name: 'Opportunities', subtitle: 'Growth possibilities', icon: '💡', duration: 25, prompts: ['Top 3 opportunities?', 'What holds you back?'] },
-  { id: 'risk', name: 'Risk Analysis', subtitle: 'Competitors & market risks', icon: '🛡️', duration: 20, prompts: ['Who are your main competitors?', 'What market risks exist?'] },
-  { id: 'strategy', name: 'Strategy', subtitle: 'Building action plan', icon: '🎯', duration: 20, prompts: ['First priority?', 'Available resources?'] },
-  { id: 'next-steps', name: 'Next Steps', subtitle: 'Committing to action', icon: '🚀', duration: 10, prompts: ['This week commitment?', 'Follow up date?'] }
+  { id: 'intro', name: 'Introduction', subtitle: 'Understanding your business', icon: '👋', duration: 15, prompts: ['Tell me about your business', 'What does success look like?', 'What are you most proud of?'] },
+  { id: 'discovery', name: 'Discovery', subtitle: 'Current state & challenges', icon: '🔍', duration: 20, prompts: ['Walk me through your workflow', 'Where are bottlenecks?', 'What tools do you use today?'] },
+  { id: 'opportunities', name: 'Opportunities', subtitle: 'Growth possibilities', icon: '💡', duration: 25, prompts: ['Top 3 opportunities?', 'What would doubling revenue look like?', 'What holds you back from getting there?'] },
+  { id: 'risk', name: 'Risk Analysis', subtitle: 'Competitors & market risks', icon: '🛡️', duration: 20, prompts: ['Who are your main competitors?', 'What market risks exist?', 'What keeps you up at night?'] },
+  { id: 'strategy', name: 'Strategy', subtitle: 'Building action plan', icon: '🎯', duration: 20, prompts: ['What\'s the first thing we should tackle?', 'What resources do you have available?', 'How will you measure success?'] },
+  { id: 'next-steps', name: 'Next Steps', subtitle: 'Committing to action', icon: '🚀', duration: 10, prompts: ['What\'s your commitment for this week?', 'When should we follow up?', 'Any final thoughts or concerns?'] }
 ];
 
-// User Management Component
-const UserManagement = ({ 
-  users, 
-  currentUser, 
-  onUpdateUser, 
-  onAddUser, 
-  onRemoveUser,
-  onLogout 
+// AI-Generated Questions based on context
+const generateAIQuestions = (phase: string, context: string[], previousNotes: PrivateNote[]): PrivateNote[] => {
+  const baseQuestions: Record<string, string[]> = {
+    intro: [
+      'What inspired you to start your business?',
+      'Describe your ideal customer in detail',
+      'What\'s the biggest win you\'ve had recently?',
+      'How did you hear about us?',
+      'What are your expectations for this engagement?'
+    ],
+    discovery: [
+      'Walk me through a typical day in your business',
+      'Where do you feel like you\'re wasting the most time?',
+      'What systems have you tried before and why didn\'t they work?',
+      'Who else is involved in the decision-making process?',
+      'What does your current tech stack look like?'
+    ],
+    opportunities: [
+      'If you could wave a magic wand and change one thing, what would it be?',
+      'What would a successful 12-month look like for you?',
+      'What\'s the ROI expectation for this investment?',
+      'Are there any adjacent markets you\'ve considered?',
+      'What\'s preventing you from scaling now?'
+    ],
+    risk: [
+      'What\'s your biggest competitor doing right?',
+      'What happens if you do nothing for the next 6 months?',
+      'What\'s the biggest threat to your business model?',
+      'Are there any regulatory concerns to be aware of?',
+      'What\'s your exit strategy or long-term vision?'
+    ],
+    strategy: [
+      'What\'s the lowest-hanging fruit we could tackle first?',
+      'What resources (budget, people, time) can we realistically commit?',
+      'Who will be the key stakeholders we need to align?',
+      'What could go wrong in the first 30 days?',
+      'How will we know if we\'re succeeding?'
+    ],
+    'next-steps': [
+      'What\'s the one thing you want to accomplish by next week?',
+      'Can we schedule the kickoff call for early next week?',
+      'Who should be invited to the next planning session?',
+      'What questions should we come prepared with?',
+      'What\'s your preferred communication method?'
+    ]
+  };
+
+  const questions = baseQuestions[phase] || baseQuestions.intro;
+  
+  // Generate suggested questions
+  return questions.slice(0, 3).map((content, i) => ({
+    id: `ai-${Date.now()}-${i}`,
+    content,
+    type: 'question' as const,
+    phase,
+    createdAt: new Date(),
+    isResolved: false,
+    aiSuggested: true
+  }));
+};
+
+// Private Notes Panel Component
+const PrivateNotesPanel = ({ 
+  user, 
+  onUpdateNotes, 
+  onAddNote,
+  onToggleResolve,
+  currentPhase 
 }: { 
-  users: User[]; 
-  currentUser: User;
-  onUpdateUser: (user: User) => void;
-  onAddUser: (user: Omit<User, 'id' | 'lastActive'>) => void;
-  onRemoveUser: (id: string) => void;
-  onLogout: () => void;
+  user: User; 
+  onUpdateNotes: (notes: PrivateNote[]) => void;
+  onAddNote: (note: Omit<PrivateNote, 'id' | 'createdAt'>) => void;
+  onToggleResolve: (id: string) => void;
+  currentPhase: string;
 }) => {
+  const [showPanel, setShowPanel] = useState(false);
+  const [newNote, setNewNote] = useState('');
+  const [noteType, setNoteType] = useState<PrivateNote['type']>('note');
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const userNotes = user.privateNotes || [];
+  const phaseNotes = userNotes.filter(n => !n.phase || n.phase === currentPhase);
+  const unresolvedNotes = phaseNotes.filter(n => !n.isResolved);
+  const resolvedNotes = phaseNotes.filter(n => n.isResolved);
+
+  const handleGenerateQuestions = () => {
+    setIsGenerating(true);
+    setTimeout(() => {
+      const suggestions = generateAIQuestions(currentPhase, [], userNotes);
+      suggestions.forEach(note => onAddNote(note));
+      setIsGenerating(false);
+    }, 1500);
+  };
+
+  const handleAddNote = () => {
+    if (newNote.trim()) {
+      onAddNote({ content: newNote, type: noteType, phase: currentPhase, isResolved: false, aiSuggested: false });
+      setNewNote('');
+    }
+  };
+
+  return (
+    <div className="relative">
+      <motion.button 
+        onClick={() => setShowPanel(!showPanel)}
+        whileHover={{ scale: 1.05 }}
+        className={`px-4 py-2 rounded-xl flex items-center gap-2 ${showPanel ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-white/10'}`}
+      >
+        <Lock className="w-4 h-4" />
+        Private Notes
+        {unresolvedNotes.length > 0 && <span className="w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center">{unresolvedNotes.length}</span>}
+      </motion.button>
+
+      <AnimatePresence>
+        {showPanel && (
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="absolute right-0 top-12 w-96 bg-white rounded-2xl shadow-2xl overflow-hidden z-50 max-h-[80vh] flex flex-col"
+          >
+            <div className="p-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold flex items-center gap-2"><Lock className="w-4 h-4" /> Private Notes & Questions</h3>
+                <motion.button 
+                  onClick={handleGenerateQuestions}
+                  disabled={isGenerating}
+                  whileHover={{ scale: 1.05 }}
+                  className="px-3 py-1 bg-white/20 rounded-lg text-sm flex items-center gap-1"
+                >
+                  {isGenerating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                  AI Suggest
+                </motion.button>
+              </div>
+              <p className="text-sm opacity-80 mt-1">Only you can see these notes</p>
+            </div>
+
+            {/* Add Note */}
+            <div className="p-4 border-b border-gray-100">
+              <div className="flex gap-2 mb-2">
+                {(['note', 'question', 'followup'] as const).map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setNoteType(type)}
+                    className={`px-3 py-1 rounded-full text-xs capitalize ${noteType === type ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'}`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input 
+                  type="text"
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
+                  placeholder={noteType === 'question' ? 'Ask a question...' : 'Add a private note...'}
+                  className="flex-1 px-3 py-2 bg-gray-50 rounded-lg text-sm border-0 focus:ring-2 focus:ring-primary-500"
+                />
+                <motion.button 
+                  onClick={handleAddNote}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="p-2 bg-primary-500 text-white rounded-lg"
+                >
+                  <Plus className="w-5 h-5" />
+                </motion.button>
+              </div>
+            </div>
+
+            {/* Notes List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-96">
+              {isGenerating && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-4">
+                  <RefreshCw className="w-6 h-6 mx-auto animate-spin text-amber-500" />
+                  <p className="text-sm text-gray-500 mt-2">Generating questions...</p>
+                </motion.div>
+              )}
+
+              {unresolvedNotes.length === 0 && resolvedNotes.length === 0 && !isGenerating && (
+                <div className="text-center py-8 text-gray-400">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>No private notes yet</p>
+                  <p className="text-sm mt-1">Click "AI Suggest" to generate questions</p>
+                </div>
+              )}
+
+              {unresolvedNotes.map(note => (
+                <motion.div 
+                  key={note.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`p-3 rounded-xl ${note.type === 'question' ? 'bg-purple-50 border border-purple-200' : note.type === 'followup' ? 'bg-amber-50 border border-amber-200' : 'bg-gray-50'}`}
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        {note.aiSuggested && <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full flex items-center gap-1"><Sparkles className="w-3 h-3" /> AI</span>}
+                        <span className="text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full capitalize">{note.type}</span>
+                      </div>
+                      <p className="text-sm text-gray-800">{note.content}</p>
+                    </div>
+                    <motion.button 
+                      onClick={() => onToggleResolve(note.id)}
+                      whileHover={{ scale: 1.1 }}
+                      className="p-1 text-green-500 hover:bg-green-100 rounded"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                    </motion.button>
+                  </div>
+                </motion.div>
+              ))}
+
+              {resolvedNotes.length > 0 && (
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-xs text-gray-400 mb-2">Resolved ({resolvedNotes.length})</p>
+                  {resolvedNotes.map(note => (
+                    <motion.div 
+                      key={note.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="p-2 rounded-lg bg-gray-50 opacity-50 line-through mb-1"
+                    >
+                      <p className="text-sm text-gray-600">{note.content}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// User Management Component
+const UserManagement = ({ users, currentUser, onUpdateUser, onAddUser, onRemoveUser, onLogout }: { users: User[]; currentUser: User; onUpdateUser: (user: User) => void; onAddUser: (user: Omit<User, 'id' | 'lastActive' | 'privateNotes'>) => void; onRemoveUser: (id: string) => void; onLogout: () => void; }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'member' as User['role'] });
@@ -117,11 +352,7 @@ const UserManagement = ({
 
   return (
     <div className="relative">
-      <motion.button 
-        onClick={() => setShowDropdown(!showDropdown)}
-        whileHover={{ scale: 1.05 }}
-        className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-xl"
-      >
+      <motion.button onClick={() => setShowDropdown(!showDropdown)} whileHover={{ scale: 1.05 }} className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-xl">
         <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-medium" style={{ backgroundColor: currentUser.color }}>
           {currentUser.name.charAt(0).toUpperCase()}
         </div>
@@ -131,13 +362,7 @@ const UserManagement = ({
 
       <AnimatePresence>
         {showDropdown && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden z-50"
-          >
-            {/* Current User */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden z-50">
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-medium" style={{ backgroundColor: currentUser.color }}>
@@ -149,58 +374,26 @@ const UserManagement = ({
                   <span className="text-xs px-2 py-0.5 bg-primary-100 text-primary-700 rounded-full capitalize">{currentUser.role}</span>
                 </div>
               </div>
-              
-              {/* Personal Notes */}
-              <div className="mt-3">
-                {editingUser === currentUser.id ? (
-                  <div className="space-y-2">
-                    <textarea 
-                      value={editNotes}
-                      onChange={(e) => setEditNotes(e.target.value)}
-                      placeholder="Add personal notes..."
-                      className="w-full px-3 py-2 bg-gray-50 rounded-lg text-sm border-0 focus:ring-2 focus:ring-primary-500"
-                      rows={3}
-                    />
-                    <div className="flex gap-2">
-                      <button onClick={() => { onUpdateUser({ ...currentUser, personalNotes: editNotes }); setEditingUser(null); }} className="px-3 py-1 bg-primary-500 text-white rounded-lg text-sm flex items-center gap-1"><Save className="w-3 h-3" /> Save</button>
-                      <button onClick={() => setEditingUser(null)} className="px-3 py-1 bg-gray-100 rounded-lg text-sm">Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <div onClick={() => { setEditNotes(currentUser.personalNotes); setEditingUser(currentUser.id); }} className="cursor-pointer">
-                    <p className="text-xs text-gray-500 mb-1">Personal Notes</p>
-                    <p className="text-sm text-gray-700 line-clamp-2">{currentUser.personalNotes || 'Click to add notes...'}</p>
-                  </div>
-                )}
-              </div>
             </div>
 
-            {/* Team Members */}
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center justify-between mb-3">
-                <h4 className="font-medium text-gray-900 flex items-center gap-2"><Users className="w-4 h-4" /> Team Members ({users.length})</h4>
+                <h4 className="font-medium text-gray-900 flex items-center gap-2"><Users className="w-4 h-4" /> Team ({users.length})</h4>
                 <motion.button onClick={() => setShowInvite(true)} whileHover={{ scale: 1.05 }} className="p-1 bg-primary-100 text-primary-600 rounded-lg"><Plus className="w-4 h-4" /></motion.button>
               </div>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {users.map(user => (
                   <div key={user.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium" style={{ backgroundColor: user.color }}>
-                      {user.name.charAt(0).toUpperCase()}
-                    </div>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium" style={{ backgroundColor: user.color }}>{user.name.charAt(0).toUpperCase()}</div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
                     </div>
                     <span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full capitalize">{user.role}</span>
-                    {user.id !== currentUser.id && (
-                      <motion.button onClick={() => onRemoveUser(user.id)} whileHover={{ scale: 1.1 }} className="p-1 text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></motion.button>
-                    )}
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Actions */}
             <div className="p-4 space-y-2">
               <motion.button onClick={() => setShowDropdown(false)} whileHover={{ scale: 1.02 }} className="w-full py-2 bg-gray-100 rounded-xl text-sm font-medium text-gray-700 flex items-center justify-center gap-2"><Settings className="w-4 h-4" /> Settings</motion.button>
               <motion.button onClick={onLogout} whileHover={{ scale: 1.02 }} className="w-full py-2 bg-red-50 rounded-xl text-sm font-medium text-red-600 flex items-center justify-center gap-2"><LogOut className="w-4 h-4" /> Sign Out</motion.button>
@@ -209,38 +402,18 @@ const UserManagement = ({
         )}
       </AnimatePresence>
 
-      {/* Invite Modal */}
       <AnimatePresence>
         {showInvite && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowInvite(false)}>
             <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-2xl p-6 w-96" onClick={e => e.stopPropagation()}>
               <h3 className="text-xl font-bold mb-4 text-gray-900 flex items-center gap-2"><UserPlus className="w-5 h-5" /> Invite Team Member</h3>
               <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-gray-600 mb-1 block">Name</label>
-                  <input type="text" value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600 mb-1 block">Email</label>
-                  <input type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600 mb-1 block">Role</label>
-                  <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value as User['role'] })} className="w-full px-4 py-2 border border-gray-200 rounded-xl">
-                    <option value="member">Member</option>
-                    <option value="admin">Admin</option>
-                    <option value="viewer">Viewer</option>
-                  </select>
-                </div>
+                <div><label className="text-sm text-gray-600 mb-1 block">Name</label><input type="text" value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
+                <div><label className="text-sm text-gray-600 mb-1 block">Email</label><input type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
+                <div><label className="text-sm text-gray-600 mb-1 block">Role</label><select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value as User['role'] })} className="w-full px-4 py-2 border border-gray-200 rounded-xl"><option value="member">Member</option><option value="admin">Admin</option><option value="viewer">Viewer</option></select></div>
                 <div className="flex gap-2">
                   <button onClick={() => setShowInvite(false)} className="flex-1 py-2 bg-gray-100 rounded-xl text-gray-600">Cancel</button>
-                  <button 
-                    onClick={() => { if (newUser.name && newUser.email) { onAddUser({ ...newUser, color: availableColors[0] }); setNewUser({ name: '', email: '', role: 'member' }); setShowInvite(false); }}}
-                    disabled={!newUser.name || !newUser.email}
-                    className="flex-1 py-2 bg-primary-500 text-white rounded-xl disabled:opacity-50"
-                  >
-                    Send Invite
-                  </button>
+                  <button onClick={() => { if (newUser.name && newUser.email) { onAddUser({ ...newUser, color: availableColors[0] }); setNewUser({ name: '', email: '', role: 'member' }); setShowInvite(false); }}} disabled={!newUser.name || !newUser.email} className="flex-1 py-2 bg-primary-500 text-white rounded-xl disabled:opacity-50">Send Invite</button>
                 </div>
               </div>
             </motion.div>
@@ -251,132 +424,21 @@ const UserManagement = ({
   );
 };
 
-// AI Context Panel
-const AIContextPanel = ({ users, currentUser, nodes }: { users: User[]; currentUser: User; nodes: VisualNode[] }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  // Generate AI context based on users and their preferences
-  const generateContext = () => {
-    const contexts = [];
-    
-    // Current user's context
-    if (currentUser.personalNotes) {
-      contexts.push({ user: currentUser.name, context: currentUser.personalNotes, type: 'notes' });
-    }
-    
-    // Team members' context
-    users.filter(u => u.id !== currentUser.id && u.personalNotes).forEach(user => {
-      contexts.push({ user: user.name, context: user.personalNotes, type: 'notes' });
-    });
-    
-    // Board activity context
-    const activeUsers = users.filter(u => {
-      const lastActive = new Date(u.lastActive);
-      return Date.now() - lastActive.getTime() < 3600000; // Active in last hour
-    });
-    
-    if (activeUsers.length > 0) {
-      contexts.push({ user: 'System', context: `Currently active: ${activeUsers.map(u => u.name).join(', ')}`, type: 'activity' });
-    }
-    
-    // Node distribution context
-    const nodeTypes = nodes.reduce((acc, n) => { acc[n.type] = (acc[n.type] || 0) + 1; return acc; }, {} as Record<string, number>);
-    contexts.push({ user: 'System', context: `Board has ${nodes.length} items: ${Object.entries(nodeTypes).map(([k, v]) => `${v} ${k}`).join(', ')}`, type: 'stats' });
-    
-    return contexts;
-  };
-
-  return (
-    <div className="relative">
-      <motion.button 
-        onClick={() => setIsOpen(!isOpen)}
-        whileHover={{ scale: 1.05 }}
-        className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center gap-2"
-      >
-        <Brain className="w-4 h-4" />
-        AI Context
-        {users.some(u => u.personalNotes) && <span className="w-2 h-2 bg-white rounded-full" />}
-      </motion.button>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden z-50"
-          >
-            <div className="p-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-              <h3 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4" /> AI Context Awareness</h3>
-              <p className="text-sm opacity-80">Personalized insights based on team context</p>
-            </div>
-            
-            <div className="max-h-96 overflow-y-auto">
-              {generateContext().map((ctx, i) => (
-                <div key={i} className="p-4 border-b border-gray-100">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs" style={{ backgroundColor: users.find(u => u.name === ctx.user)?.color || '#6b7280' }}>
-                      {ctx.user.charAt(0)}
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">{ctx.user}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${ctx.type === 'notes' ? 'bg-blue-100 text-blue-700' : ctx.type === 'activity' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                      {ctx.type}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600">{ctx.context}</p>
-                </div>
-              ))}
-              
-              {generateContext().length === 0 && (
-                <div className="p-8 text-center text-gray-400">
-                  <Brain className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>Add personal notes to enable AI context</p>
-                </div>
-              )}
-            </div>
-            
-            <div className="p-4 bg-gray-50">
-              <p className="text-xs text-gray-500">AI uses this context to personalize insights and recommendations for each team member.</p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-// Main App Component
+// Main App
 export default function MeetingCompanion() {
   const [currentUser, setCurrentUser] = useState<User>({
-    id: '1',
-    name: 'Scott Jones',
-    email: 'scott@example.com',
-    role: 'owner',
-    color: '#10b981',
+    id: '1', name: 'Scott Jones', email: 'scott@example.com', role: 'owner', color: '#10b981',
     personalNotes: 'Focus on AI automation and revenue growth. Client prefers data-driven decisions.',
+    privateNotes: [
+      { id: 'q1', content: 'Ask about their current marketing spend', type: 'question', phase: 'opportunities', createdAt: new Date(), isResolved: false, aiSuggested: false },
+      { id: 'q2', content: 'Follow up on the automation workflow discussion', type: 'followup', phase: 'discovery', createdAt: new Date(), isResolved: false, aiSuggested: true }
+    ],
     lastActive: new Date(),
     preferences: { autoTranscribe: true, notifications: true, theme: 'dark', defaultView: 'grid' }
   });
 
-  const [users, setUsers] = useState<User[]>([
-    currentUser,
-    { id: '2', name: 'Sarah Chen', email: 'sarah@example.com', role: 'admin', color: '#3b82f6', personalNotes: 'Technical implementation lead. Focus on integrations.', lastActive: new Date(), preferences: { autoTranscribe: true, notifications: true, theme: 'dark', defaultView: 'grid' } },
-    { id: '3', name: 'Mike Johnson', email: 'mike@example.com', role: 'member', color: '#f59e0b', personalNotes: 'Operations focus. Interested in workflow automation.', lastActive: new Date(), preferences: { autoTranscribe: false, notifications: true, theme: 'dark', defaultView: 'grid' } }
-  ]);
-
-  const [currentBoard, setCurrentBoard] = useState<Board>({
-    id: 'board-1',
-    name: 'Q1 Strategy Planning',
-    teamId: 'team-1',
-    ownerId: '1',
-    sharedWith: ['1', '2', '3'],
-    visualNodes: [],
-    createdAt: new Date(),
-    updatedAt: new Date()
-  });
-
-  const [boards, setBoards] = useState<Board[]>([currentBoard]);
-
+  const [users, setUsers] = useState<User[]>([currentUser]);
+  const [currentBoard, setCurrentBoard] = useState({ id: 'board-1', name: 'Q1 Strategy Planning', teamId: 'team-1', ownerId: '1', sharedWith: ['1'], visualNodes: [], createdAt: new Date(), updatedAt: new Date() });
   const [isRecording, setIsRecording] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
   const [sessionStart, setSessionStart] = useState<Date | null>(null);
@@ -384,12 +446,8 @@ export default function MeetingCompanion() {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [currentPhase, setCurrentPhase] = useState(0);
   const [completedPhases, setCompletedPhases] = useState<number[]>([]);
-  const [phaseTimer, setPhaseTimer] = useState(0);
-  const [showTimeWarning, setShowTimeWarning] = useState(false);
-  const [transcription, setTranscription] = useState('');
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const animationRef = useRef<number>();
 
   useEffect(() => {
     if (sessionStart) {
@@ -400,77 +458,57 @@ export default function MeetingCompanion() {
 
   const formatTime = (s: number) => Math.floor(s / 60) + ':' + (s % 60).toString().padStart(2, '0');
 
-  const startSession = () => {
-    setSessionStart(new Date());
-    setCurrentPhase(0);
-    setCompletedPhases([]);
-    setShowOnboarding(false);
-  };
+  const startSession = () => { setSessionStart(new Date()); setCurrentPhase(0); setCompletedPhases([]); setShowOnboarding(false); };
 
   const handleUpdateUser = (user: User) => {
     setUsers(prev => prev.map(u => u.id === user.id ? user : u));
     if (user.id === currentUser.id) setCurrentUser(user);
   };
 
-  const handleAddUser = (user: Omit<User, 'id' | 'lastActive'>) => {
-    const newUser = { ...user, id: Date.now().toString(), lastActive: new Date() };
+  const handleAddUser = (user: Omit<User, 'id' | 'lastActive' | 'privateNotes'>) => {
+    const newUser = { ...user, id: Date.now().toString(), lastActive: new Date(), privateNotes: [] };
     setUsers(prev => [...prev, newUser]);
   };
 
-  const handleRemoveUser = (id: string) => {
-    setUsers(prev => prev.filter(u => u.id !== id));
+  const handleAddPrivateNote = (note: Omit<PrivateNote, 'id' | 'createdAt'>) => {
+    const newNote = { ...note, id: `note-${Date.now()}`, createdAt: new Date() };
+    const updatedUser = { ...currentUser, privateNotes: [...(currentUser.privateNotes || []), newNote] };
+    handleUpdateUser(updatedUser);
   };
 
-  const handleLogout = () => {
-    setShowOnboarding(true);
-    setSessionStart(null);
+  const handleToggleNoteResolve = (noteId: string) => {
+    const updatedNotes = currentUser.privateNotes?.map(n => n.id === noteId ? { ...n, isResolved: !n.isResolved } : n) || [];
+    handleUpdateUser({ ...currentUser, privateNotes: updatedNotes });
   };
+
+  const handleLogout = () => { setShowOnboarding(true); setSessionStart(null); };
 
   if (showOnboarding || !sessionStart) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-gray-900 flex items-center justify-center p-6">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {Array.from({ length: 20 }).map((_, i) => (
-            <motion.div 
-              key={i} className="absolute rounded-full bg-purple-500/20 blur-sm"
+            <motion.div key={i} className="absolute rounded-full bg-purple-500/20 blur-sm"
               style={{ left: Math.random() * 100 + '%', top: Math.random() * 100 + '%', width: Math.random() * 8 + 2, height: Math.random() * 8 + 2 }}
               animate={{ y: [0, -100, 0], opacity: [0, 0.5, 0] }}
               transition={{ duration: Math.random() * 20 + 20, repeat: Infinity }}
             />
           ))}
         </div>
-        
-        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white/10 backdrop-blur-2xl rounded-3xl p-8 max-w-lg w-full relative z-10">
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white/10 backdrop-blur-2xl rounded-3xl p-8 max-w-lg w-full">
           <div className="text-center mb-8">
             <motion.div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-primary-400 to-purple-500 rounded-2xl flex items-center justify-center" animate={{ rotate: [0, 5, -5, 0] }} transition={{ duration: 4, repeat: Infinity }}>
               <Rocket className="w-10 h-10 text-white" />
             </motion.div>
             <h1 className="text-3xl font-bold mb-2">Strategic Canvas</h1>
-            <p className="text-gray-400">Team collaboration with AI context awareness</p>
+            <p className="text-gray-400">Team collaboration with private notes & AI questions</p>
           </div>
-          
           <div className="space-y-4">
-            <div className="p-4 bg-white/5 rounded-xl">
-              <p className="text-sm text-gray-400 mb-2">Signed in as</p>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-medium" style={{ backgroundColor: currentUser.color }}>
-                  {currentUser.name.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-medium">{currentUser.name}</p>
-                  <p className="text-sm text-gray-400">{currentUser.email}</p>
-                </div>
-              </div>
+            <div className="p-4 bg-white/5 rounded-xl flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-medium" style={{ backgroundColor: currentUser.color }}>{currentUser.name.charAt(0).toUpperCase()}</div>
+              <div><p className="font-medium">{currentUser.name}</p><p className="text-sm text-gray-400">{currentUser.email}</p></div>
             </div>
-            
-            <motion.button onClick={startSession} whileTap={{ scale: 0.98 }} className="w-full py-4 bg-gradient-to-r from-primary-500 to-purple-500 rounded-xl font-semibold shadow-lg flex items-center justify-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              Start Session
-            </motion.button>
-          </div>
-          
-          <div className="mt-6 pt-6 border-t border-white/10">
-            <p className="text-sm text-gray-400 text-center">{users.length} team members configured</p>
+            <motion.button onClick={startSession} whileTap={{ scale: 0.98 }} className="w-full py-4 bg-gradient-to-r from-primary-500 to-purple-500 rounded-xl font-semibold shadow-lg flex items-center justify-center gap-2"><Sparkles className="w-5 h-5" /> Start Session</motion.button>
           </div>
         </motion.div>
       </div>
@@ -479,112 +517,54 @@ export default function MeetingCompanion() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-gray-900 overflow-hidden">
-      {/* Header */}
       <motion.header initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative z-20 px-6 py-4">
         <div className="max-w-full mx-auto">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
-              <motion.div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-purple-500 rounded-xl flex items-center justify-center" whileHover={{ scale: 1.1, rotate: 5 }}>
-                <Target className="w-6 h-6 text-white" />
-              </motion.div>
+              <motion.div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-purple-500 rounded-xl flex items-center justify-center" whileHover={{ scale: 1.1, rotate: 5 }}><Target className="w-6 h-6 text-white" /></motion.div>
               <div>
                 <h1 className="text-xl font-bold">{currentBoard.name}</h1>
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <Clock className="w-4 h-4" />
-                  <span>{formatTime(elapsedTime)}</span>
-                  <span>•</span>
-                  <span>{MEETING_PHASES[currentPhase].name}</span>
-                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-400"><Clock className="w-4 h-4" /><span>{formatTime(elapsedTime)}</span><span>•</span><span>{MEETING_PHASES[currentPhase].name}</span></div>
               </div>
             </div>
-            
             <div className="flex items-center gap-3">
-              {/* Active Users */}
               <div className="flex -space-x-2">
                 {users.slice(0, 4).map(user => (
-                  <div key={user.id} className="w-8 h-8 rounded-full border-2 border-gray-900 flex items-center justify-center text-white text-xs font-medium" style={{ backgroundColor: user.color }} title={user.name}>
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
+                  <div key={user.id} className="w-8 h-8 rounded-full border-2 border-gray-900 flex items-center justify-center text-white text-xs font-medium" style={{ backgroundColor: user.color }} title={user.name}>{user.name.charAt(0).toUpperCase()}</div>
                 ))}
-                {users.length > 4 && (
-                  <div className="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-900 flex items-center justify-center text-white text-xs">
-                    +{users.length - 4}
-                  </div>
-                )}
               </div>
-              
-              <AIContextPanel users={users} currentUser={currentUser} nodes={currentBoard.visualNodes} />
-              
-              <UserManagement 
-                users={users}
-                currentUser={currentUser}
-                onUpdateUser={handleUpdateUser}
-                onAddUser={handleAddUser}
-                onRemoveUser={handleRemoveUser}
-                onLogout={handleLogout}
-              />
+              <PrivateNotesPanel user={currentUser} onUpdateNotes={() => {}} onAddNote={handleAddPrivateNote} onToggleResolve={handleToggleNoteResolve} currentPhase={MEETING_PHASES[currentPhase].id} />
+              <UserManagement users={users} currentUser={currentUser} onUpdateUser={handleUpdateUser} onAddUser={handleAddUser} onRemoveUser={() => {}} onLogout={handleLogout} />
             </div>
           </div>
-          
-          {/* Progress */}
           <div className="flex items-center gap-2 px-4 py-3 bg-white/10 backdrop-blur-xl rounded-2xl overflow-x-auto">
-            {MEETING_PHASES.map((phase, index) => {
-              const isCompleted = completedPhases.includes(index);
-              const isCurrent = index === currentPhase;
-              return (
-                <div key={phase.id} className="flex items-center">
-                  <motion.button onClick={() => setCurrentPhase(index)} whileHover={{ scale: 1.05 }} className={`px-4 py-2 rounded-xl transition-all ${isCurrent ? 'bg-gradient-to-r from-primary-500 to-purple-500 text-white' : isCompleted ? 'bg-green-500/20 text-green-300' : 'bg-white/5 text-gray-400'}`}>
-                    <span className="text-lg mr-2">{phase.icon}</span>
-                    <span className="hidden md:inline font-medium text-sm">{phase.name}</span>
-                  </motion.button>
-                  {index < MEETING_PHASES.length - 1 && <div className={`w-8 h-0.5 mx-2 ${isCompleted ? 'bg-green-500' : 'bg-white/10'}`} />}
-                </div>
-              );
-            })}
+            {MEETING_PHASES.map((phase, index) => (
+              <div key={phase.id} className="flex items-center">
+                <motion.button onClick={() => setCurrentPhase(index)} whileHover={{ scale: 1.05 }} className={`px-4 py-2 rounded-xl transition-all ${index === currentPhase ? 'bg-gradient-to-r from-primary-500 to-purple-500 text-white' : completedPhases.includes(index) ? 'bg-green-500/20 text-green-300' : 'bg-white/5 text-gray-400'}`}>
+                  <span className="text-lg mr-2">{phase.icon}</span>
+                  <span className="hidden md:inline font-medium text-sm">{phase.name}</span>
+                </motion.button>
+                {index < MEETING_PHASES.length - 1 && <div className={`w-8 h-0.5 mx-2 ${completedPhases.includes(index) ? 'bg-green-500' : 'bg-white/10'}`} />}
+              </div>
+            ))}
           </div>
         </div>
       </motion.header>
 
-      {/* Main Content */}
       <div className="relative z-10 flex-1 p-6">
         <div className="max-w-full mx-auto">
           <div className="grid lg:grid-cols-4 gap-6">
-            {/* Sidebar */}
             <div className="lg:col-span-1 space-y-6">
               <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-white/10 backdrop-blur-xl rounded-2xl p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-3xl">{MEETING_PHASES[currentPhase].icon}</span>
-                  <div>
-                    <h2 className="text-xl font-bold">{MEETING_PHASES[currentPhase].name}</h2>
-                    <p className="text-sm text-gray-400">{MEETING_PHASES[currentPhase].subtitle}</p>
-                  </div>
-                </div>
+                <div className="flex items-center gap-3 mb-4"><span className="text-3xl">{MEETING_PHASES[currentPhase].icon}</span><div><h2 className="text-xl font-bold">{MEETING_PHASES[currentPhase].name}</h2><p className="text-sm text-gray-400">{MEETING_PHASES[currentPhase].subtitle}</p></div></div>
                 <div className="space-y-3">
-                  {MEETING_PHASES[currentPhase].prompts.map((prompt, i) => (
-                    <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.1 }} className="flex items-start gap-2 text-sm">
-                      <ChevronRight className="w-4 h-4 text-primary-400 mt-0.5" />
-                      <span className="text-gray-300">{prompt}</span>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-              
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/10 backdrop-blur-xl rounded-2xl p-6">
-                <h3 className="font-medium mb-4 flex items-center gap-2"><Users className="w-4 h-4" /> Quick Capture</h3>
-                <div className="flex gap-2 flex-wrap">
-                  {['opportunity', 'risk', 'action', 'milestone'].map(type => (
-                    <button key={type} onClick={() => {/* capture */}} className="px-3 py-1 bg-white/10 rounded-full text-xs capitalize">{type}</button>
-                  ))}
+                  {MEETING_PHASES[currentPhase].prompts.map((prompt, i) => (<motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.1 }} className="flex items-start gap-2 text-sm"><ChevronRight className="w-4 h-4 text-primary-400 mt-0.5" /><span className="text-gray-300">{prompt}</span></motion.div>))}
                 </div>
               </motion.div>
             </div>
-            
-            {/* Canvas */}
             <div className="lg:col-span-3">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-purple-500/5 backdrop-blur-3xl rounded-3xl border border-white/10 overflow-hidden">
-                <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                  <p>Canvas area - Nodes will appear here</p>
-                </div>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-purple-500/5 backdrop-blur-3xl rounded-3xl border border-white/10 overflow-hidden flex items-center justify-center">
+                <p className="text-gray-400">Canvas area</p>
               </motion.div>
             </div>
           </div>
