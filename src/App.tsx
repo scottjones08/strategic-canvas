@@ -539,4 +539,193 @@ export default function MeetingCompanion() {
 
   useEffect(() => {
     if (sessionStart) {
-      const interval = setInterval(() => setElapsedTime(Math.floor((Date.now
+      const interval = setInterval(() => setElapsedTime(Math.floor((Date.now() - sessionStart.getTime()) / 1000)), 1000);
+      return () => clearInterval(interval);
+    }
+  }, [sessionStart]);
+
+  useEffect(() => {
+    const savedBoards = localStorage.getItem('strategic-canvas-boards');
+    if (savedBoards) {
+      try {
+        const parsed = JSON.parse(savedBoards);
+        if (parsed.length > 0) setBoards(parsed);
+      } catch (e) { console.log('Could not load saved boards'); }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('strategic-canvas-boards', JSON.stringify(boards));
+  }, [boards]);
+
+  const formatTime = (s: number) => Math.floor(s / 60) + ':' + (s % 60).toString().padStart(2, '0');
+  const startSession = () => { setSessionStart(new Date()); setCurrentPhase(0); setShowOnboarding(false); };
+
+  const handleAddUser = (user: Omit<User, 'id' | 'lastActive' | 'privateNotes'>) => {
+    const newUser = { ...user, id: Date.now().toString(), lastActive: new Date(), privateNotes: [] };
+    setUsers(prev => [...prev, newUser]);
+  };
+
+  const handleAddPrivateNote = (note: Omit<PrivateNote, 'id' | 'createdAt'>) => {
+    const newNote = { ...note, id: `note-${Date.now()}`, createdAt: new Date() };
+    setCurrentUser(prev => ({ ...prev, privateNotes: [...(prev.privateNotes || []), newNote] }));
+  };
+
+  const handleToggleNoteResolve = (noteId: string) => {
+    const updatedNotes = currentUser.privateNotes?.map(n => n.id === noteId ? { ...n, isResolved: !n.isResolved } : n) || [];
+    setCurrentUser(prev => ({ ...prev, privateNotes: updatedNotes }));
+  };
+
+  const handleRegenerateLink = () => {
+    const { link } = generateMagicLink(currentBoard.id);
+    setBoards(prev => prev.map(b => b.id === currentBoard.id ? { ...b, magicLink: link } : b));
+  };
+
+  const handleLogout = () => { setShowOnboarding(true); setSessionStart(null); };
+
+  const handleCreateBoard = (name: string) => {
+    const newBoard: Board = {
+      id: `board-${Date.now()}`,
+      name,
+      ownerId: currentUser.id,
+      sharedWith: [currentUser.id],
+      visualNodes: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      magicLinkPermissions: 'edit'
+    };
+    setBoards(prev => [...prev, newBoard]);
+    setCurrentBoardId(newBoard.id);
+  };
+
+  const handleDeleteBoard = (id: string) => {
+    if (boards.length > 1) {
+      setBoards(prev => prev.filter(b => b.id !== id));
+      if (currentBoardId === id) setCurrentBoardId(boards[0].id);
+    }
+  };
+
+  const handleToggleFavorite = (id: string) => {
+    setBoards(prev => prev.map(b => b.id === id ? { ...b, isFavorite: !b.isFavorite } : b));
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
+  const searchResults = searchQuery ? boards.flatMap(board => 
+    board.visualNodes
+      .filter(node => node.content.toLowerCase().includes(searchQuery.toLowerCase()))
+      .map(node => ({ boardId: board.id, boardName: board.name, node }))
+  ) : [];
+
+  if (showOnboarding || !sessionStart) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-gray-900 flex items-center justify-center p-6">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {Array.from({ length: 20 }).map((_, i) => (
+            <motion.div key={i} className="absolute rounded-full bg-purple-500/20 blur-sm"
+              style={{ left: Math.random() * 100 + '%', top: Math.random() * 100 + '%', width: Math.random() * 8 + 2, height: Math.random() * 8 + 2 }}
+              animate={{ y: [0, -100, 0], opacity: [0, 0.5, 0] }}
+              transition={{ duration: Math.random() * 20 + 20, repeat: Infinity }}
+            />
+          ))}
+        </div>
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white/10 backdrop-blur-2xl rounded-3xl p-8 max-w-lg w-full">
+          <div className="text-center mb-8">
+            <motion.div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-primary-400 to-purple-500 rounded-2xl flex items-center justify-center" animate={{ rotate: [0, 5, -5, 0] }} transition={{ duration: 4, repeat: Infinity }}>
+              <Rocket className="w-10 h-10 text-white" />
+            </motion.div>
+            <h1 className="text-3xl font-bold mb-2">Strategic Canvas</h1>
+            <p className="text-gray-400">AI-powered business planning</p>
+          </div>
+          <div className="space-y-4">
+            <div className="p-4 bg-white/5 rounded-xl flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-medium" style={{ backgroundColor: currentUser.color }}>{currentUser.name.charAt(0).toUpperCase()}</div>
+              <div><p className="font-medium">{currentUser.name}</p><p className="text-sm text-gray-400">{currentUser.email}</p></div>
+            </div>
+            <motion.button onClick={startSession} whileTap={{ scale: 0.98 }} className="w-full py-4 bg-gradient-to-r from-primary-500 to-purple-500 rounded-xl font-semibold shadow-lg flex items-center justify-center gap-2"><Sparkles className="w-5 h-5" /> Start Session</motion.button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-950 to-gray-900 overflow-hidden">
+      <AnimatePresence>
+        {showMagicLink && <MagicLinkModal board={currentBoard} onClose={() => setShowMagicLink(false)} onRegenerate={handleRegenerateLink} />}
+        {showExport && <PDFExportModal board={currentBoard} onClose={() => setShowExport(false)} />}
+      </AnimatePresence>
+
+      <motion.header initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative z-20 px-6 py-4">
+        <div className="max-w-full mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <motion.div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-purple-500 rounded-xl flex items-center justify-center" whileHover={{ scale: 1.1, rotate: 5 }}><Target className="w-6 h-6 text-white" /></motion.div>
+              <div>
+                <h1 className="text-xl font-bold">{currentBoard.name}</h1>
+                <div className="flex items-center gap-2 text-sm text-gray-400"><Clock className="w-4 h-4" /><span>{formatTime(elapsedTime)}</span><span>•</span><span>{MEETING_PHASES[currentPhase].name}</span></div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <AutoSaveIndicator saved={autoSaveState.saved} saving={autoSaveState.saving} />
+              <motion.button onClick={() => setShowExport(true)} whileHover={{ scale: 1.05 }} className="px-4 py-2 bg-white/10 rounded-xl flex items-center gap-2"><Download className="w-4 h-4" /> Export</motion.button>
+              <motion.button onClick={() => setShowMagicLink(true)} whileHover={{ scale: 1.05 }} className="px-4 py-2 bg-white/10 rounded-xl flex items-center gap-2"><Link2 className="w-4 h-4" /> Share</motion.button>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 px-4 py-3 bg-white/10 backdrop-blur-xl rounded-2xl overflow-x-auto">
+            {MEETING_PHASES.map((phase, index) => (
+              <div key={phase.id} className="flex items-center">
+                <motion.button onClick={() => setCurrentPhase(index)} whileHover={{ scale: 1.05 }} className={`px-4 py-2 rounded-xl transition-all ${index === currentPhase ? 'bg-gradient-to-r from-primary-500 to-purple-500 text-white' : 'bg-white/5 text-gray-400'}`}>
+                  <span className="text-lg mr-2">{phase.icon}</span>
+                  <span className="hidden md:inline font-medium text-sm">{phase.name}</span>
+                </motion.button>
+                {index < MEETING_PHASES.length - 1 && <div className="w-8 h-0.5 mx-2 bg-white/10" />}
+              </div>
+            ))}
+          </div>
+        </div>
+      </motion.header>
+
+      <div className="relative z-10 flex-1 p-6">
+        <div className="max-w-full mx-auto">
+          <div className="grid lg:grid-cols-5 gap-6">
+            <BoardSidebar 
+              boards={boards} 
+              currentBoard={currentBoard}
+              onSelectBoard={setCurrentBoardId}
+              onCreateBoard={handleCreateBoard}
+              onDeleteBoard={handleDeleteBoard}
+              onToggleFavorite={handleToggleFavorite}
+              searchQuery={searchQuery}
+              onSearchChange={handleSearch}
+              searchResults={searchResults}
+              onSearchResultClick={setCurrentBoardId}
+            />
+            <div className="lg:col-span-4 space-y-6">
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-white/10 backdrop-blur-xl rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-3xl">{MEETING_PHASES[currentPhase].icon}</span>
+                  <div><h2 className="text-xl font-bold">{MEETING_PHASES[currentPhase].name}</h2><p className="text-sm text-gray-400">{MEETING_PHASES[currentPhase].subtitle}</p></div>
+                </div>
+                <div className="space-y-3">
+                  {MEETING_PHASES[currentPhase].prompts.map((prompt, i) => (
+                    <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.1 }} className="flex items-start gap-2 text-sm">
+                      <ChevronRight className="w-4 h-4 text-primary-400 mt-0.5" /><span className="text-gray-300">{prompt}</span>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+              
+              <PrivateNotesPanel user={currentUser} onAddNote={handleAddPrivateNote} onToggleResolve={handleToggleNoteResolve} currentPhase={MEETING_PHASES[currentPhase].id} />
+              
+              <UserManagement users={users} currentUser={currentUser} onAddUser={handleAddUser} onLogout={handleLogout} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
