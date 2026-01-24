@@ -69,6 +69,19 @@ import {
   Move,
   BookOpen,
   Building2,
+  Timer,
+  Play,
+  Pause,
+  Search,
+  RotateCcw,
+  Lock,
+  Unlock,
+  Download,
+  Map,
+  Grid3X3,
+  MessageCircle,
+  Presentation,
+  Copy,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 
@@ -92,7 +105,7 @@ interface Board {
 
 interface VisualNode {
   id: string;
-  type: 'sticky' | 'frame' | 'opportunity' | 'risk' | 'action' | 'youtube' | 'image' | 'bucket' | 'text' | 'shape' | 'connector' | 'mindmap' | 'drawing';
+  type: 'sticky' | 'frame' | 'opportunity' | 'risk' | 'action' | 'youtube' | 'image' | 'bucket' | 'text' | 'shape' | 'connector' | 'mindmap' | 'drawing' | 'comment';
   x: number;
   y: number;
   width: number;
@@ -127,6 +140,8 @@ interface VisualNode {
   paths?: { points: { x: number; y: number }[]; color: string; width: number }[];
   strokeColor?: string;
   strokeWidth?: number;
+  // Reactions
+  reactions?: { emoji: string; userIds: string[] }[];
 }
 
 interface AIMessage {
@@ -167,11 +182,30 @@ interface ActionItem {
   priority: 'high' | 'medium' | 'low';
   isComplete: boolean;
   timestamp: number;
+  assigneeId?: string;
 }
 
 type ViewType = 'dashboard' | 'meeting' | 'notes' | 'clients';
 
+// Collaboration types
+interface UserPresence {
+  id: string;
+  name: string;
+  color: string;
+  cursorX: number;
+  cursorY: number;
+  lastSeen: Date;
+}
+
+interface HistoryEntry {
+  nodes: VisualNode[];
+  timestamp: Date;
+  action: string;
+  userId?: string;
+}
+
 // Constants
+const GRID_SIZE = 20;
 const PARTICIPANTS = [
   { id: '1', name: 'Scott Jones', color: '#10b981' },
   { id: '2', name: 'Partner 1', color: '#3b82f6' },
@@ -513,7 +547,7 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard }: { boards: Board[]
 };
 
 // Sticky Note Component
-const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, onDuplicate, onStartConnector, onAddMindmapChild, onAISparkle, zoom, selectedCount = 1 }: {
+const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, onDuplicate, onStartConnector, onAddMindmapChild, onAISparkle, onReact, zoom, selectedCount = 1, isDrawingMode = false }: {
   node: VisualNode;
   isSelected: boolean;
   onSelect: (e?: React.MouseEvent) => void;
@@ -524,12 +558,16 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
   onStartConnector: (nodeId: string) => void;
   onAddMindmapChild?: (nodeId: string) => void;
   onAISparkle?: (position: { x: number; y: number }) => void;
+  onReact?: (emoji: string) => void;
   zoom: number;
   selectedCount?: number;
+  isDrawingMode?: boolean;
 }) => {
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [showReactions, setShowReactions] = useState(false);
   const isFrame = node.type === 'frame';
+  const REACTION_EMOJIS = ['👍', '❤️', '🎉', '🔥', '💡', '⭐'];
 
   const handleResizeStart = (e: React.MouseEvent, direction: string) => {
     e.stopPropagation();
@@ -564,7 +602,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
 
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
-  const typeIcons: Record<string, string> = { opportunity: '💡', risk: '⚠️', action: '✅', sticky: '📝', frame: '📋', youtube: '🎬', image: '🖼️', bucket: '📥', text: '📝', shape: '⬜', connector: '➡️' };
+  const typeIcons: Record<string, string> = { opportunity: '💡', risk: '⚠️', action: '✅', sticky: '📝', frame: '📋', youtube: '🎬', image: '🖼️', bucket: '📥', text: '📝', shape: '⬜', connector: '➡️', comment: '💬', mindmap: '🧠' };
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -584,7 +622,10 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
   const isShape = node.type === 'shape';
   const isText = node.type === 'text';
   const isConnector = node.type === 'connector';
-  const hasTextContent = !['youtube', 'image', 'bucket', 'shape', 'connector'].includes(node.type);
+  const isComment = node.type === 'comment';
+  void node.type; // _isMindmap check handled by type === 'mindmap' inline
+  const hasTextContent = !['youtube', 'image', 'bucket', 'shape', 'connector', 'comment'].includes(node.type);
+  const [commentExpanded, setCommentExpanded] = useState(false);
 
   // Text formatting functions
   const addBulletPoint = () => {
@@ -648,16 +689,16 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
   return (
     <>
     <motion.div
-      initial={{ scale: 0.9, opacity: 0 }}
+      initial={{ scale: 0.9, opacity: 0, x: node.x, y: node.y }}
       animate={{ scale: 1, opacity: 1, x: node.x, y: node.y, rotate: node.rotation, boxShadow: isDragging ? '0 25px 50px -12px rgba(0, 0, 0, 0.25)' : isFrame || isText || isConnector ? 'none' : '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-      transition={{ type: 'spring', stiffness: 300, damping: 25, mass: 0.8 }}
-      whileHover={{ scale: isSelected ? 1 : 1.02, zIndex: 50 }}
-      className={`absolute pointer-events-auto ${isResizing ? '' : 'cursor-grab active:cursor-grabbing'} ${isFrame ? 'rounded-2xl border-2 border-dashed' : isText ? '' : isConnector ? '' : 'rounded-xl'} ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}
+      transition={isDragging ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 30 }}
+      whileHover={{ scale: isSelected || isDragging ? 1 : 1.02, zIndex: 50 }}
+      className={`absolute ${isDrawingMode ? 'pointer-events-none' : 'pointer-events-auto'} ${isResizing ? '' : 'cursor-grab active:cursor-grabbing'} ${isFrame ? 'rounded-2xl border-2 border-dashed' : isText ? '' : isConnector ? '' : 'rounded-xl'} ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}
       style={{ width: node.width, height: node.height, backgroundColor: isFrame ? `${node.color}80` : isText ? 'transparent' : node.color, borderColor: isFrame ? node.color : undefined, zIndex: isDragging ? 1000 : isSelected ? 100 : isFrame ? 1 : 10, ...getShapeStyles() }}
       onClick={(e) => onSelect(e)}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
-      drag={!isResizing}
+      drag={!isResizing && !isDrawingMode && !node.locked}
       dragMomentum={false}
       dragElastic={0}
       dragTransition={{ power: 0, timeConstant: 0 }}
@@ -666,10 +707,22 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
     >
       {!isFrame && (
         <>
-          <button onClick={(e) => { e.stopPropagation(); onVote(); }} className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform z-10 border border-gray-200">
-            <span className="text-sm">👍</span>
-            <span className="absolute -bottom-2 -right-2 w-5 h-5 bg-indigo-600 text-white text-xs rounded-full flex items-center justify-center font-medium">{node.votes}</span>
-          </button>
+          <div className="absolute -top-3 -right-3 flex items-center gap-1 z-10">
+            <button onClick={(e) => { e.stopPropagation(); setShowReactions(!showReactions); }} className="w-7 h-7 bg-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform border border-gray-200" title="Add reaction">
+              <span className="text-xs">😊</span>
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); onVote(); }} className="w-7 h-7 bg-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform border border-gray-200">
+              <span className="text-xs">👍</span>
+              {node.votes > 0 && <span className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-indigo-600 text-white text-[10px] rounded-full flex items-center justify-center font-medium">{node.votes}</span>}
+            </button>
+          </div>
+          {showReactions && (
+            <div className="absolute -top-12 right-0 bg-white rounded-xl shadow-xl border border-gray-200 p-1.5 flex gap-1 z-20" onClick={(e) => e.stopPropagation()}>
+              {REACTION_EMOJIS.map(emoji => (
+                <button key={emoji} onClick={() => { onReact?.(emoji); setShowReactions(false); }} className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-sm hover:scale-125 transition-transform">{emoji}</button>
+              ))}
+            </div>
+          )}
           {isSelected && onAISparkle && (
             <button
               onClick={(e) => {
@@ -682,6 +735,16 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
             >
               <Sparkles className="w-4 h-4 text-white" />
             </button>
+          )}
+          {/* Reactions display */}
+          {node.reactions && node.reactions.length > 0 && (
+            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white rounded-full shadow-md border border-gray-200 px-2 py-0.5 flex gap-1 z-10">
+              {node.reactions.map(r => (
+                <span key={r.emoji} className="text-xs flex items-center gap-0.5">
+                  {r.emoji}<span className="text-[10px] text-gray-500">{r.userIds.length}</span>
+                </span>
+              ))}
+            </div>
           )}
         </>
       )}
@@ -740,8 +803,15 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
         )}
 
         {isShape && (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-gray-500 text-xs opacity-50">{node.shapeType}</span>
+          <div className="w-full h-full flex items-center justify-center p-2">
+            <textarea
+              value={node.content}
+              onChange={(e) => onUpdate({ content: e.target.value })}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full h-full bg-transparent resize-none border-none outline-none text-gray-700 text-sm font-medium text-center placeholder-gray-400"
+              placeholder="Click to add text"
+              style={{ textAlign: 'center', display: 'flex', alignItems: 'center' }}
+            />
           </div>
         )}
 
@@ -760,7 +830,36 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
           <div className="w-full h-1 rounded-full" style={{ backgroundColor: node.color, borderStyle: node.connectorStyle || 'solid' }} />
         )}
 
-        {!isFrame && node.type !== 'youtube' && node.type !== 'image' && node.type !== 'bucket' && !isShape && !isText && !isConnector && (
+        {isComment && (
+          <div 
+            className="w-full h-full flex items-center justify-center cursor-pointer"
+            onClick={(e) => { e.stopPropagation(); setCommentExpanded(!commentExpanded); }}
+          >
+            {!commentExpanded ? (
+              <div className="w-8 h-8 bg-amber-400 rounded-full flex items-center justify-center shadow-lg border-2 border-amber-500">
+                <MessageCircle className="w-4 h-4 text-white" />
+              </div>
+            ) : (
+              <div className="absolute left-10 top-0 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 p-3 z-50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-gray-600">Comment</span>
+                  <button onClick={(e) => { e.stopPropagation(); setCommentExpanded(false); }} className="p-1 hover:bg-gray-100 rounded">
+                    <X className="w-3 h-3 text-gray-400" />
+                  </button>
+                </div>
+                <textarea
+                  value={node.content}
+                  onChange={(e) => onUpdate({ content: e.target.value })}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full h-24 bg-gray-50 rounded-lg p-2 text-sm resize-none border border-gray-200 outline-none focus:ring-2 focus:ring-amber-400"
+                  placeholder="Add your comment..."
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isFrame && node.type !== 'youtube' && node.type !== 'image' && node.type !== 'bucket' && !isShape && !isText && !isConnector && !isComment && (
           <>
             <div className="flex items-center gap-1 mb-2">
               <span>{typeIcons[node.type] || '📝'}</span>
@@ -789,6 +888,11 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
               {selectedCount} selected
             </div>
           )}
+          {node.locked && (
+            <div className="absolute -top-6 -left-2 bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-medium shadow-lg z-30 flex items-center gap-1">
+              <Lock className="w-3 h-3" /> Locked
+            </div>
+          )}
           <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-lg border border-gray-200 flex items-center gap-1 p-1 z-30">
             {hasTextContent && (
               <>
@@ -813,7 +917,9 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
     </motion.div>
 
     {showContextMenu && (
-      <div className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-[9999] w-56" style={{ left: contextMenuPos.x, top: contextMenuPos.y }}>
+      <>
+        <div className="fixed inset-0 z-[9998]" onClick={() => setShowContextMenu(false)} />
+        <div className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-[9999] w-56" style={{ left: contextMenuPos.x, top: contextMenuPos.y }} onClick={(e) => e.stopPropagation()}>
         <div className="px-3 py-2 border-b border-gray-100">
           <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Colors</p>
           <div className="flex gap-1.5">
@@ -833,7 +939,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
             </div>
           </div>
         )}
-        <button onClick={() => { onUpdate({ locked: !node.locked }); setShowContextMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 flex items-center gap-3"><Link className="w-4 h-4 text-gray-500" />{node.locked ? 'Unlock' : 'Lock'}</button>
+        <button onClick={() => { onUpdate({ locked: !node.locked }); setShowContextMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 flex items-center gap-3">{node.locked ? <Unlock className="w-4 h-4 text-gray-500" /> : <Lock className="w-4 h-4 text-gray-500" />}{node.locked ? 'Unlock Element' : 'Lock Element'}</button>
         <button onClick={() => { onDuplicate(); setShowContextMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 flex items-center gap-3"><FileText className="w-4 h-4 text-gray-500" />Duplicate</button>
         <button onClick={() => { onStartConnector(node.id); setShowContextMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 flex items-center gap-3"><Minus className="w-4 h-4 text-gray-500" />Connect to...</button>
         {node.type === 'mindmap' && onAddMindmapChild && (
@@ -842,13 +948,14 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
         <div className="h-px bg-gray-200 my-1" />
         <button onClick={() => { onDelete(); setShowContextMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-3"><Trash2 className="w-4 h-4" />Delete</button>
       </div>
+      </>
     )}
     </>
   );
 };
 
 // Infinite Canvas
-const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNodeIds, onSelectNodes, onCanvasDoubleClick, isDrawingMode, drawingColor, drawingWidth, onAddMindmapChild, onAISparkle }: {
+const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNodeIds, onSelectNodes, onCanvasDoubleClick, isDrawingMode, isPanMode, drawingColor, drawingWidth, onAddMindmapChild, onAISparkle, gridSnap, showMinimap, otherUsers }: {
   board: Board;
   onUpdateBoard: (updates: Partial<Board>) => void;
   onUpdateWithHistory: (updates: Partial<Board>, action: string) => void;
@@ -856,10 +963,14 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   onSelectNodes: (ids: string[], toggle?: boolean) => void;
   onCanvasDoubleClick?: (x: number, y: number) => void;
   isDrawingMode?: boolean;
+  isPanMode?: boolean;
   drawingColor?: string;
   drawingWidth?: number;
   onAddMindmapChild?: (parentNodeId: string) => void;
   onAISparkle?: (position: { x: number; y: number }) => void;
+  gridSnap?: boolean;
+  showMinimap?: boolean;
+  otherUsers?: UserPresence[];
 }) => {
   const [zoom, setZoom] = useState(board.zoom || 1);
   const [panX, setPanX] = useState(board.panX || 0);
@@ -871,6 +982,89 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   const [spacePressed, setSpacePressed] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  
+  // Lasso selection state
+  const [isLassoing, setIsLassoing] = useState(false);
+  const [lassoStart, setLassoStart] = useState<{ x: number; y: number } | null>(null);
+  const [lassoEnd, setLassoEnd] = useState<{ x: number; y: number } | null>(null);
+  
+  // Alignment guides
+  const [alignmentGuides, setAlignmentGuides] = useState<{ type: 'vertical' | 'horizontal'; position: number }[]>([]);
+  
+  // Snap to grid helper (used by alignment guides)
+  // @ts-expect-error - Will be used when connecting to node drag
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _snapToGrid = useCallback((value: number) => {
+    if (!gridSnap) return value;
+    return Math.round(value / GRID_SIZE) * GRID_SIZE;
+  }, [gridSnap]);
+  
+  // Calculate alignment guides when dragging (TODO: connect to node drag)
+  // @ts-expect-error - Will be used when connecting to node drag
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _calculateAlignmentGuides = useCallback((draggedNode: VisualNode, newX: number, newY: number) => {
+    if (!gridSnap) {
+      setAlignmentGuides([]);
+      return { x: newX, y: newY };
+    }
+    
+    const guides: { type: 'vertical' | 'horizontal'; position: number }[] = [];
+    const SNAP_THRESHOLD = 8;
+    let snappedX = newX;
+    let snappedY = newY;
+    
+    const draggedCenterX = newX + draggedNode.width / 2;
+    const draggedCenterY = newY + draggedNode.height / 2;
+    const draggedRight = newX + draggedNode.width;
+    const draggedBottom = newY + draggedNode.height;
+    
+    board.visualNodes.filter(n => n.id !== draggedNode.id && n.type !== 'connector' && n.type !== 'drawing').forEach(node => {
+      const nodeCenterX = node.x + node.width / 2;
+      const nodeCenterY = node.y + node.height / 2;
+      const nodeRight = node.x + node.width;
+      const nodeBottom = node.y + node.height;
+      
+      // Left edge alignment
+      if (Math.abs(newX - node.x) < SNAP_THRESHOLD) {
+        snappedX = node.x;
+        guides.push({ type: 'vertical', position: node.x * zoom + panX });
+      }
+      // Right edge alignment
+      if (Math.abs(draggedRight - nodeRight) < SNAP_THRESHOLD) {
+        snappedX = nodeRight - draggedNode.width;
+        guides.push({ type: 'vertical', position: nodeRight * zoom + panX });
+      }
+      // Center X alignment
+      if (Math.abs(draggedCenterX - nodeCenterX) < SNAP_THRESHOLD) {
+        snappedX = nodeCenterX - draggedNode.width / 2;
+        guides.push({ type: 'vertical', position: nodeCenterX * zoom + panX });
+      }
+      
+      // Top edge alignment
+      if (Math.abs(newY - node.y) < SNAP_THRESHOLD) {
+        snappedY = node.y;
+        guides.push({ type: 'horizontal', position: node.y * zoom + panY });
+      }
+      // Bottom edge alignment
+      if (Math.abs(draggedBottom - nodeBottom) < SNAP_THRESHOLD) {
+        snappedY = nodeBottom - draggedNode.height;
+        guides.push({ type: 'horizontal', position: nodeBottom * zoom + panY });
+      }
+      // Center Y alignment
+      if (Math.abs(draggedCenterY - nodeCenterY) < SNAP_THRESHOLD) {
+        snappedY = nodeCenterY - draggedNode.height / 2;
+        guides.push({ type: 'horizontal', position: nodeCenterY * zoom + panY });
+      }
+    });
+    
+    setAlignmentGuides(guides);
+    return { x: snappedX, y: snappedY };
+  }, [board.visualNodes, gridSnap, zoom, panX, panY]);
+  
+  // Clear alignment guides when not dragging
+  const clearAlignmentGuides = useCallback(() => {
+    setAlignmentGuides([]);
+  }, []);
 
   // Handle spacebar for pan mode (only when not typing in inputs)
   useEffect(() => {
@@ -883,12 +1077,56 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't capture spacebar if user is typing in an input/textarea
+      // Don't capture shortcuts if user is typing in an input/textarea
       if (isTypingElement(document.activeElement)) return;
 
+      // Space for panning
       if (e.code === 'Space' && !e.repeat) {
         e.preventDefault();
         setSpacePressed(true);
+      }
+      // Delete or Backspace to delete selected nodes
+      if ((e.code === 'Delete' || e.code === 'Backspace') && selectedNodeIds.length > 0) {
+        e.preventDefault();
+        onUpdateWithHistory({ visualNodes: board.visualNodes.filter(n => !selectedNodeIds.includes(n.id)) }, 'Delete elements');
+        onSelectNodes([]);
+      }
+      // Cmd/Ctrl + D to duplicate
+      if ((e.metaKey || e.ctrlKey) && e.code === 'KeyD' && selectedNodeIds.length > 0) {
+        e.preventDefault();
+        const duplicatedNodes = board.visualNodes
+          .filter(n => selectedNodeIds.includes(n.id))
+          .map(n => ({ ...n, id: generateId(), x: n.x + 20, y: n.y + 20 }));
+        onUpdateWithHistory({ visualNodes: [...board.visualNodes, ...duplicatedNodes] }, 'Duplicate elements');
+        onSelectNodes(duplicatedNodes.map(n => n.id));
+      }
+      // + or = to zoom in
+      if ((e.code === 'Equal' || e.code === 'NumpadAdd') && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setZoom(z => Math.min(z * 1.2, 5));
+      }
+      // - to zoom out
+      if ((e.code === 'Minus' || e.code === 'NumpadSubtract') && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setZoom(z => Math.max(z * 0.8, 0.1));
+      }
+      // 0 to reset zoom
+      if (e.code === 'Digit0' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setZoom(1);
+        setPanX(0);
+        setPanY(0);
+      }
+      // Escape to deselect all
+      if (e.code === 'Escape') {
+        e.preventDefault();
+        onSelectNodes([]);
+        setConnectingFrom(null);
+      }
+      // Cmd/Ctrl + A to select all
+      if ((e.metaKey || e.ctrlKey) && e.code === 'KeyA') {
+        e.preventDefault();
+        onSelectNodes(board.visualNodes.filter(n => n.type !== 'connector' && n.type !== 'drawing').map(n => n.id));
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -903,7 +1141,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+  }, [selectedNodeIds, board.visualNodes, onUpdateWithHistory, onSelectNodes]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (e.metaKey || e.ctrlKey) {
@@ -972,8 +1210,8 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
 
   // Combined mouse down handler for panning and drawing
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // Middle mouse button (button === 1) or space+click for panning
-    if (e.button === 1 || spacePressed) {
+    // Middle mouse button (button === 1), space+click, or isPanMode for panning
+    if (e.button === 1 || spacePressed || (isPanMode && e.button === 0)) {
       e.preventDefault();
       setIsPanning(true);
       setPanStart({ x: e.clientX, y: e.clientY, panX, panY });
@@ -987,8 +1225,20 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       setIsDrawing(true);
       const point = getCanvasPoint(e);
       setCurrentPath([point]);
+      return;
     }
-  }, [isDrawingMode, getCanvasPoint, spacePressed, panX, panY]);
+    
+    // Lasso selection with shift+click (only in select mode)
+    if (e.shiftKey && e.button === 0 && !isDrawingMode && !isPanMode) {
+      e.preventDefault();
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        setIsLassoing(true);
+        setLassoStart({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        setLassoEnd({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      }
+    }
+  }, [isDrawingMode, isPanMode, getCanvasPoint, spacePressed, panX, panY]);
 
   // Combined mouse move handler
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -1007,13 +1257,57 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       e.preventDefault();
       const point = getCanvasPoint(e);
       setCurrentPath(prev => [...prev, point]);
+      return;
     }
-  }, [isPanning, panStart, isDrawing, isDrawingMode, getCanvasPoint]);
+    
+    // Lasso selection
+    if (isLassoing && lassoStart) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        setLassoEnd({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      }
+    }
+  }, [isPanning, panStart, isDrawing, isDrawingMode, getCanvasPoint, isLassoing, lassoStart]);
 
   // Combined mouse up handler
   const handleMouseUp = useCallback(() => {
+    // Clear alignment guides
+    clearAlignmentGuides();
+    
     if (isPanning) {
       setIsPanning(false);
+      return;
+    }
+    
+    // Complete lasso selection
+    if (isLassoing && lassoStart && lassoEnd) {
+      const left = Math.min(lassoStart.x, lassoEnd.x);
+      const top = Math.min(lassoStart.y, lassoEnd.y);
+      const right = Math.max(lassoStart.x, lassoEnd.x);
+      const bottom = Math.max(lassoStart.y, lassoEnd.y);
+      
+      // Convert screen coordinates to canvas coordinates
+      const canvasLeft = (left - panX) / zoom;
+      const canvasTop = (top - panY) / zoom;
+      const canvasRight = (right - panX) / zoom;
+      const canvasBottom = (bottom - panY) / zoom;
+      
+      // Find all nodes that intersect with the selection rectangle
+      const selectedIds = board.visualNodes
+        .filter(n => n.type !== 'connector' && n.type !== 'drawing')
+        .filter(n => {
+          return n.x < canvasRight && n.x + n.width > canvasLeft &&
+                 n.y < canvasBottom && n.y + n.height > canvasTop;
+        })
+        .map(n => n.id);
+      
+      if (selectedIds.length > 0) {
+        onSelectNodes(selectedIds);
+      }
+      
+      setIsLassoing(false);
+      setLassoStart(null);
+      setLassoEnd(null);
       return;
     }
 
@@ -1055,7 +1349,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     onUpdateWithHistory({ visualNodes: [...board.visualNodes, drawingNode] }, 'Draw');
     setIsDrawing(false);
     setCurrentPath([]);
-  }, [isPanning, isDrawing, currentPath, drawingColor, drawingWidth, board.visualNodes, onUpdateWithHistory]);
+  }, [isPanning, isDrawing, currentPath, drawingColor, drawingWidth, board.visualNodes, onUpdateWithHistory, isLassoing, lassoStart, lassoEnd, panX, panY, zoom, onSelectNodes, clearAlignmentGuides]);
 
   // Get connector lines
   const connectorLines = board.visualNodes.filter(n => n.type === 'connector' && n.connectorFrom && n.connectorTo).map(conn => {
@@ -1076,7 +1370,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   return (
     <div
       ref={canvasRef}
-      className={`relative flex-1 overflow-hidden bg-gray-100 ${isDrawingMode ? 'cursor-crosshair' : isPanning || spacePressed ? 'cursor-grabbing' : 'cursor-grab'}`}
+      className={`relative flex-1 overflow-hidden bg-gray-100 ${isDrawingMode ? 'cursor-crosshair' : isPanning ? 'cursor-grabbing' : isPanMode || spacePressed ? 'cursor-grab' : 'cursor-default'}`}
       onWheel={handleWheel}
       onClick={() => { if (!isDrawingMode) { onSelectNodes([]); setConnectingFrom(null); } }}
       onDoubleClick={(e) => {
@@ -1164,7 +1458,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       )}
 
       {/* Pan Mode Indicator */}
-      {spacePressed && !isDrawingMode && (
+      {(spacePressed || isPanMode) && !isDrawingMode && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-gray-700 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg z-50 flex items-center gap-2">
           <Move className="w-4 h-4" />
           Pan mode • Drag to move canvas
@@ -1230,20 +1524,515 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
               onStartConnector={handleStartConnector}
               onAddMindmapChild={onAddMindmapChild}
               onAISparkle={onAISparkle}
+              onReact={(emoji) => {
+                const currentReactions = node.reactions || [];
+                const existingReaction = currentReactions.find(r => r.emoji === emoji);
+                let newReactions;
+                if (existingReaction) {
+                  if (existingReaction.userIds.includes('1')) {
+                    newReactions = currentReactions.map(r => r.emoji === emoji ? { ...r, userIds: r.userIds.filter(id => id !== '1') } : r).filter(r => r.userIds.length > 0);
+                  } else {
+                    newReactions = currentReactions.map(r => r.emoji === emoji ? { ...r, userIds: [...r.userIds, '1'] } : r);
+                  }
+                } else {
+                  newReactions = [...currentReactions, { emoji, userIds: ['1'] }];
+                }
+                onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === node.id ? { ...n, reactions: newReactions } : n) }, 'React');
+              }}
               zoom={zoom}
               selectedCount={selectedNodeIds.length}
+              isDrawingMode={isDrawingMode}
             />
           ))}
         </AnimatePresence>
       </motion.div>
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-lg p-2 flex items-center gap-2 border border-gray-200 z-30">
-        <button onClick={() => setZoom(z => Math.max(z * 0.8, 0.1))} className="p-2 hover:bg-gray-100 rounded-lg"><ZoomOut className="w-4 h-4 text-gray-600" /></button>
+        <button onClick={() => setZoom(z => Math.max(z * 0.8, 0.1))} className="p-2 hover:bg-gray-100 rounded-lg" title="Zoom out (-)"><ZoomOut className="w-4 h-4 text-gray-600" /></button>
         <span className="text-sm font-medium w-16 text-center text-gray-700">{Math.round(zoom * 100)}%</span>
-        <button onClick={() => setZoom(z => Math.min(z * 1.2, 5))} className="p-2 hover:bg-gray-100 rounded-lg"><ZoomIn className="w-4 h-4 text-gray-600" /></button>
+        <button onClick={() => setZoom(z => Math.min(z * 1.2, 5))} className="p-2 hover:bg-gray-100 rounded-lg" title="Zoom in (+)"><ZoomIn className="w-4 h-4 text-gray-600" /></button>
         <div className="w-px h-6 bg-gray-200" />
-        <button onClick={() => { setZoom(1); setPanX(0); setPanY(0); }} className="p-2 hover:bg-gray-100 rounded-lg"><Maximize2 className="w-4 h-4 text-gray-600" /></button>
+        <button onClick={() => { setZoom(1); setPanX(0); setPanY(0); }} className="p-2 hover:bg-gray-100 rounded-lg" title="Reset view (0)"><Maximize2 className="w-4 h-4 text-gray-600" /></button>
+        <button
+          onClick={() => {
+            const nodes = board.visualNodes.filter(n => n.type !== 'connector' && n.type !== 'drawing');
+            if (nodes.length === 0) return;
+            const minX = Math.min(...nodes.map(n => n.x));
+            const maxX = Math.max(...nodes.map(n => n.x + n.width));
+            const minY = Math.min(...nodes.map(n => n.y));
+            const maxY = Math.max(...nodes.map(n => n.y + n.height));
+            const contentWidth = maxX - minX + 100;
+            const contentHeight = maxY - minY + 100;
+            const viewWidth = canvasRef.current?.clientWidth || window.innerWidth;
+            const viewHeight = canvasRef.current?.clientHeight || window.innerHeight;
+            const newZoom = Math.min(viewWidth / contentWidth, viewHeight / contentHeight, 2);
+            setZoom(newZoom);
+            setPanX(-minX * newZoom + (viewWidth - contentWidth * newZoom) / 2 + 50 * newZoom);
+            setPanY(-minY * newZoom + (viewHeight - contentHeight * newZoom) / 2 + 50 * newZoom);
+          }}
+          className="p-2 hover:bg-gray-100 rounded-lg"
+          title="Fit all content"
+        >
+          <Minimize2 className="w-4 h-4 text-gray-600" />
+        </button>
       </div>
+      {/* Keyboard shortcuts hint */}
+      <div className="absolute bottom-4 left-4 text-xs text-gray-400 z-30 space-y-0.5">
+        <div><span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">V</span> select • <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">H</span> pan • <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">B</span> draw</div>
+        <div><span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">Shift</span> + drag lasso • <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">Del</span> delete • <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">⌘D</span> duplicate</div>
+      </div>
+      
+      {/* Lasso Selection */}
+      <LassoSelection isActive={isLassoing} startPoint={lassoStart} currentPoint={lassoEnd} />
+      
+      {/* Alignment Guides */}
+      <AlignmentGuides guides={alignmentGuides} />
+      
+      {/* Minimap */}
+      {showMinimap && (
+        <Minimap 
+          nodes={board.visualNodes}
+          zoom={zoom}
+          panX={panX}
+          panY={panY}
+          canvasWidth={canvasRef.current?.clientWidth || 800}
+          canvasHeight={canvasRef.current?.clientHeight || 600}
+          onPan={(x, y) => { setPanX(x); setPanY(y); }}
+        />
+      )}
+      
+      {/* Other Users' Cursors */}
+      {otherUsers?.map(user => (
+        <UserCursor key={user.id} user={user} />
+      ))}
     </div>
+  );
+};
+
+// Minimap Component
+const Minimap = ({ 
+  nodes, 
+  zoom, 
+  panX, 
+  panY, 
+  canvasWidth, 
+  canvasHeight,
+  onPan 
+}: { 
+  nodes: VisualNode[]; 
+  zoom: number; 
+  panX: number; 
+  panY: number; 
+  canvasWidth: number;
+  canvasHeight: number;
+  onPan: (x: number, y: number) => void;
+}) => {
+  const minimapRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  
+  // Calculate bounds of all nodes
+  const bounds = nodes.length > 0 ? {
+    minX: Math.min(...nodes.map(n => n.x)) - 100,
+    maxX: Math.max(...nodes.map(n => n.x + n.width)) + 100,
+    minY: Math.min(...nodes.map(n => n.y)) - 100,
+    maxY: Math.max(...nodes.map(n => n.y + n.height)) + 100,
+  } : { minX: 0, maxX: 1000, minY: 0, maxY: 1000 };
+  
+  const contentWidth = bounds.maxX - bounds.minX;
+  const contentHeight = bounds.maxY - bounds.minY;
+  const minimapWidth = 180;
+  const minimapHeight = 120;
+  const scale = Math.min(minimapWidth / contentWidth, minimapHeight / contentHeight);
+  
+  // Viewport rectangle
+  const viewportWidth = (canvasWidth / zoom) * scale;
+  const viewportHeight = (canvasHeight / zoom) * scale;
+  const viewportX = ((-panX / zoom) - bounds.minX) * scale;
+  const viewportY = ((-panY / zoom) - bounds.minY) * scale;
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    handleMouseMove(e);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging && e.type !== 'mousedown') return;
+    if (!minimapRef.current) return;
+    
+    const rect = minimapRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Convert minimap coordinates to canvas coordinates
+    const canvasX = (x / scale) + bounds.minX;
+    const canvasY = (y / scale) + bounds.minY;
+    
+    // Center the viewport on click position
+    const newPanX = -(canvasX - (canvasWidth / zoom / 2)) * zoom;
+    const newPanY = -(canvasY - (canvasHeight / zoom / 2)) * zoom;
+    
+    onPan(newPanX, newPanY);
+  };
+
+  const handleMouseUp = () => setIsDragging(false);
+
+  useEffect(() => {
+    if (isDragging) {
+      const handleGlobalMouseUp = () => setIsDragging(false);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+      return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+    }
+  }, [isDragging]);
+
+  return (
+    <div 
+      ref={minimapRef}
+      className="absolute bottom-20 right-4 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-2 z-40 cursor-crosshair"
+      style={{ width: minimapWidth + 16, height: minimapHeight + 16 }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
+      <div className="absolute top-1 left-2 text-[10px] font-medium text-gray-400 flex items-center gap-1">
+        <Map className="w-3 h-3" /> Minimap
+      </div>
+      <svg width={minimapWidth} height={minimapHeight} className="mt-3">
+        {/* Grid background */}
+        <rect x="0" y="0" width={minimapWidth} height={minimapHeight} fill="#f9fafb" rx="4" />
+        
+        {/* Nodes */}
+        {nodes.filter(n => n.type !== 'connector' && n.type !== 'drawing').map(node => (
+          <rect
+            key={node.id}
+            x={(node.x - bounds.minX) * scale}
+            y={(node.y - bounds.minY) * scale}
+            width={Math.max(node.width * scale, 2)}
+            height={Math.max(node.height * scale, 2)}
+            fill={node.color || '#dbeafe'}
+            stroke="#6b7280"
+            strokeWidth="0.5"
+            rx="1"
+            opacity="0.8"
+          />
+        ))}
+        
+        {/* Viewport indicator */}
+        <rect
+          x={Math.max(0, viewportX)}
+          y={Math.max(0, viewportY)}
+          width={Math.min(viewportWidth, minimapWidth - viewportX)}
+          height={Math.min(viewportHeight, minimapHeight - viewportY)}
+          fill="rgba(99, 102, 241, 0.1)"
+          stroke="#6366f1"
+          strokeWidth="2"
+          rx="2"
+        />
+      </svg>
+    </div>
+  );
+};
+
+// Lasso Selection Component
+const LassoSelection = ({
+  isActive,
+  startPoint,
+  currentPoint
+}: {
+  isActive: boolean;
+  startPoint: { x: number; y: number } | null;
+  currentPoint: { x: number; y: number } | null;
+}) => {
+  if (!isActive || !startPoint || !currentPoint) return null;
+  
+  const left = Math.min(startPoint.x, currentPoint.x);
+  const top = Math.min(startPoint.y, currentPoint.y);
+  const width = Math.abs(currentPoint.x - startPoint.x);
+  const height = Math.abs(currentPoint.y - startPoint.y);
+  
+  return (
+    <div
+      className="absolute pointer-events-none border-2 border-indigo-500 bg-indigo-500/10 z-50"
+      style={{ left, top, width, height }}
+    />
+  );
+};
+
+// Alignment Guides Component
+const AlignmentGuides = ({
+  guides
+}: {
+  guides: { type: 'vertical' | 'horizontal'; position: number }[];
+}) => {
+  return (
+    <>
+      {guides.map((guide, i) => (
+        <div
+          key={i}
+          className="absolute pointer-events-none z-40"
+          style={guide.type === 'vertical' 
+            ? { left: guide.position, top: 0, bottom: 0, width: 1, background: '#ef4444' }
+            : { top: guide.position, left: 0, right: 0, height: 1, background: '#ef4444' }
+          }
+        />
+      ))}
+    </>
+  );
+};
+
+// Presentation Mode Component
+const PresentationMode = ({
+  isOpen,
+  frames,
+  currentFrameIndex,
+  onClose,
+  onNext,
+  onPrev,
+  onGoTo
+}: {
+  isOpen: boolean;
+  frames: VisualNode[];
+  currentFrameIndex: number;
+  onClose: () => void;
+  onNext: () => void;
+  onPrev: () => void;
+  onGoTo: (index: number) => void;
+}) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowRight' || e.key === ' ') onNext();
+      if (e.key === 'ArrowLeft') onPrev();
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose, onNext, onPrev]);
+
+  if (!isOpen) return null;
+  
+  const currentFrame = frames[currentFrameIndex];
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-gray-900 z-[100] flex flex-col"
+    >
+      {/* Header */}
+      <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-gradient-to-b from-black/50 to-transparent z-10">
+        <div className="flex items-center gap-4">
+          <h2 className="text-white text-xl font-bold">{currentFrame?.content || 'Untitled Frame'}</h2>
+          <span className="text-white/60 text-sm">{currentFrameIndex + 1} / {frames.length}</span>
+        </div>
+        <button onClick={onClose} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg">
+          <X className="w-6 h-6" />
+        </button>
+      </div>
+      
+      {/* Frame content area */}
+      <div className="flex-1 flex items-center justify-center p-20">
+        {currentFrame && (
+          <motion.div
+            key={currentFrame.id}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl p-8 max-w-4xl"
+            style={{ backgroundColor: currentFrame.color || '#ffffff' }}
+          >
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">{currentFrame.content}</h1>
+          </motion.div>
+        )}
+      </div>
+      
+      {/* Navigation */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-center gap-4 bg-gradient-to-t from-black/50 to-transparent">
+        <button 
+          onClick={onPrev} 
+          disabled={currentFrameIndex === 0}
+          className="p-3 text-white bg-white/10 hover:bg-white/20 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+        
+        <div className="flex gap-2">
+          {frames.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => onGoTo(i)}
+              className={`w-3 h-3 rounded-full transition-all ${i === currentFrameIndex ? 'bg-white scale-125' : 'bg-white/40 hover:bg-white/60'}`}
+            />
+          ))}
+        </div>
+        
+        <button 
+          onClick={onNext}
+          disabled={currentFrameIndex === frames.length - 1}
+          className="p-3 text-white bg-white/10 hover:bg-white/20 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <ChevronRight className="w-6 h-6" />
+        </button>
+      </div>
+      
+      {/* Keyboard hints */}
+      <div className="absolute bottom-4 left-4 text-white/40 text-xs">
+        <span className="bg-white/10 px-2 py-1 rounded">←</span> / <span className="bg-white/10 px-2 py-1 rounded">→</span> navigate • <span className="bg-white/10 px-2 py-1 rounded">Esc</span> exit
+      </div>
+    </motion.div>
+  );
+};
+
+// Version History Panel
+const VersionHistoryPanel = ({
+  isOpen,
+  history,
+  currentIndex,
+  onClose,
+  onRestore
+}: {
+  isOpen: boolean;
+  history: HistoryEntry[];
+  currentIndex: number;
+  onClose: () => void;
+  onRestore: (index: number) => void;
+}) => {
+  if (!isOpen) return null;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      className="absolute top-4 right-4 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[500px] overflow-hidden flex flex-col"
+    >
+      <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <History className="w-5 h-5 text-indigo-600" />
+          <h3 className="font-semibold text-gray-900">Version History</h3>
+        </div>
+        <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">
+          <X className="w-4 h-4 text-gray-400" />
+        </button>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto p-2">
+        {history.slice().reverse().map((entry, reversedIndex) => {
+          const actualIndex = history.length - 1 - reversedIndex;
+          const isCurrentVersion = actualIndex === currentIndex;
+          
+          return (
+            <div
+              key={reversedIndex}
+              className={`p-3 rounded-lg mb-1 cursor-pointer transition-all ${
+                isCurrentVersion 
+                  ? 'bg-indigo-50 border-2 border-indigo-200' 
+                  : 'hover:bg-gray-50 border-2 border-transparent'
+              }`}
+              onClick={() => !isCurrentVersion && onRestore(actualIndex)}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-sm font-medium ${isCurrentVersion ? 'text-indigo-700' : 'text-gray-700'}`}>
+                  {entry.action}
+                </span>
+                {isCurrentVersion && (
+                  <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Current</span>
+                )}
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                {new Date(entry.timestamp).toLocaleTimeString()} • {entry.nodes.length} elements
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+};
+
+// User Cursor Component (for collaboration)
+const UserCursor = ({ user }: { user: UserPresence }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0 }}
+      className="absolute pointer-events-none z-50"
+      style={{ left: user.cursorX, top: user.cursorY }}
+    >
+      <svg width="24" height="24" viewBox="0 0 24 24" fill={user.color}>
+        <path d="M5 3l14 7-7 1.5L10.5 19 5 3z" stroke="white" strokeWidth="1.5" />
+      </svg>
+      <div 
+        className="absolute left-5 top-5 px-2 py-1 rounded-md text-xs font-medium text-white whitespace-nowrap"
+        style={{ backgroundColor: user.color }}
+      >
+        {user.name}
+      </div>
+    </motion.div>
+  );
+};
+
+// Export Modal Component
+const ExportModal = ({
+  isOpen,
+  onClose,
+  onExport
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onExport: (format: 'png' | 'svg' | 'pdf' | 'json') => void;
+}) => {
+  if (!isOpen) return null;
+  
+  const formats = [
+    { id: 'png' as const, name: 'PNG Image', icon: Image, desc: 'High-quality raster image' },
+    { id: 'svg' as const, name: 'SVG Vector', icon: Copy, desc: 'Scalable vector graphics' },
+    { id: 'pdf' as const, name: 'PDF Document', icon: FileText, desc: 'Print-ready document' },
+    { id: 'json' as const, name: 'JSON Data', icon: Download, desc: 'Backup & restore data' },
+  ];
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="bg-white rounded-2xl shadow-2xl p-6 w-96"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-900">Export Canvas</h2>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+        
+        <div className="space-y-2">
+          {formats.map(format => (
+            <button
+              key={format.id}
+              onClick={() => { onExport(format.id); onClose(); }}
+              className="w-full flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group"
+            >
+              <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-indigo-100">
+                <format.icon className="w-5 h-5 text-gray-600 group-hover:text-indigo-600" />
+              </div>
+              <div className="text-left">
+                <p className="font-medium text-gray-900">{format.name}</p>
+                <p className="text-xs text-gray-500">{format.desc}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
@@ -1600,8 +2389,9 @@ const QRCodeModal = ({ boardId, onClose, onCreateBucket }: { boardId: string; on
 };
 
 // Action Items Panel
-const ActionItemsPanel = ({ actionItems, onToggleComplete, onAddAction, isMinimized, onToggleMinimize }: { actionItems: ActionItem[]; onToggleComplete: (id: string) => void; onAddAction: (content: string) => void; isMinimized: boolean; onToggleMinimize: () => void }) => {
+const ActionItemsPanel = ({ actionItems, onToggleComplete, onAddAction, onAssignUser, isMinimized, onToggleMinimize }: { actionItems: ActionItem[]; onToggleComplete: (id: string) => void; onAddAction: (content: string) => void; onAssignUser: (id: string, assigneeId: string | undefined) => void; isMinimized: boolean; onToggleMinimize: () => void }) => {
   const [newAction, setNewAction] = useState('');
+  const [showAssigneeDropdown, setShowAssigneeDropdown] = useState<string | null>(null);
   const pendingCount = actionItems.filter(a => !a.isComplete).length;
 
   if (isMinimized) {
@@ -1618,7 +2408,7 @@ const ActionItemsPanel = ({ actionItems, onToggleComplete, onAddAction, isMinimi
   }
 
   return (
-    <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="absolute right-4 bottom-4 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 z-40 max-h-[400px] flex flex-col">
+    <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="absolute right-4 bottom-4 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 z-40 max-h-[400px] flex flex-col">
       <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-t-2xl">
         <div className="flex items-center gap-3">
           <ListTodo className="w-5 h-5" />
@@ -1636,15 +2426,120 @@ const ActionItemsPanel = ({ actionItems, onToggleComplete, onAddAction, isMinimi
         </div>
         <div className="space-y-2 flex-1 overflow-y-auto">
           <AnimatePresence>
-            {actionItems.map(item => (
-              <motion.div key={item.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex items-center gap-3 p-3 rounded-xl ${item.isComplete ? 'bg-gray-50' : 'bg-white border border-gray-200'}`}>
-                <motion.button whileHover={{ scale: 1.1 }} onClick={() => onToggleComplete(item.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${item.isComplete ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>{item.isComplete && <Check className="w-3 h-3 text-white" />}</motion.button>
-                <p className={`flex-1 text-sm ${item.isComplete ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.content}</p>
-              </motion.div>
-            ))}
+            {actionItems.map(item => {
+              const assignee = PARTICIPANTS.find(p => p.id === item.assigneeId);
+              return (
+                <motion.div key={item.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex items-start gap-3 p-3 rounded-xl ${item.isComplete ? 'bg-gray-50' : 'bg-white border border-gray-200'}`}>
+                  <motion.button whileHover={{ scale: 1.1 }} onClick={() => onToggleComplete(item.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${item.isComplete ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>{item.isComplete && <Check className="w-3 h-3 text-white" />}</motion.button>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm ${item.isComplete ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.content}</p>
+                    <div className="flex items-center gap-2 mt-1.5 relative">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowAssigneeDropdown(showAssigneeDropdown === item.id ? null : item.id); }}
+                        className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                      >
+                        {assignee ? (
+                          <>
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium" style={{ backgroundColor: assignee.color }}>{assignee.name.charAt(0)}</div>
+                            <span>{assignee.name}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Users className="w-4 h-4" />
+                            <span>Assign</span>
+                          </>
+                        )}
+                      </button>
+                      {showAssigneeDropdown === item.id && (
+                        <div className="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 w-40">
+                          <button onClick={() => { onAssignUser(item.id, undefined); setShowAssigneeDropdown(null); }} className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 text-gray-500">Unassigned</button>
+                          {PARTICIPANTS.map(p => (
+                            <button key={p.id} onClick={() => { onAssignUser(item.id, p.id); setShowAssigneeDropdown(null); }} className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2">
+                              <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium" style={{ backgroundColor: p.color }}>{p.name.charAt(0)}</div>
+                              <span className="text-gray-700">{p.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
           {actionItems.length === 0 && <div className="text-center py-6 text-gray-400"><ListTodo className="w-6 h-6 mx-auto mb-2 opacity-40" /><p className="text-xs">No action items yet</p></div>}
         </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// Timer Component for facilitation
+const FacilitationTimer = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const [timeLeft, setTimeLeft] = useState(5 * 60); // 5 minutes default
+  const [isRunning, setIsRunning] = useState(false);
+  const [presetMinutes, setPresetMinutes] = useState(5);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isRunning && timeLeft > 0) {
+      interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
+    } else if (timeLeft === 0) {
+      setIsRunning(false);
+      // Play a sound or show notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Timer Complete!', { body: 'Time is up!' });
+      }
+    }
+    return () => clearInterval(interval);
+  }, [isRunning, timeLeft]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const setPreset = (minutes: number) => {
+    setPresetMinutes(minutes);
+    setTimeLeft(minutes * 60);
+    setIsRunning(false);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <motion.div
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.8, opacity: 0 }}
+      className="absolute top-20 right-4 bg-white rounded-2xl shadow-2xl border border-gray-200 p-4 z-50 w-64"
+    >
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Timer className="w-5 h-5 text-indigo-600" />
+          <h3 className="font-semibold text-gray-800">Timer</h3>
+        </div>
+        <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-400" /></button>
+      </div>
+
+      <div className={`text-5xl font-mono font-bold text-center py-6 rounded-xl mb-4 ${timeLeft === 0 ? 'bg-red-50 text-red-600 animate-pulse' : timeLeft < 60 ? 'bg-orange-50 text-orange-600' : 'bg-gray-50 text-gray-800'}`}>
+        {formatTime(timeLeft)}
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setIsRunning(!isRunning)} className={`flex-1 py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 ${isRunning ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+          {isRunning ? <><Pause className="w-4 h-4" />Pause</> : <><Play className="w-4 h-4" />Start</>}
+        </button>
+        <button onClick={() => setTimeLeft(presetMinutes * 60)} className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200">
+          <RotateCcw className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="flex gap-1.5">
+        {[1, 3, 5, 10, 15].map(mins => (
+          <button key={mins} onClick={() => setPreset(mins)} className={`flex-1 py-2 rounded-lg text-xs font-medium ${presetMinutes === mins ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>{mins}m</button>
+        ))}
       </div>
     </motion.div>
   );
@@ -1851,6 +2746,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [activePicker, setActivePicker] = useState<string | null>(null);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [isPanMode, setIsPanMode] = useState(false);
   const [drawingColor, setDrawingColor] = useState('#3b82f6');
   const [drawingWidth, setDrawingWidth] = useState(3);
   const [showDrawingPanel, setShowDrawingPanel] = useState(false);
@@ -1862,7 +2758,51 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
   const [saved, setSaved] = useState(false);
   const [history, setHistory] = useState<{ nodes: VisualNode[]; timestamp: Date; action: string }[]>([{ nodes: board.visualNodes, timestamp: new Date(), action: 'Initial' }]);
   const [historyIndex, setHistoryIndex] = useState(0);
+  const [showTimer, setShowTimer] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const timerRef = useRef<NodeJS.Timeout>();
+  
+  // New feature states
+  const [gridSnap, setGridSnap] = useState(false);
+  const [showMinimap, setShowMinimap] = useState(true);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [isPresentationMode, setIsPresentationMode] = useState(false);
+  const [presentationFrameIndex, setPresentationFrameIndex] = useState(0);
+  const [otherUsers, _setOtherUsers] = useState<UserPresence[]>([]); // TODO: connect to Supabase Realtime
+  
+  // Get frames for presentation
+  const frames = board.visualNodes.filter(n => n.type === 'frame');
+  
+  // Export handler
+  const handleExport = useCallback(async (format: 'png' | 'svg' | 'pdf' | 'json') => {
+    if (format === 'json') {
+      const data = JSON.stringify({ board, exportedAt: new Date().toISOString() }, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${board.name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    
+    // For PNG/SVG/PDF, we'd need html2canvas or similar
+    // For now, show a placeholder message
+    alert(`${format.toUpperCase()} export requires html2canvas library. JSON export works!`);
+  }, [board]);
+  
+  // Version history restore
+  const handleRestoreVersion = useCallback((index: number) => {
+    setHistoryIndex(index);
+    onUpdateBoard({ visualNodes: history[index].nodes });
+    setShowVersionHistory(false);
+  }, [history, onUpdateBoard]);
+
+  // Search functionality
+  const searchResults = searchQuery.trim() ? board.visualNodes.filter(n => n.content.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
   const addToHistory = useCallback((nodes: VisualNode[], action: string) => {
     setHistory(prev => {
@@ -1901,6 +2841,46 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
     else if (timerRef.current) clearInterval(timerRef.current);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isRecording]);
+
+  // Tool keyboard shortcuts (V for select, H for pan)
+  useEffect(() => {
+    const isTypingElement = (element: Element | null): boolean => {
+      if (!element) return false;
+      const tagName = element.tagName.toLowerCase();
+      if (tagName === 'input' || tagName === 'textarea') return true;
+      if (element.getAttribute('contenteditable') === 'true') return true;
+      return false;
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isTypingElement(document.activeElement)) return;
+      
+      // V for select tool
+      if (e.code === 'KeyV' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setIsPanMode(false);
+        setIsDrawingMode(false);
+        setShowDrawingPanel(false);
+      }
+      // H for pan/hand tool
+      if (e.code === 'KeyH' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setIsPanMode(true);
+        setIsDrawingMode(false);
+        setShowDrawingPanel(false);
+      }
+      // B or P for pen/draw tool
+      if ((e.code === 'KeyB' || e.code === 'KeyP') && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setIsDrawingMode(true);
+        setIsPanMode(false);
+        setShowDrawingPanel(true);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleToggleRecording = useCallback(() => {
     if (!isRecording) {
@@ -2205,6 +3185,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
 
   const handleAddAction = useCallback((content: string) => { setActionItems(prev => [...prev, { id: generateId(), content, priority: 'medium', isComplete: false, timestamp: recordingDuration }]); }, [recordingDuration]);
   const handleToggleActionComplete = useCallback((id: string) => { setActionItems(prev => prev.map(a => a.id === id ? { ...a, isComplete: !a.isComplete } : a)); }, []);
+  const handleAssignUser = useCallback((id: string, assigneeId: string | undefined) => { setActionItems(prev => prev.map(a => a.id === id ? { ...a, assigneeId } : a)); }, []);
 
   return (
     <div className="flex-1 flex flex-col bg-gray-100 overflow-hidden">
@@ -2225,6 +3206,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
             <motion.button whileHover={{ scale: 1.05 }} onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={`p-2 rounded-lg ${historyIndex >= history.length - 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white'}`} title="Redo"><Redo2 className="w-4 h-4 text-gray-600" /></motion.button>
             <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowHistoryPanel(!showHistoryPanel)} className={`p-2 rounded-lg ${showHistoryPanel ? 'bg-white' : 'hover:bg-white'}`} title="History"><History className="w-4 h-4 text-gray-600" /></motion.button>
           </div>
+          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowSearch(!showSearch)} className={`p-2 rounded-xl ${showSearch ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} title="Search board"><Search className="w-4 h-4" /></motion.button>
+          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowTimer(!showTimer)} className={`p-2 rounded-xl ${showTimer ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} title="Timer"><Timer className="w-4 h-4" /></motion.button>
           <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowTemplateModal(true)} className="px-3 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium flex items-center gap-2 hover:bg-gray-200"><Layout className="w-4 h-4" />Templates</motion.button>
           <motion.button whileHover={{ scale: 1.05 }} onClick={handleSave} className={`px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${saved ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>{saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}{saved ? 'Saved!' : 'Save'}</motion.button>
           <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowAIPanel(!showAIPanel)} className={`px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${showAIPanel ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'}`}><Brain className="w-4 h-4" />AI Assistant</motion.button>
@@ -2319,11 +3302,35 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowMediaModal('image')} className="p-3 hover:bg-gray-100 rounded-xl group relative"><Image className="w-5 h-5 text-indigo-500" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Embed Image</div></motion.button>
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowMediaModal('qr')} className="p-3 hover:bg-gray-100 rounded-xl group relative"><QrCode className="w-5 h-5 text-green-500" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">QR Photo Upload</div></motion.button>
           </div>
+          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Tools</p>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => { setIsPanMode(false); setIsDrawingMode(false); setShowDrawingPanel(false); }}
+              className={`p-3 rounded-xl group relative ${!isPanMode && !isDrawingMode ? 'bg-indigo-100 ring-2 ring-indigo-500' : 'hover:bg-gray-100'}`}
+              title="Select (V)"
+            >
+              <svg className={`w-5 h-5 ${!isPanMode && !isDrawingMode ? 'text-indigo-600' : 'text-gray-700'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+                <path d="M13 13l6 6" />
+              </svg>
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Select (V)</div>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => { setIsPanMode(!isPanMode); setIsDrawingMode(false); setShowDrawingPanel(false); }}
+              className={`p-3 rounded-xl group relative ${isPanMode ? 'bg-gray-200 ring-2 ring-gray-500' : 'hover:bg-gray-100'}`}
+              title="Pan (H)"
+            >
+              <Move className={`w-5 h-5 ${isPanMode ? 'text-gray-700' : 'text-gray-700'}`} />
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Pan / Hand (H)</div>
+            </motion.button>
+          </div>
           <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200 relative">
             <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Draw</p>
             <motion.button
               whileHover={{ scale: 1.1 }}
-              onClick={() => { setIsDrawingMode(!isDrawingMode); setShowDrawingPanel(!isDrawingMode); }}
+              onClick={() => { setIsDrawingMode(!isDrawingMode); setIsPanMode(false); setShowDrawingPanel(!isDrawingMode); }}
               className={`p-3 rounded-xl group relative ${isDrawingMode ? 'bg-blue-100 ring-2 ring-blue-500' : 'hover:bg-gray-100'}`}
               title="Draw"
             >
@@ -2415,13 +3422,157 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
               <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Create Mind Map</div>
             </motion.button>
           </div>
+          
+          {/* Comment/Annotation Tool */}
+          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Annotate</p>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => {
+                const node: VisualNode = {
+                  id: generateId(),
+                  type: 'comment',
+                  x: 300 + Math.random() * 100,
+                  y: 300 + Math.random() * 100,
+                  width: 32,
+                  height: 32,
+                  content: 'Add your comment here...',
+                  color: '#fbbf24',
+                  rotation: 0,
+                  locked: false,
+                  votes: 0,
+                  votedBy: [],
+                  createdBy: currentUser.id,
+                  comments: []
+                };
+                handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, node] }, 'Add comment');
+              }}
+              className="p-3 hover:bg-gray-100 rounded-xl group relative"
+              title="Comment"
+            >
+              <MessageCircle className="w-5 h-5 text-amber-500" />
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Add Comment</div>
+            </motion.button>
+          </div>
+          
+          {/* View Options */}
+          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">View</p>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => setGridSnap(!gridSnap)}
+              className={`p-3 rounded-xl group relative ${gridSnap ? 'bg-green-100 ring-2 ring-green-500' : 'hover:bg-gray-100'}`}
+              title="Grid Snap"
+            >
+              <Grid3X3 className={`w-5 h-5 ${gridSnap ? 'text-green-600' : 'text-gray-700'}`} />
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Grid Snap {gridSnap ? 'ON' : 'OFF'}</div>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => setShowMinimap(!showMinimap)}
+              className={`p-3 rounded-xl group relative ${showMinimap ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
+              title="Minimap"
+            >
+              <Map className={`w-5 h-5 ${showMinimap ? 'text-blue-600' : 'text-gray-700'}`} />
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Minimap {showMinimap ? 'ON' : 'OFF'}</div>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => setShowVersionHistory(!showVersionHistory)}
+              className={`p-3 rounded-xl group relative ${showVersionHistory ? 'bg-indigo-100' : 'hover:bg-gray-100'}`}
+              title="Version History"
+            >
+              <History className={`w-5 h-5 ${showVersionHistory ? 'text-indigo-600' : 'text-gray-700'}`} />
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Version History</div>
+            </motion.button>
+          </div>
+          
+          {/* Actions */}
+          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Actions</p>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => setShowExportModal(true)}
+              className="p-3 hover:bg-gray-100 rounded-xl group relative"
+              title="Export"
+            >
+              <Download className="w-5 h-5 text-gray-700" />
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Export Canvas</div>
+            </motion.button>
+            {frames.length > 0 && (
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                onClick={() => { setIsPresentationMode(true); setPresentationFrameIndex(0); }}
+                className="p-3 hover:bg-gray-100 rounded-xl group relative"
+                title="Present"
+              >
+                <Presentation className="w-5 h-5 text-gray-700" />
+                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Present ({frames.length} frames)</div>
+              </motion.button>
+            )}
+          </div>
         </motion.div>
 
         <ParsedItemsPanel items={parsedItems} onAddItem={handleAddParsedItemToBoard} onDismissItem={(id) => setParsedItems(prev => prev.filter(p => p.id !== id))} onAddAll={handleAddAllParsedItems} isVisible={!isTranscriptMinimized} />
 
         <TranscriptPanel transcript={transcript} isRecording={isRecording} onToggleRecording={handleToggleRecording} currentSpeaker={currentSpeaker} onSpeakerChange={setCurrentSpeaker} onAddNote={handleAddTranscript} isMinimized={isTranscriptMinimized} onToggleMinimize={() => setIsTranscriptMinimized(!isTranscriptMinimized)} savedTranscripts={savedTranscripts} />
 
-        <ActionItemsPanel actionItems={actionItems} onToggleComplete={handleToggleActionComplete} onAddAction={handleAddAction} isMinimized={isActionsMinimized} onToggleMinimize={() => setIsActionsMinimized(!isActionsMinimized)} />
+        <ActionItemsPanel actionItems={actionItems} onToggleComplete={handleToggleActionComplete} onAddAction={handleAddAction} onAssignUser={handleAssignUser} isMinimized={isActionsMinimized} onToggleMinimize={() => setIsActionsMinimized(!isActionsMinimized)} />
+
+        {/* Timer */}
+        <AnimatePresence>
+          {showTimer && <FacilitationTimer isOpen={showTimer} onClose={() => setShowTimer(false)} />}
+        </AnimatePresence>
+
+        {/* Search Panel */}
+        <AnimatePresence>
+          {showSearch && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute top-20 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 w-96"
+            >
+              <div className="p-3 border-b border-gray-200 flex items-center gap-2">
+                <Search className="w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search board content..."
+                  className="flex-1 bg-transparent border-none outline-none text-sm text-gray-900 placeholder-gray-500"
+                  autoFocus
+                />
+                <button onClick={() => { setShowSearch(false); setSearchQuery(''); }} className="p-1 hover:bg-gray-100 rounded-lg">
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+              {searchQuery.trim() && (
+                <div className="max-h-64 overflow-y-auto p-2">
+                  {searchResults.length > 0 ? (
+                    searchResults.map(node => (
+                      <button
+                        key={node.id}
+                        onClick={() => {
+                          setSelectedNodeIds([node.id]);
+                          setShowSearch(false);
+                          setSearchQuery('');
+                        }}
+                        className="w-full text-left p-2 hover:bg-gray-50 rounded-lg flex items-center gap-2"
+                      >
+                        <div className="w-3 h-3 rounded" style={{ backgroundColor: node.color }} />
+                        <span className="text-sm text-gray-700 truncate flex-1">{node.content || `${node.type} element`}</span>
+                        <span className="text-xs text-gray-400 capitalize">{node.type}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-gray-400 text-sm">No results found</div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {showHistoryPanel && (
@@ -2473,10 +3624,14 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
           onSelectNodes={(ids) => setSelectedNodeIds(ids)}
           onCanvasDoubleClick={(x, y) => handleAddNode('sticky', { x: x - 100, y: y - 100, color: '#fef3c7' })}
           isDrawingMode={isDrawingMode}
+          isPanMode={isPanMode}
           drawingColor={drawingColor}
           drawingWidth={drawingWidth}
           onAddMindmapChild={handleAddMindmapChild}
           onAISparkle={handleAISparkle}
+          gridSnap={gridSnap}
+          showMinimap={showMinimap}
+          otherUsers={otherUsers}
         />
 
         <AnimatePresence>
@@ -2509,6 +3664,31 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
         {showMediaModal === 'youtube' && <MediaModal type="youtube" onClose={() => setShowMediaModal(null)} onEmbed={handleEmbedMedia} />}
         {showMediaModal === 'image' && <MediaModal type="image" onClose={() => setShowMediaModal(null)} onEmbed={handleEmbedMedia} />}
         {showMediaModal === 'qr' && <QRCodeModal boardId={board.id} onClose={() => setShowMediaModal(null)} onCreateBucket={handleCreateBucket} />}
+        {showExportModal && <ExportModal isOpen={showExportModal} onClose={() => setShowExportModal(false)} onExport={handleExport} />}
+        {isPresentationMode && (
+          <PresentationMode
+            isOpen={isPresentationMode}
+            frames={frames}
+            currentFrameIndex={presentationFrameIndex}
+            onClose={() => setIsPresentationMode(false)}
+            onNext={() => setPresentationFrameIndex(i => Math.min(i + 1, frames.length - 1))}
+            onPrev={() => setPresentationFrameIndex(i => Math.max(i - 1, 0))}
+            onGoTo={setPresentationFrameIndex}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Version History Panel */}
+      <AnimatePresence>
+        {showVersionHistory && (
+          <VersionHistoryPanel
+            isOpen={showVersionHistory}
+            history={history as HistoryEntry[]}
+            currentIndex={historyIndex}
+            onClose={() => setShowVersionHistory(false)}
+            onRestore={handleRestoreVersion}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
