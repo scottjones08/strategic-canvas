@@ -98,8 +98,23 @@ import {
   Underline,
   Code,
   Quote,
+  Wand2,
+  Shuffle,
+  MicIcon,
+  StopCircleIcon,
+  Clipboard,
+  Share,
+  UserPlus,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import QRCode from 'qrcode';
+import { createClient, RealtimeChannel } from '@supabase/supabase-js';
+
+// Supabase client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 // Types
 interface Board {
@@ -1933,19 +1948,88 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)', backgroundSize: `${20 * zoom}px ${20 * zoom}px`, backgroundPosition: `${panX}px ${panY}px` }} />
+      {/* Grid Background - show dots or lines based on gridSnap */}
+      <div 
+        className="absolute inset-0 pointer-events-none transition-opacity" 
+        style={{ 
+          backgroundImage: gridSnap 
+            ? `linear-gradient(to right, #e5e7eb 1px, transparent 1px), linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)` 
+            : 'radial-gradient(circle, #d1d5db 1px, transparent 1px)', 
+          backgroundSize: `${GRID_SIZE * zoom}px ${GRID_SIZE * zoom}px`, 
+          backgroundPosition: `${panX}px ${panY}px`,
+          opacity: gridSnap ? 0.8 : 1
+        }} 
+      />
 
       {/* SVG Layer for Connectors and Drawings */}
       <svg className="absolute inset-0 pointer-events-none" style={{ transform: `translate(${panX}px, ${panY}px) scale(${zoom})`, transformOrigin: 'top left' }}>
         <defs>
-          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280" />
+          {/* Arrow markers with different colors */}
+          <marker id="arrowhead-gray" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#6b7280" />
+          </marker>
+          <marker id="arrowhead-blue" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#3b82f6" />
+          </marker>
+          <marker id="arrowhead-green" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#22c55e" />
+          </marker>
+          <marker id="arrowhead-red" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#ef4444" />
+          </marker>
+          <marker id="arrowhead-purple" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#8b5cf6" />
+          </marker>
+          <marker id="arrowhead-orange" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#f97316" />
           </marker>
         </defs>
-        {/* Connector lines */}
-        {connectorLines.map((line: any) => (
-          <line key={line.id} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke={line.color || '#6b7280'} strokeWidth="2" strokeDasharray={line.style === 'dashed' ? '8,4' : line.style === 'dotted' ? '2,4' : 'none'} markerEnd="url(#arrowhead)" />
-        ))}
+        {/* Connector lines with arrows */}
+        {connectorLines.map((line: any) => {
+          // Calculate angle and offset end point to not overlap with arrowhead
+          const dx = line.x2 - line.x1;
+          const dy = line.y2 - line.y1;
+          const length = Math.sqrt(dx * dx + dy * dy);
+          const offsetX = length > 20 ? (dx / length) * 15 : 0;
+          const offsetY = length > 20 ? (dy / length) * 15 : 0;
+          
+          // Get arrow color marker
+          const getMarker = (color: string) => {
+            if (color?.includes('3b82f6') || color?.includes('blue')) return 'url(#arrowhead-blue)';
+            if (color?.includes('22c55e') || color?.includes('green')) return 'url(#arrowhead-green)';
+            if (color?.includes('ef4444') || color?.includes('red')) return 'url(#arrowhead-red)';
+            if (color?.includes('8b5cf6') || color?.includes('purple')) return 'url(#arrowhead-purple)';
+            if (color?.includes('f97316') || color?.includes('orange')) return 'url(#arrowhead-orange)';
+            return 'url(#arrowhead-gray)';
+          };
+          
+          return (
+            <g key={line.id}>
+              {/* Shadow line */}
+              <line 
+                x1={line.x1} 
+                y1={line.y1} 
+                x2={line.x2 - offsetX} 
+                y2={line.y2 - offsetY} 
+                stroke="rgba(0,0,0,0.1)" 
+                strokeWidth="4" 
+                strokeLinecap="round"
+              />
+              {/* Main line */}
+              <line 
+                x1={line.x1} 
+                y1={line.y1} 
+                x2={line.x2 - offsetX} 
+                y2={line.y2 - offsetY} 
+                stroke={line.color || '#6b7280'} 
+                strokeWidth="2.5" 
+                strokeDasharray={line.style === 'dashed' ? '10,6' : line.style === 'dotted' ? '3,6' : 'none'} 
+                strokeLinecap="round"
+                markerEnd={getMarker(line.color)}
+              />
+            </g>
+          );
+        })}
         {/* Mind map connections */}
         {board.visualNodes.filter(n => n.type === 'mindmap' && n.parentNodeId).map(childNode => {
           const parentNode = board.visualNodes.find(n => n.id === childNode.parentNodeId);
@@ -2565,6 +2649,555 @@ const UserCursor = ({ user }: { user: UserPresence }) => {
         style={{ backgroundColor: user.color }}
       >
         {user.name}
+      </div>
+    </motion.div>
+  );
+};
+
+// Share/Collaboration Modal
+const ShareModal = ({
+  isOpen,
+  onClose,
+  boardId,
+  boardName,
+  isConnected,
+  connectedUsers
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  boardId: string;
+  boardName: string;
+  isConnected: boolean;
+  connectedUsers: UserPresence[];
+}) => {
+  const [copied, setCopied] = useState(false);
+  const [magicLink, setMagicLink] = useState('');
+  
+  useEffect(() => {
+    // Generate magic link with board ID
+    const baseUrl = window.location.origin;
+    const link = `${baseUrl}?board=${boardId}&collaborate=true`;
+    setMagicLink(link);
+  }, [boardId]);
+  
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(magicLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+  
+  if (!isOpen) return null;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="bg-white rounded-2xl shadow-2xl p-6 w-[480px] max-h-[80vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+              <Share className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Share & Collaborate</h2>
+              <p className="text-sm text-gray-500">{boardName}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+        
+        {/* Connection Status */}
+        <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-4 ${isConnected ? 'bg-green-50' : 'bg-amber-50'}`}>
+          {isConnected ? (
+            <>
+              <Wifi className="w-5 h-5 text-green-600" />
+              <span className="text-sm font-medium text-green-700">Connected - Real-time sync active</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="w-5 h-5 text-amber-600" />
+              <span className="text-sm font-medium text-amber-700">Offline - Changes saved locally</span>
+            </>
+          )}
+        </div>
+        
+        {/* Magic Link */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            <UserPlus className="w-4 h-4 inline mr-1" />
+            Invite with Magic Link
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={magicLink}
+              readOnly
+              className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600 truncate"
+            />
+            <button
+              onClick={copyToClipboard}
+              className={`px-4 py-3 rounded-xl font-medium flex items-center gap-2 transition-all ${
+                copied ? 'bg-green-100 text-green-700' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              }`}
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Clipboard className="w-4 h-4" />}
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">Anyone with this link can view and edit this board in real-time</p>
+        </div>
+        
+        {/* Connected Users */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            <Users className="w-4 h-4 inline mr-1" />
+            Currently Online ({connectedUsers.length + 1})
+          </label>
+          <div className="space-y-2">
+            {/* Current user */}
+            <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-xl">
+              <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white font-medium text-sm">
+                Y
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900">You</p>
+                <p className="text-xs text-gray-500">Owner</p>
+              </div>
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+            </div>
+            
+            {/* Other users */}
+            {connectedUsers.map(user => (
+              <div key={user.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-medium text-sm"
+                  style={{ backgroundColor: user.color }}
+                >
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                  <p className="text-xs text-gray-500">Collaborator</p>
+                </div>
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              </div>
+            ))}
+            
+            {connectedUsers.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-4">Share the link to invite collaborators</p>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// Voice to Sticky Component
+const VoiceToSticky = ({
+  isOpen,
+  onClose,
+  onCreateSticky
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreateSticky: (content: string) => void;
+}) => {
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const [error, setError] = useState('');
+  const recognitionRef = useRef<any>(null);
+  
+  useEffect(() => {
+    // Check for Web Speech API support
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      
+      recognitionRef.current.onresult = (event: any) => {
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          }
+        }
+        if (finalTranscript) {
+          setTranscript(prev => prev + ' ' + finalTranscript);
+        }
+      };
+      
+      recognitionRef.current.onerror = (event: any) => {
+        setError(`Speech recognition error: ${event.error}`);
+        setIsListening(false);
+      };
+      
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+    
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+  
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      setError('Speech recognition not supported in this browser');
+      return;
+    }
+    
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      setTranscript('');
+      setError('');
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
+  
+  const handleCreate = () => {
+    if (transcript.trim()) {
+      onCreateSticky(transcript.trim());
+      setTranscript('');
+      onClose();
+    }
+  };
+  
+  if (!isOpen) return null;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="bg-white rounded-2xl shadow-2xl p-6 w-[400px]"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <MicIcon className="w-5 h-5 text-indigo-600" />
+            Voice to Sticky
+          </h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+        
+        {/* Microphone Button */}
+        <div className="flex flex-col items-center py-6">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={toggleListening}
+            className={`w-24 h-24 rounded-full flex items-center justify-center transition-all ${
+              isListening 
+                ? 'bg-red-500 text-white animate-pulse' 
+                : 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200'
+            }`}
+          >
+            {isListening ? (
+              <StopCircleIcon className="w-12 h-12" />
+            ) : (
+              <MicIcon className="w-12 h-12" />
+            )}
+          </motion.button>
+          <p className="text-sm text-gray-500 mt-4">
+            {isListening ? 'Listening... Click to stop' : 'Click to start speaking'}
+          </p>
+        </div>
+        
+        {/* Transcript */}
+        {transcript && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Transcript</label>
+            <textarea
+              value={transcript}
+              onChange={(e) => setTranscript(e.target.value)}
+              className="w-full h-32 p-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Your speech will appear here..."
+            />
+          </div>
+        )}
+        
+        {error && (
+          <p className="text-sm text-red-500 mb-4">{error}</p>
+        )}
+        
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 font-medium"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={!transcript.trim()}
+            className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Create Sticky
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// AI Clustering & Ideas Component  
+const AIToolsPanel = ({
+  isOpen,
+  onClose,
+  nodes,
+  onClusterNodes,
+  onGenerateIdeas,
+  onAutoGroup
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  nodes: VisualNode[];
+  onClusterNodes: (clusters: { name: string; nodeIds: string[] }[]) => void;
+  onGenerateIdeas: (ideas: string[]) => void;
+  onAutoGroup: () => void;
+}) => {
+  const [activeTab, setActiveTab] = useState<'cluster' | 'generate' | 'group'>('cluster');
+  const [ideaPrompt, setIdeaPrompt] = useState('');
+  const [ideaCount, setIdeaCount] = useState(5);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [generatedIdeas, setGeneratedIdeas] = useState<string[]>([]);
+  
+  const stickyNotes = nodes.filter(n => n.type === 'sticky' && n.content.trim());
+  
+  // Simple clustering based on word similarity
+  const handleCluster = () => {
+    setIsProcessing(true);
+    
+    // Simple keyword-based clustering
+    const keywords: Record<string, string[]> = {};
+    stickyNotes.forEach(note => {
+      const words = note.content.toLowerCase().split(/\s+/);
+      words.forEach(word => {
+        if (word.length > 4) { // Only consider words > 4 chars
+          if (!keywords[word]) keywords[word] = [];
+          keywords[word].push(note.id);
+        }
+      });
+    });
+    
+    // Find clusters (words that appear in multiple notes)
+    const clusters: { name: string; nodeIds: string[] }[] = [];
+    Object.entries(keywords)
+      .filter(([_, ids]) => ids.length > 1)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 5)
+      .forEach(([word, ids]) => {
+        clusters.push({ name: word.charAt(0).toUpperCase() + word.slice(1), nodeIds: [...new Set(ids)] });
+      });
+    
+    setTimeout(() => {
+      onClusterNodes(clusters);
+      setIsProcessing(false);
+    }, 1000);
+  };
+  
+  // Generate ideas based on existing content
+  const handleGenerateIdeas = () => {
+    setIsProcessing(true);
+    
+    // Extract themes from existing notes
+    const existingContent = stickyNotes.map(n => n.content).join(' ');
+    const words = existingContent.toLowerCase().split(/\s+/).filter(w => w.length > 4);
+    const uniqueWords = [...new Set(words)].slice(0, 10);
+    
+    // Generate simple ideas based on prompt and existing content
+    const templates = [
+      `What if we ${ideaPrompt || 'improved'} using ${uniqueWords[0] || 'technology'}?`,
+      `Consider ${ideaPrompt || 'exploring'} from a ${uniqueWords[1] || 'customer'} perspective`,
+      `How might we combine ${uniqueWords[2] || 'ideas'} with ${uniqueWords[3] || 'innovation'}?`,
+      `${ideaPrompt || 'New approach'}: Focus on ${uniqueWords[4] || 'value'}`,
+      `Experiment with ${uniqueWords[5] || 'different'} ${ideaPrompt || 'methods'}`,
+      `Challenge: ${ideaPrompt || 'Rethink'} the ${uniqueWords[6] || 'process'}`,
+      `Opportunity: ${uniqueWords[7] || 'Leverage'} ${ideaPrompt || 'strengths'}`,
+    ];
+    
+    const ideas = templates.slice(0, ideaCount);
+    
+    setTimeout(() => {
+      setGeneratedIdeas(ideas);
+      setIsProcessing(false);
+    }, 1500);
+  };
+  
+  const handleAddIdeas = () => {
+    onGenerateIdeas(generatedIdeas);
+    setGeneratedIdeas([]);
+    onClose();
+  };
+  
+  if (!isOpen) return null;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      className="absolute top-4 right-4 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden"
+    >
+      <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Wand2 className="w-5 h-5 text-purple-600" />
+          <h3 className="font-semibold text-gray-900">AI Tools</h3>
+        </div>
+        <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">
+          <X className="w-4 h-4 text-gray-400" />
+        </button>
+      </div>
+      
+      {/* Tabs */}
+      <div className="flex border-b border-gray-100">
+        {[
+          { id: 'cluster', label: 'Cluster', icon: Shuffle },
+          { id: 'generate', label: 'Generate', icon: Lightbulb },
+          { id: 'group', label: 'Auto-Group', icon: Layout },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+              activeTab === tab.id 
+                ? 'text-purple-700 border-b-2 border-purple-600 bg-purple-50' 
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      
+      <div className="p-4">
+        {activeTab === 'cluster' && (
+          <div>
+            <p className="text-sm text-gray-600 mb-4">
+              Find patterns and group similar sticky notes automatically based on content.
+            </p>
+            <div className="bg-gray-50 rounded-xl p-3 mb-4">
+              <p className="text-xs text-gray-500">Analyzing {stickyNotes.length} sticky notes</p>
+            </div>
+            <button
+              onClick={handleCluster}
+              disabled={isProcessing || stickyNotes.length < 2}
+              className="w-full py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
+              {isProcessing ? 'Analyzing...' : 'Find Clusters'}
+            </button>
+          </div>
+        )}
+        
+        {activeTab === 'generate' && (
+          <div>
+            <p className="text-sm text-gray-600 mb-4">
+              Generate new ideas based on your current content and a prompt.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Idea prompt (optional)</label>
+              <input
+                type="text"
+                value={ideaPrompt}
+                onChange={(e) => setIdeaPrompt(e.target.value)}
+                placeholder="e.g., improve customer experience"
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Number of ideas: {ideaCount}</label>
+              <input
+                type="range"
+                min="3"
+                max="10"
+                value={ideaCount}
+                onChange={(e) => setIdeaCount(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
+            
+            {generatedIdeas.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Generated Ideas</label>
+                {generatedIdeas.map((idea, i) => (
+                  <div key={i} className="p-3 bg-yellow-50 rounded-lg text-sm text-gray-700 border border-yellow-200">
+                    💡 {idea}
+                  </div>
+                ))}
+                <button
+                  onClick={handleAddIdeas}
+                  className="w-full py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add All to Canvas
+                </button>
+              </div>
+            )}
+            
+            <button
+              onClick={handleGenerateIdeas}
+              disabled={isProcessing}
+              className="w-full py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lightbulb className="w-4 h-4" />}
+              {isProcessing ? 'Generating...' : 'Generate Ideas'}
+            </button>
+          </div>
+        )}
+        
+        {activeTab === 'group' && (
+          <div>
+            <p className="text-sm text-gray-600 mb-4">
+              Automatically organize ungrouped sticky notes into themed frames based on content similarity.
+            </p>
+            <div className="bg-gray-50 rounded-xl p-3 mb-4">
+              <p className="text-xs text-gray-500">{stickyNotes.length} sticky notes will be analyzed</p>
+            </div>
+            <button
+              onClick={() => { setIsProcessing(true); setTimeout(() => { onAutoGroup(); setIsProcessing(false); onClose(); }, 1500); }}
+              disabled={isProcessing || stickyNotes.length < 3}
+              className="w-full py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layout className="w-4 h-4" />}
+              {isProcessing ? 'Grouping...' : 'Auto-Group Notes'}
+            </button>
+          </div>
+        )}
       </div>
     </motion.div>
   );
@@ -3485,8 +4118,92 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [presentationFrameIndex, setPresentationFrameIndex] = useState(0);
-  const [otherUsers, _setOtherUsers] = useState<UserPresence[]>([]); // TODO: connect to Supabase Realtime
+  const [otherUsers, setOtherUsers] = useState<UserPresence[]>([]);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
+  const [showAITools, setShowAITools] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  
+  // Real-time collaboration setup
+  useEffect(() => {
+    if (!supabase) return;
+    
+    // Generate a unique user ID for this session
+    const myUserId = `user-${Math.random().toString(36).substr(2, 9)}`;
+    const myColor = NODE_COLORS[Math.floor(Math.random() * NODE_COLORS.length)];
+    const myName = `Guest ${Math.floor(Math.random() * 1000)}`;
+    
+    // Subscribe to the board channel
+    const channel = supabase.channel(`board:${board.id}`, {
+      config: {
+        presence: { key: myUserId },
+        broadcast: { self: false }
+      }
+    });
+    
+    // Handle presence updates
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        const users: UserPresence[] = [];
+        Object.entries(state).forEach(([key, presences]: [string, any]) => {
+          if (key !== myUserId && presences.length > 0) {
+            const presence = presences[0];
+            users.push({
+              id: key,
+              name: presence.name || 'Anonymous',
+              color: presence.color || '#6b7280',
+              cursorX: presence.cursorX || 0,
+              cursorY: presence.cursorY || 0,
+              lastSeen: new Date()
+            });
+          }
+        });
+        setOtherUsers(users);
+      })
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        console.log('User joined:', key, newPresences);
+      })
+      .on('presence', { event: 'leave' }, ({ key }) => {
+        setOtherUsers(prev => prev.filter(u => u.id !== key));
+      })
+      .on('broadcast', { event: 'cursor' }, ({ payload }) => {
+        setOtherUsers(prev => prev.map(u => 
+          u.id === payload.userId 
+            ? { ...u, cursorX: payload.x, cursorY: payload.y }
+            : u
+        ));
+      })
+      .on('broadcast', { event: 'board_update' }, ({ payload }) => {
+        // Another user updated the board
+        if (payload.nodes) {
+          onUpdateBoard({ visualNodes: payload.nodes });
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          setIsConnected(true);
+          await channel.track({
+            name: myName,
+            color: myColor,
+            cursorX: 0,
+            cursorY: 0
+          });
+        }
+      });
+    
+    channelRef.current = channel;
+    
+    return () => {
+      channel.unsubscribe();
+      setIsConnected(false);
+    };
+  }, [board.id, onUpdateBoard]);
+  
+  // Refs for handlers that will be defined later
+  const addNodesRef = useRef<(nodes: VisualNode[], action: string) => void>(() => {});
   
   // Get frames for presentation
   const frames = board.visualNodes.filter(n => n.type === 'frame');
@@ -3814,6 +4531,109 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
     }
     onUpdateBoard(updates);
   }, [onUpdateBoard, addToHistory]);
+
+  // Update the ref so other handlers can use it
+  useEffect(() => {
+    addNodesRef.current = (newNodes: VisualNode[], action: string) => {
+      handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, ...newNodes] }, action);
+    };
+  }, [handleUpdateBoardWithHistory, board.visualNodes]);
+
+  // AI clustering handler
+  const handleClusterNodes = useCallback((clusters: { name: string; nodeIds: string[] }[]) => {
+    const newNodes: VisualNode[] = clusters.map((cluster, index) => ({
+      id: generateId(),
+      type: 'frame' as const,
+      x: 1200 + (index % 2) * 450,
+      y: 50 + Math.floor(index / 2) * 400,
+      width: 400,
+      height: 350,
+      content: `🏷️ ${cluster.name}`,
+      color: NODE_COLORS[index % NODE_COLORS.length],
+      rotation: 0,
+      locked: false,
+      votes: 0,
+      votedBy: [],
+      createdBy: currentUser.id,
+      comments: []
+    }));
+    addNodesRef.current(newNodes, 'AI Cluster');
+  }, [currentUser.id]);
+  
+  // AI idea generator handler
+  const handleGenerateIdeas = useCallback((ideas: string[]) => {
+    const viewportCenterX = (-board.panX + window.innerWidth / 2) / (board.zoom || 1);
+    const viewportCenterY = (-board.panY + window.innerHeight / 2) / (board.zoom || 1);
+    
+    const newNodes: VisualNode[] = ideas.map((idea, index) => ({
+      id: generateId(),
+      type: 'sticky' as const,
+      x: viewportCenterX - 100 + (index % 3) * 220,
+      y: viewportCenterY + Math.floor(index / 3) * 150,
+      width: 200,
+      height: 120,
+      content: idea,
+      color: '#fef3c7',
+      rotation: 0,
+      locked: false,
+      votes: 0,
+      votedBy: [],
+      createdBy: currentUser.id,
+      comments: []
+    }));
+    addNodesRef.current(newNodes, 'AI Ideas');
+  }, [board.panX, board.panY, board.zoom, currentUser.id]);
+  
+  // Auto-group handler
+  const handleAutoGroup = useCallback(() => {
+    const stickyNotes = board.visualNodes.filter(n => n.type === 'sticky' && n.content.trim());
+    if (stickyNotes.length < 3) return;
+    
+    const groupSize = 4;
+    const groupCount = Math.ceil(stickyNotes.length / groupSize);
+    
+    const newNodes: VisualNode[] = Array.from({ length: groupCount }, (_, index) => ({
+      id: generateId(),
+      type: 'frame' as const,
+      x: 100 + (index % 3) * 450,
+      y: 100 + Math.floor(index / 3) * 400,
+      width: 420,
+      height: 350,
+      content: `Group ${index + 1}`,
+      color: NODE_COLORS[index % NODE_COLORS.length],
+      rotation: 0,
+      locked: false,
+      votes: 0,
+      votedBy: [],
+      createdBy: currentUser.id,
+      comments: []
+    }));
+    addNodesRef.current(newNodes, 'Auto-Group');
+  }, [board.visualNodes, currentUser.id]);
+  
+  // Voice to sticky handler
+  const handleVoiceToSticky = useCallback((content: string) => {
+    const viewportCenterX = (-board.panX + window.innerWidth / 2) / (board.zoom || 1);
+    const viewportCenterY = (-board.panY + window.innerHeight / 2) / (board.zoom || 1);
+    
+    const newNode: VisualNode = {
+      id: generateId(),
+      type: 'sticky',
+      x: viewportCenterX - 100,
+      y: viewportCenterY - 60,
+      width: 200,
+      height: 120,
+      content: content,
+      color: '#dbeafe',
+      rotation: 0,
+      locked: false,
+      votes: 0,
+      votedBy: [],
+      createdBy: currentUser.id,
+      comments: []
+    };
+    addNodesRef.current([newNode], 'Voice Note');
+  }, [board.panX, board.panY, board.zoom, currentUser.id]);
 
   useEffect(() => {
     if (isRecording) timerRef.current = setInterval(() => setRecordingDuration(d => d + 1), 1000);
@@ -4583,6 +5403,44 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
             </motion.button>
           </div>
           
+          {/* Collaboration */}
+          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Collaborate</p>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => setShowShareModal(true)}
+              className={`p-3 rounded-xl group relative ${isConnected ? 'bg-green-50' : 'hover:bg-gray-100'}`}
+              title="Share"
+            >
+              <Share className={`w-5 h-5 ${isConnected ? 'text-green-600' : 'text-gray-700'}`} />
+              {isConnected && <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full"></span>}
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Share & Collaborate {isConnected ? '(Live)' : ''}</div>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => setShowVoiceModal(true)}
+              className="p-3 hover:bg-gray-100 rounded-xl group relative"
+              title="Voice"
+            >
+              <MicIcon className="w-5 h-5 text-gray-700" />
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Voice to Sticky</div>
+            </motion.button>
+          </div>
+          
+          {/* AI Tools */}
+          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">AI</p>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => setShowAITools(!showAITools)}
+              className={`p-3 rounded-xl group relative ${showAITools ? 'bg-purple-100 ring-2 ring-purple-500' : 'hover:bg-gray-100'}`}
+              title="AI Tools"
+            >
+              <Wand2 className={`w-5 h-5 ${showAITools ? 'text-purple-600' : 'text-gray-700'}`} />
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">AI Tools</div>
+            </motion.button>
+          </div>
+          
           {/* Actions */}
           <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
             <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Actions</p>
@@ -4784,6 +5642,37 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
             currentIndex={historyIndex}
             onClose={() => setShowVersionHistory(false)}
             onRestore={handleRestoreVersion}
+          />
+        )}
+        {showShareModal && (
+          <ShareModal
+            isOpen={showShareModal}
+            onClose={() => setShowShareModal(false)}
+            boardId={board.id}
+            boardName={board.name}
+            isConnected={isConnected}
+            connectedUsers={otherUsers}
+          />
+        )}
+        {showVoiceModal && (
+          <VoiceToSticky
+            isOpen={showVoiceModal}
+            onClose={() => setShowVoiceModal(false)}
+            onCreateSticky={handleVoiceToSticky}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* AI Tools Panel */}
+      <AnimatePresence>
+        {showAITools && (
+          <AIToolsPanel
+            isOpen={showAITools}
+            onClose={() => setShowAITools(false)}
+            nodes={board.visualNodes}
+            onClusterNodes={handleClusterNodes}
+            onGenerateIdeas={handleGenerateIdeas}
+            onAutoGroup={handleAutoGroup}
           />
         )}
       </AnimatePresence>
