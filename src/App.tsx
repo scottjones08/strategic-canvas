@@ -3080,7 +3080,12 @@ const AISparkleMenu = ({
 };
 
 // Meeting View
-const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateBoard: (updates: Partial<Board>) => void; onBack: () => void }) => {
+const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: { 
+  board: Board; 
+  onUpdateBoard: (updates: Partial<Board>) => void; 
+  onBack: () => void;
+  onCreateAISummary?: (boardId: string, boardName: string, summary: string) => void;
+}) => {
   const [currentUser] = useState({ id: '1', name: 'Scott Jones', color: '#10b981' });
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -3123,9 +3128,155 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [presentationFrameIndex, setPresentationFrameIndex] = useState(0);
   const [otherUsers, _setOtherUsers] = useState<UserPresence[]>([]); // TODO: connect to Supabase Realtime
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   
   // Get frames for presentation
   const frames = board.visualNodes.filter(n => n.type === 'frame');
+  
+  // Generate AI Summary from board content
+  const generateAISummary = useCallback(() => {
+    const nodes = board.visualNodes;
+    if (nodes.length === 0) return null;
+    
+    // Categorize nodes by type
+    const stickyNotes = nodes.filter(n => n.type === 'sticky' && n.content.trim());
+    const opportunities = nodes.filter(n => n.type === 'opportunity' && n.content.trim());
+    const risks = nodes.filter(n => n.type === 'risk' && n.content.trim());
+    const actions = nodes.filter(n => n.type === 'action' && n.content.trim());
+    const frames = nodes.filter(n => n.type === 'frame' && n.content.trim());
+    const mindmaps = nodes.filter(n => n.type === 'mindmap' && n.content.trim());
+    const tables = nodes.filter(n => n.type === 'table' && n.tableData);
+    const links = nodes.filter(n => n.type === 'linklist' && n.links?.length);
+    
+    // Build structured summary HTML
+    let summaryHTML = `<h1>🤖 AI Summary Notes</h1>
+<p><em>Auto-generated from whiteboard: <strong>${board.name}</strong></em></p>
+<p><em>Generated: ${new Date().toLocaleString()}</em></p>
+<hr/>`;
+
+    // Executive Summary
+    summaryHTML += `<h2>📋 Executive Summary</h2>
+<p>This whiteboard contains <strong>${nodes.length}</strong> elements including ${stickyNotes.length} notes, ${opportunities.length} opportunities, ${risks.length} risks, and ${actions.length} action items.</p>`;
+
+    // Key Themes from Frames
+    if (frames.length > 0) {
+      summaryHTML += `<h2>🗂️ Key Themes & Sections</h2><ul>`;
+      frames.forEach(f => {
+        summaryHTML += `<li><strong>${f.content.split('\\n')[0]}</strong></li>`;
+      });
+      summaryHTML += `</ul>`;
+    }
+
+    // Main Ideas from Sticky Notes
+    if (stickyNotes.length > 0) {
+      summaryHTML += `<h2>💭 Main Ideas & Notes</h2><ul>`;
+      stickyNotes.slice(0, 15).forEach(n => {
+        summaryHTML += `<li>${n.content.replace(/\\n/g, ' ').slice(0, 200)}${n.content.length > 200 ? '...' : ''}</li>`;
+      });
+      if (stickyNotes.length > 15) {
+        summaryHTML += `<li><em>...and ${stickyNotes.length - 15} more notes</em></li>`;
+      }
+      summaryHTML += `</ul>`;
+    }
+
+    // Opportunities
+    if (opportunities.length > 0) {
+      summaryHTML += `<h2>💡 Opportunities Identified</h2><ul>`;
+      opportunities.forEach(n => {
+        summaryHTML += `<li>${n.content.replace(/\\n/g, ' ')}</li>`;
+      });
+      summaryHTML += `</ul>`;
+    }
+
+    // Risks
+    if (risks.length > 0) {
+      summaryHTML += `<h2>⚠️ Risks & Concerns</h2><ul>`;
+      risks.forEach(n => {
+        summaryHTML += `<li>${n.content.replace(/\\n/g, ' ')}</li>`;
+      });
+      summaryHTML += `</ul>`;
+    }
+
+    // Action Items
+    if (actions.length > 0) {
+      summaryHTML += `<h2>✅ Action Items</h2><ol>`;
+      actions.forEach(n => {
+        summaryHTML += `<li>${n.content.replace(/\\n/g, ' ')}</li>`;
+      });
+      summaryHTML += `</ol>`;
+    }
+
+    // Mind Maps
+    if (mindmaps.length > 0) {
+      const rootMindmaps = mindmaps.filter(n => n.isRootNode);
+      if (rootMindmaps.length > 0) {
+        summaryHTML += `<h2>🧠 Mind Map Topics</h2><ul>`;
+        rootMindmaps.forEach(n => {
+          summaryHTML += `<li><strong>${n.content}</strong>`;
+          const children = mindmaps.filter(m => m.parentNodeId === n.id);
+          if (children.length > 0) {
+            summaryHTML += `<ul>`;
+            children.forEach(c => {
+              summaryHTML += `<li>${c.content}</li>`;
+            });
+            summaryHTML += `</ul>`;
+          }
+          summaryHTML += `</li>`;
+        });
+        summaryHTML += `</ul>`;
+      }
+    }
+
+    // Tables
+    if (tables.length > 0) {
+      summaryHTML += `<h2>📊 Data Tables</h2>`;
+      tables.forEach(t => {
+        summaryHTML += `<h3>${t.content || 'Untitled Table'}</h3>`;
+        if (t.tableData) {
+          summaryHTML += `<table style="width:100%;border-collapse:collapse;margin:1rem 0;">`;
+          if (t.tableData.headers) {
+            summaryHTML += `<tr>`;
+            t.tableData.headers.forEach(h => {
+              summaryHTML += `<th style="border:1px solid #e5e7eb;padding:8px;background:#f9fafb;">${h}</th>`;
+            });
+            summaryHTML += `</tr>`;
+          }
+          t.tableData.rows.forEach(row => {
+            summaryHTML += `<tr>`;
+            row.forEach(cell => {
+              summaryHTML += `<td style="border:1px solid #e5e7eb;padding:8px;">${cell}</td>`;
+            });
+            summaryHTML += `</tr>`;
+          });
+          summaryHTML += `</table>`;
+        }
+      });
+    }
+
+    // Links
+    if (links.length > 0) {
+      summaryHTML += `<h2>🔗 Resources & Links</h2><ul>`;
+      links.forEach(l => {
+        l.links?.forEach(link => {
+          summaryHTML += `<li><a href="${link.url}" target="_blank">${link.title}</a>${link.description ? ` - ${link.description}` : ''}</li>`;
+        });
+      });
+      summaryHTML += `</ul>`;
+    }
+
+    // Statistics
+    summaryHTML += `<hr/><h2>📈 Session Statistics</h2>
+<table style="width:100%;border-collapse:collapse;">
+<tr><td style="padding:4px;"><strong>Total Elements:</strong></td><td style="padding:4px;">${nodes.length}</td></tr>
+<tr><td style="padding:4px;"><strong>Sticky Notes:</strong></td><td style="padding:4px;">${stickyNotes.length}</td></tr>
+<tr><td style="padding:4px;"><strong>Opportunities:</strong></td><td style="padding:4px;">${opportunities.length}</td></tr>
+<tr><td style="padding:4px;"><strong>Risks:</strong></td><td style="padding:4px;">${risks.length}</td></tr>
+<tr><td style="padding:4px;"><strong>Action Items:</strong></td><td style="padding:4px;">${actions.length}</td></tr>
+<tr><td style="padding:4px;"><strong>Frames/Sections:</strong></td><td style="padding:4px;">${frames.length}</td></tr>
+</table>`;
+
+    return summaryHTML;
+  }, [board]);
   
   // Export handler
   const handleExport = useCallback(async (format: 'png' | 'svg' | 'pdf' | 'json') => {
@@ -3533,7 +3684,25 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
     handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, ...templateNodes] }, `Apply ${template.name}`);
   };
 
-  const handleSave = () => { localStorage.setItem(`board-${board.id}`, JSON.stringify(board)); setSaved(true); setTimeout(() => setSaved(false), 2000); };
+  const handleSave = useCallback(() => {
+    localStorage.setItem(`board-${board.id}`, JSON.stringify(board));
+    setSaved(true);
+    
+    // Generate AI Summary and create note
+    if (onCreateAISummary && board.visualNodes.length > 0) {
+      setIsGeneratingSummary(true);
+      // Simulate slight delay for "AI processing" feel
+      setTimeout(() => {
+        const summary = generateAISummary();
+        if (summary) {
+          onCreateAISummary(board.id, board.name, summary);
+        }
+        setIsGeneratingSummary(false);
+      }, 500);
+    }
+    
+    setTimeout(() => setSaved(false), 2000);
+  }, [board, onCreateAISummary, generateAISummary]);
 
   const handleAddAction = useCallback((content: string) => { setActionItems(prev => [...prev, { id: generateId(), content, priority: 'medium', isComplete: false, timestamp: recordingDuration }]); }, [recordingDuration]);
   const handleToggleActionComplete = useCallback((id: string) => { setActionItems(prev => prev.map(a => a.id === id ? { ...a, isComplete: !a.isComplete } : a)); }, []);
@@ -3561,7 +3730,33 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
           <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowSearch(!showSearch)} className={`p-2 rounded-xl ${showSearch ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} title="Search board"><Search className="w-4 h-4" /></motion.button>
           <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowTimer(!showTimer)} className={`p-2 rounded-xl ${showTimer ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} title="Timer"><Timer className="w-4 h-4" /></motion.button>
           <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowTemplateModal(true)} className="px-3 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium flex items-center gap-2 hover:bg-gray-200"><Layout className="w-4 h-4" />Templates</motion.button>
-          <motion.button whileHover={{ scale: 1.05 }} onClick={handleSave} className={`px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${saved ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>{saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}{saved ? 'Saved!' : 'Save'}</motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.05 }} 
+            onClick={handleSave} 
+            disabled={isGeneratingSummary}
+            className={`px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${
+              isGeneratingSummary ? 'bg-purple-100 text-purple-700' :
+              saved ? 'bg-green-100 text-green-700' : 
+              'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {isGeneratingSummary ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Generating AI Summary...</span>
+              </>
+            ) : saved ? (
+              <>
+                <Check className="w-4 h-4" />
+                <span>Saved + AI Notes!</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Save</span>
+              </>
+            )}
+          </motion.button>
           <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowAIPanel(!showAIPanel)} className={`px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${showAIPanel ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'}`}><Brain className="w-4 h-4" />AI Assistant</motion.button>
           <motion.button whileHover={{ scale: 1.05 }} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-indigo-200"><Share2 className="w-4 h-4" />Share</motion.button>
         </div>
@@ -4120,8 +4315,12 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
 };
 
 // Notes View (Notion-style)
-const NotesView = ({ boards, onOpenBoard }: { boards: Board[]; onOpenBoard: (board: Board) => void }) => {
-  const [notes, setNotes] = useState<ProjectNote[]>(SAMPLE_NOTES);
+const NotesView = ({ boards, onOpenBoard, notes, onUpdateNotes }: { 
+  boards: Board[]; 
+  onOpenBoard: (board: Board) => void;
+  notes: ProjectNote[];
+  onUpdateNotes: (notes: ProjectNote[]) => void;
+}) => {
   const [selectedNote, setSelectedNote] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -4146,17 +4345,17 @@ const NotesView = ({ boards, onOpenBoard }: { boards: Board[]; onOpenBoard: (boa
       createdAt: new Date(),
       updatedAt: new Date()
     };
-    setNotes(prev => [newNote, ...prev]);
+    onUpdateNotes([newNote, ...notes]);
     setSelectedNote(newNote.id);
     setEditingContent('');
   };
 
   const handleUpdateNote = (id: string, updates: Partial<ProjectNote>) => {
-    setNotes(prev => prev.map(n => n.id === id ? { ...n, ...updates, updatedAt: new Date() } : n));
+    onUpdateNotes(notes.map(n => n.id === id ? { ...n, ...updates, updatedAt: new Date() } : n));
   };
 
   const handleDeleteNote = (id: string) => {
-    setNotes(prev => prev.filter(n => n.id !== id));
+    onUpdateNotes(notes.filter(n => n.id !== id));
     if (selectedNote === id) {
       setSelectedNote(null);
       setEditingContent('');
@@ -4726,6 +4925,7 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [boards, setBoards] = useState<Board[]>(SAMPLE_BOARDS);
   const [activeBoard, setActiveBoard] = useState<Board | null>(null);
+  const [notes, setNotes] = useState<ProjectNote[]>(SAMPLE_NOTES);
 
   const handleOpenBoard = (board: Board) => { setActiveBoard(board); setCurrentView('meeting'); };
   const handleUpdateBoard = (updates: Partial<Board>) => {
@@ -4736,6 +4936,44 @@ export default function App() {
     }
   };
   const handleBackToDashboard = () => { setCurrentView('dashboard'); setActiveBoard(null); };
+  
+  // Handler for creating AI summary notes from whiteboard
+  const handleCreateAISummary = useCallback((boardId: string, boardName: string, summaryContent: string) => {
+    // Check if an AI summary note already exists for this board
+    const existingNoteIndex = notes.findIndex(n => 
+      n.linkedBoardIds.includes(boardId) && n.title.includes('AI Summary')
+    );
+    
+    if (existingNoteIndex >= 0) {
+      // Update existing note
+      setNotes(prev => prev.map((n, i) => 
+        i === existingNoteIndex 
+          ? { ...n, content: summaryContent, updatedAt: new Date() }
+          : n
+      ));
+    } else {
+      // Create new AI summary note
+      const newNote: ProjectNote = {
+        id: generateId(),
+        title: `${boardName} - AI Summary`,
+        content: summaryContent,
+        icon: '🤖',
+        parentId: null,
+        linkedBoardIds: [boardId],
+        tags: ['ai-summary', 'auto-generated'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      setNotes(prev => [newNote, ...prev]);
+      
+      // Also update the board to link to this note
+      setBoards(prev => prev.map(b => 
+        b.id === boardId 
+          ? { ...b, linkedNoteIds: [...(b.linkedNoteIds || []), newNote.id] }
+          : b
+      ));
+    }
+  }, [notes]);
 
   const handleCreateBoard = (name: string, templateId: string) => {
     const template = BOARD_TEMPLATES.find(t => t.id === templateId);
@@ -4794,8 +5032,8 @@ export default function App() {
     <div className="h-screen flex bg-gray-50 overflow-hidden">
       <Sidebar currentView={currentView} onViewChange={handleViewChange} isCollapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} userName="Scott Jones" />
       {currentView === 'dashboard' && <DashboardView boards={boards} onOpenBoard={handleOpenBoard} onCreateBoard={handleCreateBoard} />}
-      {currentView === 'meeting' && activeBoard && <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} />}
-      {currentView === 'notes' && <NotesView boards={boards} onOpenBoard={handleOpenBoard} />}
+      {currentView === 'meeting' && activeBoard && <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} />}
+      {currentView === 'notes' && <NotesView boards={boards} onOpenBoard={handleOpenBoard} notes={notes} onUpdateNotes={setNotes} />}
       {currentView === 'clients' && <ClientsView boards={boards} onOpenBoard={handleOpenBoard} />}
     </div>
   );
