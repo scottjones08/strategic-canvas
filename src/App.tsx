@@ -67,6 +67,8 @@ import {
   Loader2,
   PenLine,
   Move,
+  BookOpen,
+  Building2,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 
@@ -167,7 +169,7 @@ interface ActionItem {
   timestamp: number;
 }
 
-type ViewType = 'dashboard' | 'meeting';
+type ViewType = 'dashboard' | 'meeting' | 'notes' | 'clients';
 
 // Constants
 const PARTICIPANTS = [
@@ -231,6 +233,8 @@ const Sidebar = ({
   const navItems = [
     { id: 'dashboard' as ViewType, label: 'Dashboard', icon: LayoutDashboard, description: 'All boards & progress' },
     { id: 'meeting' as ViewType, label: 'Whiteboard', icon: FolderKanban, description: 'Active whiteboard' },
+    { id: 'notes' as ViewType, label: 'Notes', icon: BookOpen, description: 'Notion-style docs' },
+    { id: 'clients' as ViewType, label: 'Clients', icon: Building2, description: 'Client management' },
   ];
 
   return (
@@ -2510,6 +2514,211 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
   );
 };
 
+// Notes View (Notion-style)
+const NotesView = () => {
+  const [notes, setNotes] = useState<{ id: string; title: string; content: string; icon: string; parentId: string | null; updatedAt: Date }[]>([
+    { id: '1', title: 'Project Overview', content: 'This is a comprehensive overview of the project goals and objectives.', icon: '📋', parentId: null, updatedAt: new Date() },
+    { id: '2', title: 'Meeting Notes', content: 'Notes from our latest team meeting discussing project milestones.', icon: '📝', parentId: null, updatedAt: new Date(Date.now() - 86400000) },
+    { id: '3', title: 'Research Findings', content: 'Key insights from market research and competitor analysis.', icon: '🔍', parentId: null, updatedAt: new Date(Date.now() - 172800000) },
+  ]);
+  const [selectedNote, setSelectedNote] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState('');
+
+  const selectedNoteData = notes.find(n => n.id === selectedNote);
+
+  const handleCreateNote = () => {
+    const newNote = {
+      id: generateId(),
+      title: 'Untitled',
+      content: '',
+      icon: '📄',
+      parentId: null,
+      updatedAt: new Date()
+    };
+    setNotes(prev => [newNote, ...prev]);
+    setSelectedNote(newNote.id);
+    setEditingContent('');
+  };
+
+  const handleUpdateNote = (id: string, updates: Partial<typeof notes[0]>) => {
+    setNotes(prev => prev.map(n => n.id === id ? { ...n, ...updates, updatedAt: new Date() } : n));
+  };
+
+  return (
+    <div className="flex-1 flex bg-white">
+      {/* Notes Sidebar */}
+      <div className="w-72 border-r border-gray-200 flex flex-col bg-gray-50">
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-gray-900">Notes</h2>
+            <button onClick={handleCreateNote} className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
+              <Plus className="w-4 h-4 text-gray-600" />
+            </button>
+          </div>
+          <div className="relative">
+            <input type="text" placeholder="Search notes..." className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <FileText className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2">
+          {notes.map(note => (
+            <button
+              key={note.id}
+              onClick={() => { setSelectedNote(note.id); setEditingContent(note.content); }}
+              className={`w-full text-left p-3 rounded-lg mb-1 transition-colors ${selectedNote === note.id ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-gray-100'}`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span>{note.icon}</span>
+                <span className="font-medium text-sm truncate">{note.title}</span>
+              </div>
+              <p className="text-xs text-gray-500 truncate">{note.content || 'No content'}</p>
+              <p className="text-[10px] text-gray-400 mt-1">{note.updatedAt.toLocaleDateString()}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Note Editor */}
+      <div className="flex-1 flex flex-col">
+        {selectedNoteData ? (
+          <>
+            <div className="p-6 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <button className="text-3xl hover:bg-gray-100 p-2 rounded-lg">{selectedNoteData.icon}</button>
+                <input
+                  type="text"
+                  value={selectedNoteData.title}
+                  onChange={(e) => handleUpdateNote(selectedNoteData.id, { title: e.target.value })}
+                  className="text-3xl font-bold text-gray-900 bg-transparent border-none focus:outline-none flex-1"
+                  placeholder="Untitled"
+                />
+              </div>
+            </div>
+            <div className="flex-1 p-6 overflow-y-auto">
+              <textarea
+                value={editingContent}
+                onChange={(e) => { setEditingContent(e.target.value); handleUpdateNote(selectedNoteData.id, { content: e.target.value }); }}
+                className="w-full h-full text-gray-700 bg-transparent border-none resize-none focus:outline-none text-lg leading-relaxed"
+                placeholder="Start writing..."
+              />
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-gray-400">
+            <div className="text-center">
+              <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-30" />
+              <p className="text-lg font-medium">Select a note or create a new one</p>
+              <button onClick={handleCreateNote} className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                Create Note
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Clients View
+const ClientsView = () => {
+  const [clients, setClients] = useState<{ id: string; name: string; industry: string; logo: string; status: string; lastActivity: Date }[]>([
+    { id: '1', name: 'Acme Corporation', industry: 'Technology', logo: 'A', status: 'active', lastActivity: new Date() },
+    { id: '2', name: 'Global Industries', industry: 'Manufacturing', logo: 'G', status: 'active', lastActivity: new Date(Date.now() - 86400000) },
+    { id: '3', name: 'StartUp Hub', industry: 'Consulting', logo: 'S', status: 'inactive', lastActivity: new Date(Date.now() - 604800000) },
+  ]);
+  const [selectedClient, setSelectedClient] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  // Client data is used for future detail view
+  const _selectedClientData = clients.find(c => c.id === selectedClient);
+  void _selectedClientData; // Suppress unused warning
+
+  const handleAddClient = (name: string, industry: string) => {
+    const newClient = {
+      id: generateId(),
+      name,
+      industry,
+      logo: name.charAt(0).toUpperCase(),
+      status: 'active',
+      lastActivity: new Date()
+    };
+    setClients(prev => [...prev, newClient]);
+    setShowAddModal(false);
+  };
+
+  return (
+    <div className="flex-1 flex flex-col bg-gray-50">
+      <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
+            <p className="text-sm text-gray-500">Manage your client relationships</p>
+          </div>
+          <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Add Client
+          </button>
+        </div>
+      </header>
+
+      <div className="flex-1 p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {clients.map(client => (
+            <motion.div
+              key={client.id}
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setSelectedClient(client.id)}
+              className={`bg-white rounded-xl p-5 shadow-sm border cursor-pointer transition-all ${selectedClient === client.id ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-gray-200 hover:border-gray-300'}`}
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                  {client.logo}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 truncate">{client.name}</h3>
+                  <p className="text-sm text-gray-500">{client.industry}</p>
+                </div>
+                <div className={`px-2 py-1 rounded-full text-xs font-medium ${client.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                  {client.status}
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-xs text-gray-400">
+                <span>Last activity: {client.lastActivity.toLocaleDateString()}</span>
+                <ArrowRight className="w-4 h-4" />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Add Client Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Add New Client</h2>
+              <form onSubmit={(e) => { e.preventDefault(); const form = e.target as HTMLFormElement; handleAddClient((form.elements.namedItem('name') as HTMLInputElement).value, (form.elements.namedItem('industry') as HTMLInputElement).value); }}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
+                  <input name="name" type="text" required className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Enter client name" />
+                </div>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                  <input name="industry" type="text" required className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Enter industry" />
+                </div>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+                  <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">Add Client</button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 // Main App
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
@@ -2585,6 +2794,8 @@ export default function App() {
       <Sidebar currentView={currentView} onViewChange={handleViewChange} isCollapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} userName="Scott Jones" />
       {currentView === 'dashboard' && <DashboardView boards={boards} onOpenBoard={handleOpenBoard} onCreateBoard={handleCreateBoard} />}
       {currentView === 'meeting' && activeBoard && <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} />}
+      {currentView === 'notes' && <NotesView />}
+      {currentView === 'clients' && <ClientsView />}
     </div>
   );
 }
