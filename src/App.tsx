@@ -549,7 +549,8 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard }: { boards: Board[]
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
+                    onClick={() => onOpenBoard(board)}
+                    className="border-b border-gray-50 hover:bg-indigo-50 transition-colors cursor-pointer"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
