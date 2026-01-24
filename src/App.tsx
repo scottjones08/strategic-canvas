@@ -82,6 +82,22 @@ import {
   MessageCircle,
   Presentation,
   Copy,
+  Table,
+  LinkIcon,
+  ExternalLink,
+  FolderOpen,
+  UserCircle,
+  Mail,
+  Phone,
+  Heading1,
+  Heading2,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Strikethrough,
+  Underline,
+  Code,
+  Quote,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 
@@ -101,11 +117,13 @@ interface Board {
   participants?: number;
   transcripts?: SavedTranscript[];
   uploadBucketId?: string;
+  clientId?: string;
+  linkedNoteIds?: string[];
 }
 
 interface VisualNode {
   id: string;
-  type: 'sticky' | 'frame' | 'opportunity' | 'risk' | 'action' | 'youtube' | 'image' | 'bucket' | 'text' | 'shape' | 'connector' | 'mindmap' | 'drawing' | 'comment';
+  type: 'sticky' | 'frame' | 'opportunity' | 'risk' | 'action' | 'youtube' | 'image' | 'bucket' | 'text' | 'shape' | 'connector' | 'mindmap' | 'drawing' | 'comment' | 'table' | 'linklist';
   x: number;
   y: number;
   width: number;
@@ -142,6 +160,10 @@ interface VisualNode {
   strokeWidth?: number;
   // Reactions
   reactions?: { emoji: string; userIds: string[] }[];
+  // Table properties
+  tableData?: { rows: string[][]; headers?: string[] };
+  // Link list properties
+  links?: { id: string; title: string; url: string; description?: string }[];
 }
 
 interface AIMessage {
@@ -204,6 +226,34 @@ interface HistoryEntry {
   userId?: string;
 }
 
+// Client interface
+interface Client {
+  id: string;
+  name: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  avatar?: string;
+  color: string;
+  status: 'active' | 'inactive' | 'prospect';
+  createdAt: Date;
+  notes?: string;
+}
+
+// Project Note interface
+interface ProjectNote {
+  id: string;
+  title: string;
+  content: string; // Rich HTML content
+  icon: string;
+  parentId: string | null;
+  clientId?: string;
+  linkedBoardIds: string[];
+  tags: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Constants
 const GRID_SIZE = 20;
 const PARTICIPANTS = [
@@ -215,9 +265,21 @@ const PARTICIPANTS = [
 
 const NODE_COLORS = ['#fef3c7', '#fce7f3', '#dbeafe', '#d1fae5', '#f3e8ff', '#fee2e1'];
 
+const SAMPLE_CLIENTS: Client[] = [
+  { id: 'client-1', name: 'Acme Corp', company: 'Acme Corporation', email: 'contact@acme.com', phone: '555-0100', color: '#3b82f6', status: 'active', createdAt: new Date('2024-01-01'), notes: 'Enterprise client, Q1 strategy engagement' },
+  { id: 'client-2', name: 'TechStart Inc', company: 'TechStart Inc', email: 'hello@techstart.io', phone: '555-0200', color: '#10b981', status: 'active', createdAt: new Date('2024-01-10'), notes: 'Startup client, product roadmap project' },
+  { id: 'client-3', name: 'Global Services', company: 'Global Services LLC', email: 'info@globalservices.com', color: '#f59e0b', status: 'prospect', createdAt: new Date('2024-01-15'), notes: 'Potential client, initial consultation scheduled' },
+];
+
+const SAMPLE_NOTES: ProjectNote[] = [
+  { id: 'note-1', title: 'Project Overview', content: '<h2>Project Goals</h2><p>This document outlines our strategic objectives for Q1.</p><ul><li>Increase market share by 15%</li><li>Launch 3 new features</li><li>Improve customer satisfaction</li></ul>', icon: '📋', parentId: null, linkedBoardIds: ['1'], tags: ['strategy', 'q1'], createdAt: new Date('2024-01-15'), updatedAt: new Date() },
+  { id: 'note-2', title: 'Meeting Notes', content: '<h2>Weekly Sync - Jan 20</h2><p>Discussed roadmap priorities and resource allocation.</p><h3>Action Items</h3><ol><li>Review competitor analysis</li><li>Prepare demo for client</li></ol>', icon: '📝', parentId: null, linkedBoardIds: ['2'], tags: ['meetings'], createdAt: new Date('2024-01-20'), updatedAt: new Date() },
+  { id: 'note-3', title: 'Client Requirements', content: '<p>Detailed requirements gathered from Acme Corp stakeholder interviews.</p><table><tr><th>Requirement</th><th>Priority</th><th>Status</th></tr><tr><td>Dashboard redesign</td><td>High</td><td>In Progress</td></tr><tr><td>API integration</td><td>Medium</td><td>Planned</td></tr></table>', icon: '📄', parentId: null, clientId: 'client-1', linkedBoardIds: ['1'], tags: ['requirements', 'acme'], createdAt: new Date('2024-01-18'), updatedAt: new Date() },
+];
+
 const SAMPLE_BOARDS: Board[] = [
-  { id: '1', name: 'Q1 Strategy Planning', ownerId: '1', visualNodes: [], createdAt: new Date('2024-01-15'), zoom: 1, panX: 0, panY: 0, status: 'active', progress: 65, lastActivity: new Date(), participants: 4 },
-  { id: '2', name: 'Product Roadmap Review', ownerId: '1', visualNodes: [], createdAt: new Date('2024-01-10'), zoom: 1, panX: 0, panY: 0, status: 'active', progress: 40, lastActivity: new Date(Date.now() - 86400000), participants: 3 },
+  { id: '1', name: 'Q1 Strategy Planning', ownerId: '1', visualNodes: [], createdAt: new Date('2024-01-15'), zoom: 1, panX: 0, panY: 0, status: 'active', progress: 65, lastActivity: new Date(), participants: 4, clientId: 'client-1', linkedNoteIds: ['note-1', 'note-3'] },
+  { id: '2', name: 'Product Roadmap Review', ownerId: '1', visualNodes: [], createdAt: new Date('2024-01-10'), zoom: 1, panX: 0, panY: 0, status: 'active', progress: 40, lastActivity: new Date(Date.now() - 86400000), participants: 3, clientId: 'client-2', linkedNoteIds: ['note-2'] },
   { id: '3', name: 'Team Retrospective', ownerId: '1', visualNodes: [], createdAt: new Date('2024-01-05'), zoom: 1, panX: 0, panY: 0, status: 'completed', progress: 100, lastActivity: new Date(Date.now() - 172800000), participants: 6 },
 ];
 
@@ -856,6 +918,181 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
                 />
               </div>
             )}
+          </div>
+        )}
+
+        {node.type === 'table' && node.tableData && (
+          <div className="p-3 h-full flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
+              <Table className="w-4 h-4 text-blue-500" />
+              <input
+                type="text"
+                value={node.content}
+                onChange={(e) => onUpdate({ content: e.target.value })}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 font-semibold text-sm text-gray-700 bg-transparent border-none outline-none"
+                placeholder="Table name"
+              />
+            </div>
+            <div className="flex-1 overflow-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr>
+                    {node.tableData.headers?.map((header, i) => (
+                      <th key={i} className="border border-gray-200 bg-gray-50 px-2 py-1.5 text-left font-medium text-gray-600">
+                        <input
+                          type="text"
+                          value={header}
+                          onChange={(e) => {
+                            const newHeaders = [...(node.tableData?.headers || [])];
+                            newHeaders[i] = e.target.value;
+                            onUpdate({ tableData: { ...node.tableData!, headers: newHeaders } });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full bg-transparent border-none outline-none"
+                        />
+                      </th>
+                    ))}
+                    <th className="border border-gray-200 bg-gray-50 px-1 py-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newHeaders = [...(node.tableData?.headers || []), 'New'];
+                          const newRows = node.tableData?.rows.map(row => [...row, '']) || [];
+                          onUpdate({ tableData: { headers: newHeaders, rows: newRows } });
+                        }}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {node.tableData.rows.map((row, rowIndex) => (
+                    <tr key={rowIndex}>
+                      {row.map((cell, cellIndex) => (
+                        <td key={cellIndex} className="border border-gray-200 px-2 py-1">
+                          <input
+                            type="text"
+                            value={cell}
+                            onChange={(e) => {
+                              const newRows = [...node.tableData!.rows];
+                              newRows[rowIndex] = [...newRows[rowIndex]];
+                              newRows[rowIndex][cellIndex] = e.target.value;
+                              onUpdate({ tableData: { ...node.tableData!, rows: newRows } });
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full bg-transparent border-none outline-none text-gray-700"
+                          />
+                        </td>
+                      ))}
+                      <td className="border border-gray-200 px-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newRows = node.tableData?.rows.filter((_, i) => i !== rowIndex) || [];
+                            onUpdate({ tableData: { ...node.tableData!, rows: newRows } });
+                          }}
+                          className="text-red-300 hover:text-red-500"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newRow = Array(node.tableData?.headers?.length || 3).fill('');
+                  onUpdate({ tableData: { ...node.tableData!, rows: [...(node.tableData?.rows || []), newRow] } });
+                }}
+                className="w-full mt-2 py-1 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded border border-dashed border-gray-200 flex items-center justify-center gap-1"
+              >
+                <Plus className="w-3 h-3" /> Add Row
+              </button>
+            </div>
+          </div>
+        )}
+
+        {node.type === 'linklist' && (
+          <div className="p-3 h-full flex flex-col rounded-xl overflow-hidden" style={{ backgroundColor: node.color }}>
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-200/50">
+              <LinkIcon className="w-4 h-4 text-green-600" />
+              <input
+                type="text"
+                value={node.content}
+                onChange={(e) => onUpdate({ content: e.target.value })}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 font-semibold text-sm text-gray-700 bg-transparent border-none outline-none"
+                placeholder="List title"
+              />
+            </div>
+            <div className="flex-1 overflow-auto space-y-1.5">
+              {node.links?.map((link, i) => (
+                <div key={link.id} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-100 group">
+                  <ExternalLink className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={link.title}
+                      onChange={(e) => {
+                        const newLinks = [...(node.links || [])];
+                        newLinks[i] = { ...newLinks[i], title: e.target.value };
+                        onUpdate({ links: newLinks });
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full text-xs font-medium text-gray-700 bg-transparent border-none outline-none truncate"
+                      placeholder="Link title"
+                    />
+                    <input
+                      type="url"
+                      value={link.url}
+                      onChange={(e) => {
+                        const newLinks = [...(node.links || [])];
+                        newLinks[i] = { ...newLinks[i], url: e.target.value };
+                        onUpdate({ links: newLinks });
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full text-[10px] text-blue-500 bg-transparent border-none outline-none truncate"
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-1 hover:bg-gray-100 rounded text-blue-500"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUpdate({ links: node.links?.filter((_, idx) => idx !== i) });
+                      }}
+                      className="p-1 hover:bg-red-50 rounded text-red-400"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newLink = { id: generateId(), title: 'New Link', url: '', description: '' };
+                  onUpdate({ links: [...(node.links || []), newLink] });
+                }}
+                className="w-full py-1.5 text-xs text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded border border-dashed border-gray-300 flex items-center justify-center gap-1"
+              >
+                <Plus className="w-3 h-3" /> Add Link
+              </button>
+            </div>
           </div>
         )}
 
@@ -3538,6 +3775,79 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
             </motion.button>
           </div>
           
+          {/* Tables & Lists */}
+          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Data</p>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => {
+                const viewportCenterX = (-board.panX + window.innerWidth / 2) / (board.zoom || 1);
+                const viewportCenterY = (-board.panY + window.innerHeight / 2) / (board.zoom || 1);
+                const node: VisualNode = {
+                  id: generateId(),
+                  type: 'table',
+                  x: viewportCenterX - 200,
+                  y: viewportCenterY - 100,
+                  width: 400,
+                  height: 200,
+                  content: 'Data Table',
+                  color: '#ffffff',
+                  rotation: 0,
+                  locked: false,
+                  votes: 0,
+                  votedBy: [],
+                  createdBy: currentUser.id,
+                  comments: [],
+                  tableData: {
+                    headers: ['Column 1', 'Column 2', 'Column 3'],
+                    rows: [
+                      ['Data 1', 'Data 2', 'Data 3'],
+                      ['Data 4', 'Data 5', 'Data 6'],
+                    ]
+                  }
+                };
+                handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, node] }, 'Add table');
+              }}
+              className="p-3 hover:bg-gray-100 rounded-xl group relative"
+              title="Table"
+            >
+              <Table className="w-5 h-5 text-blue-600" />
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Add Table</div>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => {
+                const viewportCenterX = (-board.panX + window.innerWidth / 2) / (board.zoom || 1);
+                const viewportCenterY = (-board.panY + window.innerHeight / 2) / (board.zoom || 1);
+                const node: VisualNode = {
+                  id: generateId(),
+                  type: 'linklist',
+                  x: viewportCenterX - 150,
+                  y: viewportCenterY - 100,
+                  width: 300,
+                  height: 200,
+                  content: 'Resources',
+                  color: '#f0fdf4',
+                  rotation: 0,
+                  locked: false,
+                  votes: 0,
+                  votedBy: [],
+                  createdBy: currentUser.id,
+                  comments: [],
+                  links: [
+                    { id: generateId(), title: 'Example Link', url: 'https://example.com', description: 'Click to open' },
+                  ]
+                };
+                handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, node] }, 'Add link list');
+              }}
+              className="p-3 hover:bg-gray-100 rounded-xl group relative"
+              title="Link List"
+            >
+              <LinkIcon className="w-5 h-5 text-green-600" />
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Add Link List</div>
+            </motion.button>
+          </div>
+          
           {/* Comment/Annotation Tool */}
           <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
             <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Annotate</p>
@@ -3810,24 +4120,30 @@ const MeetingView = ({ board, onUpdateBoard, onBack }: { board: Board; onUpdateB
 };
 
 // Notes View (Notion-style)
-const NotesView = () => {
-  const [notes, setNotes] = useState<{ id: string; title: string; content: string; icon: string; parentId: string | null; updatedAt: Date }[]>([
-    { id: '1', title: 'Project Overview', content: 'This is a comprehensive overview of the project goals and objectives.', icon: '📋', parentId: null, updatedAt: new Date() },
-    { id: '2', title: 'Meeting Notes', content: 'Notes from our latest team meeting discussing project milestones.', icon: '📝', parentId: null, updatedAt: new Date(Date.now() - 86400000) },
-    { id: '3', title: 'Research Findings', content: 'Key insights from market research and competitor analysis.', icon: '🔍', parentId: null, updatedAt: new Date(Date.now() - 172800000) },
-  ]);
+const NotesView = ({ boards, onOpenBoard }: { boards: Board[]; onOpenBoard: (board: Board) => void }) => {
+  const [notes, setNotes] = useState<ProjectNote[]>(SAMPLE_NOTES);
   const [selectedNote, setSelectedNote] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showLinkBoardModal, setShowLinkBoardModal] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
 
   const selectedNoteData = notes.find(n => n.id === selectedNote);
+  const filteredNotes = notes.filter(n => 
+    n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    n.content.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleCreateNote = () => {
-    const newNote = {
+    const newNote: ProjectNote = {
       id: generateId(),
       title: 'Untitled',
       content: '',
       icon: '📄',
       parentId: null,
+      linkedBoardIds: [],
+      tags: [],
+      createdAt: new Date(),
       updatedAt: new Date()
     };
     setNotes(prev => [newNote, ...prev]);
@@ -3835,41 +4151,136 @@ const NotesView = () => {
     setEditingContent('');
   };
 
-  const handleUpdateNote = (id: string, updates: Partial<typeof notes[0]>) => {
+  const handleUpdateNote = (id: string, updates: Partial<ProjectNote>) => {
     setNotes(prev => prev.map(n => n.id === id ? { ...n, ...updates, updatedAt: new Date() } : n));
+  };
+
+  const handleDeleteNote = (id: string) => {
+    setNotes(prev => prev.filter(n => n.id !== id));
+    if (selectedNote === id) {
+      setSelectedNote(null);
+      setEditingContent('');
+    }
+  };
+
+  const handleLinkBoard = (boardId: string) => {
+    if (selectedNoteData) {
+      const newLinkedIds = selectedNoteData.linkedBoardIds.includes(boardId)
+        ? selectedNoteData.linkedBoardIds.filter(id => id !== boardId)
+        : [...selectedNoteData.linkedBoardIds, boardId];
+      handleUpdateNote(selectedNoteData.id, { linkedBoardIds: newLinkedIds });
+    }
+  };
+
+  // WYSIWYG formatting functions
+  const execCommand = (command: string, value?: string) => {
+    document.execCommand(command, false, value);
+    editorRef.current?.focus();
+  };
+
+  const formatToolbar = [
+    { icon: Bold, command: 'bold', title: 'Bold (⌘B)' },
+    { icon: Italic, command: 'italic', title: 'Italic (⌘I)' },
+    { icon: Underline, command: 'underline', title: 'Underline (⌘U)' },
+    { icon: Strikethrough, command: 'strikeThrough', title: 'Strikethrough' },
+    { type: 'divider' },
+    { icon: Heading1, command: 'formatBlock', value: 'h1', title: 'Heading 1' },
+    { icon: Heading2, command: 'formatBlock', value: 'h2', title: 'Heading 2' },
+    { type: 'divider' },
+    { icon: List, command: 'insertUnorderedList', title: 'Bullet List' },
+    { icon: ListOrdered, command: 'insertOrderedList', title: 'Numbered List' },
+    { type: 'divider' },
+    { icon: AlignLeft, command: 'justifyLeft', title: 'Align Left' },
+    { icon: AlignCenter, command: 'justifyCenter', title: 'Center' },
+    { icon: AlignRight, command: 'justifyRight', title: 'Align Right' },
+    { type: 'divider' },
+    { icon: Quote, command: 'formatBlock', value: 'blockquote', title: 'Quote' },
+    { icon: Code, command: 'formatBlock', value: 'pre', title: 'Code Block' },
+    { icon: LinkIcon, command: 'createLink', title: 'Insert Link' },
+    { icon: Table, command: 'insertTable', title: 'Insert Table' },
+  ];
+
+  const handleInsertTable = () => {
+    const table = `<table style="width:100%;border-collapse:collapse;margin:1rem 0;"><tr><th style="border:1px solid #e5e7eb;padding:8px;background:#f9fafb;">Header 1</th><th style="border:1px solid #e5e7eb;padding:8px;background:#f9fafb;">Header 2</th><th style="border:1px solid #e5e7eb;padding:8px;background:#f9fafb;">Header 3</th></tr><tr><td style="border:1px solid #e5e7eb;padding:8px;">Cell 1</td><td style="border:1px solid #e5e7eb;padding:8px;">Cell 2</td><td style="border:1px solid #e5e7eb;padding:8px;">Cell 3</td></tr><tr><td style="border:1px solid #e5e7eb;padding:8px;">Cell 4</td><td style="border:1px solid #e5e7eb;padding:8px;">Cell 5</td><td style="border:1px solid #e5e7eb;padding:8px;">Cell 6</td></tr></table>`;
+    document.execCommand('insertHTML', false, table);
+    editorRef.current?.focus();
+  };
+
+  const handleToolbarClick = (tool: typeof formatToolbar[0]) => {
+    if ('type' in tool && tool.type === 'divider') return;
+    if (!('command' in tool) || !tool.command) return;
+    
+    const cmd = tool.command;
+    const val = 'value' in tool ? tool.value : undefined;
+    
+    if (cmd === 'insertTable') {
+      handleInsertTable();
+      return;
+    }
+    if (cmd === 'createLink') {
+      const url = prompt('Enter URL:');
+      if (url) execCommand(cmd, url);
+      return;
+    }
+    execCommand(cmd, val || '');
   };
 
   return (
     <div className="flex-1 flex bg-white">
       {/* Notes Sidebar */}
-      <div className="w-72 border-r border-gray-200 flex flex-col bg-gray-50">
+      <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50">
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900">Notes</h2>
-            <button onClick={handleCreateNote} className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-indigo-600" />
+              Project Notes
+            </h2>
+            <button onClick={handleCreateNote} className="p-2 hover:bg-gray-200 rounded-lg transition-colors" title="New Note">
               <Plus className="w-4 h-4 text-gray-600" />
             </button>
           </div>
           <div className="relative">
-            <input type="text" placeholder="Search notes..." className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            <FileText className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search notes..."
+              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
-          {notes.map(note => (
+          {filteredNotes.map(note => (
             <button
               key={note.id}
               onClick={() => { setSelectedNote(note.id); setEditingContent(note.content); }}
-              className={`w-full text-left p-3 rounded-lg mb-1 transition-colors ${selectedNote === note.id ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-gray-100'}`}
+              className={`w-full text-left p-3 rounded-xl mb-2 transition-all ${selectedNote === note.id ? 'bg-indigo-100 border-2 border-indigo-200' : 'bg-white border border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}
             >
               <div className="flex items-center gap-2 mb-1">
-                <span>{note.icon}</span>
-                <span className="font-medium text-sm truncate">{note.title}</span>
+                <span className="text-lg">{note.icon}</span>
+                <span className="font-medium text-sm truncate flex-1">{note.title}</span>
+                {note.linkedBoardIds.length > 0 && (
+                  <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded text-[10px] font-medium">
+                    {note.linkedBoardIds.length} boards
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-gray-500 truncate">{note.content || 'No content'}</p>
-              <p className="text-[10px] text-gray-400 mt-1">{note.updatedAt.toLocaleDateString()}</p>
+              <p className="text-xs text-gray-500 truncate line-clamp-2" dangerouslySetInnerHTML={{ __html: note.content.replace(/<[^>]+>/g, ' ').slice(0, 80) || 'No content' }} />
+              <div className="flex items-center gap-2 mt-2">
+                {note.tags.slice(0, 2).map(tag => (
+                  <span key={tag} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">#{tag}</span>
+                ))}
+                <span className="text-[10px] text-gray-400 ml-auto">{new Date(note.updatedAt).toLocaleDateString()}</span>
+              </div>
             </button>
           ))}
+          {filteredNotes.length === 0 && (
+            <div className="text-center py-8 text-gray-400">
+              <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No notes found</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -3877,131 +4288,426 @@ const NotesView = () => {
       <div className="flex-1 flex flex-col">
         {selectedNoteData ? (
           <>
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <button className="text-3xl hover:bg-gray-100 p-2 rounded-lg">{selectedNoteData.icon}</button>
+            {/* Header */}
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3 flex-1">
+                <button className="text-2xl hover:bg-gray-100 p-2 rounded-lg">{selectedNoteData.icon}</button>
                 <input
                   type="text"
                   value={selectedNoteData.title}
                   onChange={(e) => handleUpdateNote(selectedNoteData.id, { title: e.target.value })}
-                  className="text-3xl font-bold text-gray-900 bg-transparent border-none focus:outline-none flex-1"
+                  className="text-2xl font-bold text-gray-900 bg-transparent border-none focus:outline-none flex-1"
                   placeholder="Untitled"
                 />
               </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowLinkBoardModal(true)}
+                  className="px-3 py-1.5 text-sm bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 flex items-center gap-2"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  Link Board
+                </button>
+                <button
+                  onClick={() => handleDeleteNote(selectedNoteData.id)}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
+
+            {/* Linked Boards */}
+            {selectedNoteData.linkedBoardIds.length > 0 && (
+              <div className="px-4 py-2 border-b border-gray-100 flex items-center gap-2 flex-wrap bg-gray-50">
+                <span className="text-xs text-gray-500">Linked:</span>
+                {selectedNoteData.linkedBoardIds.map(boardId => {
+                  const board = boards.find(b => b.id === boardId);
+                  if (!board) return null;
+                  return (
+                    <button
+                      key={boardId}
+                      onClick={() => onOpenBoard(board)}
+                      className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-xs text-gray-700 hover:border-indigo-300 hover:text-indigo-700 flex items-center gap-1"
+                    >
+                      <Layout className="w-3 h-3" />
+                      {board.name}
+                      <ExternalLink className="w-3 h-3 opacity-50" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* WYSIWYG Toolbar */}
+            <div className="px-4 py-2 border-b border-gray-100 flex items-center gap-1 flex-wrap bg-white sticky top-0 z-10">
+              {formatToolbar.map((tool, i) => {
+                if ('type' in tool && tool.type === 'divider') {
+                  return <div key={i} className="w-px h-6 bg-gray-200 mx-1" />;
+                }
+                if ('icon' in tool && tool.icon) {
+                  const IconComponent = tool.icon;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => handleToolbarClick(tool)}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      title={tool.title}
+                    >
+                      <IconComponent className="w-4 h-4 text-gray-600" />
+                    </button>
+                  );
+                }
+                return null;
+              })}
+            </div>
+
+            {/* Content Editor */}
             <div className="flex-1 p-6 overflow-y-auto">
-              <textarea
-                value={editingContent}
-                onChange={(e) => { setEditingContent(e.target.value); handleUpdateNote(selectedNoteData.id, { content: e.target.value }); }}
-                className="w-full h-full text-gray-700 bg-transparent border-none resize-none focus:outline-none text-lg leading-relaxed"
-                placeholder="Start writing..."
+              <div
+                ref={editorRef}
+                contentEditable
+                onInput={(e) => {
+                  const content = (e.target as HTMLDivElement).innerHTML;
+                  setEditingContent(content);
+                  handleUpdateNote(selectedNoteData.id, { content });
+                }}
+                dangerouslySetInnerHTML={{ __html: editingContent }}
+                className="prose prose-sm max-w-none min-h-[300px] focus:outline-none [&>h1]:text-2xl [&>h1]:font-bold [&>h1]:mb-4 [&>h2]:text-xl [&>h2]:font-semibold [&>h2]:mb-3 [&>p]:mb-3 [&>ul]:list-disc [&>ul]:pl-6 [&>ol]:list-decimal [&>ol]:pl-6 [&>blockquote]:border-l-4 [&>blockquote]:border-gray-300 [&>blockquote]:pl-4 [&>blockquote]:italic [&>pre]:bg-gray-100 [&>pre]:p-4 [&>pre]:rounded-lg [&>table]:w-full"
+                data-placeholder="Start writing... Use the toolbar above for formatting."
               />
             </div>
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-400">
             <div className="text-center">
-              <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium">Select a note or create a new one</p>
-              <button onClick={handleCreateNote} className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+              <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-30" />
+              <p className="text-xl font-medium mb-2">Project Notes</p>
+              <p className="text-sm text-gray-400 mb-4">Create notes and link them to your canvas boards</p>
+              <button onClick={handleCreateNote} className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-2 mx-auto">
+                <Plus className="w-5 h-5" />
                 Create Note
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Link Board Modal */}
+      <AnimatePresence>
+        {showLinkBoardModal && selectedNoteData && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowLinkBoardModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl max-h-[80vh] overflow-hidden flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Link to Boards</h2>
+              <p className="text-sm text-gray-500 mb-4">Select boards to link with this note</p>
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {boards.map(board => (
+                  <button
+                    key={board.id}
+                    onClick={() => handleLinkBoard(board.id)}
+                    className={`w-full p-3 rounded-lg border text-left flex items-center gap-3 transition-all ${
+                      selectedNoteData.linkedBoardIds.includes(board.id)
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      selectedNoteData.linkedBoardIds.includes(board.id) ? 'bg-indigo-500' : 'bg-gray-100'
+                    }`}>
+                      {selectedNoteData.linkedBoardIds.includes(board.id) ? (
+                        <Check className="w-4 h-4 text-white" />
+                      ) : (
+                        <Layout className="w-4 h-4 text-gray-500" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{board.name}</p>
+                      <p className="text-xs text-gray-500">{board.visualNodes.length} elements</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowLinkBoardModal(false)}
+                className="mt-4 w-full py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              >
+                Done
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
 // Clients View
-const ClientsView = () => {
-  const [clients, setClients] = useState<{ id: string; name: string; industry: string; logo: string; status: string; lastActivity: Date }[]>([
-    { id: '1', name: 'Acme Corporation', industry: 'Technology', logo: 'A', status: 'active', lastActivity: new Date() },
-    { id: '2', name: 'Global Industries', industry: 'Manufacturing', logo: 'G', status: 'active', lastActivity: new Date(Date.now() - 86400000) },
-    { id: '3', name: 'StartUp Hub', industry: 'Consulting', logo: 'S', status: 'inactive', lastActivity: new Date(Date.now() - 604800000) },
-  ]);
-  const [selectedClient, setSelectedClient] = useState<string | null>(null);
+const ClientsView = ({ boards, onOpenBoard }: { boards: Board[]; onOpenBoard: (board: Board) => void }) => {
+  const [clients, setClients] = useState<Client[]>(SAMPLE_CLIENTS);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'prospect'>('all');
 
-  // Client data is used for future detail view
-  const _selectedClientData = clients.find(c => c.id === selectedClient);
-  void _selectedClientData; // Suppress unused warning
+  const selectedClient = clients.find(c => c.id === selectedClientId);
+  const clientBoards = selectedClientId ? boards.filter(b => b.clientId === selectedClientId) : [];
+  
+  const filteredClients = clients.filter(c => {
+    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          c.company?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = filterStatus === 'all' || c.status === filterStatus;
+    return matchesSearch && matchesFilter;
+  });
 
-  const handleAddClient = (name: string, industry: string) => {
-    const newClient = {
+  const handleAddClient = (data: Partial<Client>) => {
+    const newClient: Client = {
       id: generateId(),
-      name,
-      industry,
-      logo: name.charAt(0).toUpperCase(),
+      name: data.name || 'New Client',
+      company: data.company,
+      email: data.email,
+      phone: data.phone,
+      color: NODE_COLORS[Math.floor(Math.random() * NODE_COLORS.length)],
       status: 'active',
-      lastActivity: new Date()
+      createdAt: new Date(),
+      notes: ''
     };
     setClients(prev => [...prev, newClient]);
     setShowAddModal(false);
   };
 
-  return (
-    <div className="flex-1 flex flex-col bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
-            <p className="text-sm text-gray-500">Manage your client relationships</p>
-          </div>
-          <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Add Client
-          </button>
-        </div>
-      </header>
+  const handleUpdateClient = (id: string, updates: Partial<Client>) => {
+    setClients(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
 
-      <div className="flex-1 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {clients.map(client => (
+  const getBoardCountForClient = (clientId: string) => boards.filter(b => b.clientId === clientId).length;
+
+  return (
+    <div className="flex-1 flex bg-gray-50">
+      {/* Clients List */}
+      <div className={`${selectedClientId ? 'w-80' : 'flex-1'} border-r border-gray-200 bg-white flex flex-col transition-all`}>
+        <header className="border-b border-gray-200 px-4 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Clients</h1>
+              <p className="text-xs text-gray-500">{clients.length} total</p>
+            </div>
+            <button onClick={() => setShowAddModal(true)} className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search clients..."
+              className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="flex gap-1 mt-3">
+            {(['all', 'active', 'inactive', 'prospect'] as const).map(status => (
+              <button
+                key={status}
+                onClick={() => setFilterStatus(status)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filterStatus === status ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </button>
+            ))}
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {filteredClients.map(client => (
             <motion.div
               key={client.id}
-              whileHover={{ scale: 1.02 }}
-              onClick={() => setSelectedClient(client.id)}
-              className={`bg-white rounded-xl p-5 shadow-sm border cursor-pointer transition-all ${selectedClient === client.id ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-gray-200 hover:border-gray-300'}`}
+              whileHover={{ scale: 1.01 }}
+              onClick={() => setSelectedClientId(client.id)}
+              className={`p-3 rounded-xl cursor-pointer transition-all ${selectedClientId === client.id ? 'bg-indigo-50 border-2 border-indigo-200' : 'bg-white border border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}
             >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
-                  {client.logo}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: client.color }}>
+                  {client.name.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 truncate">{client.name}</h3>
-                  <p className="text-sm text-gray-500">{client.industry}</p>
+                  <h3 className="font-medium text-gray-900 text-sm truncate">{client.name}</h3>
+                  <p className="text-xs text-gray-500 truncate">{client.company}</p>
                 </div>
-                <div className={`px-2 py-1 rounded-full text-xs font-medium ${client.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                  {client.status}
+                <div className="flex flex-col items-end gap-1">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${client.status === 'active' ? 'bg-green-100 text-green-700' : client.status === 'prospect' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {client.status}
+                  </span>
+                  <span className="text-[10px] text-gray-400">{getBoardCountForClient(client.id)} boards</span>
                 </div>
-              </div>
-              <div className="flex items-center justify-between text-xs text-gray-400">
-                <span>Last activity: {client.lastActivity.toLocaleDateString()}</span>
-                <ArrowRight className="w-4 h-4" />
               </div>
             </motion.div>
           ))}
         </div>
       </div>
 
+      {/* Client Detail View */}
+      {selectedClient && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <header className="bg-white border-b border-gray-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button onClick={() => setSelectedClientId(null)} className="p-2 hover:bg-gray-100 rounded-lg lg:hidden">
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl" style={{ backgroundColor: selectedClient.color }}>
+                  {selectedClient.name.charAt(0)}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">{selectedClient.name}</h2>
+                  <p className="text-sm text-gray-500">{selectedClient.company}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedClient.status}
+                  onChange={(e) => handleUpdateClient(selectedClient.id, { status: e.target.value as Client['status'] })}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border-0 ${selectedClient.status === 'active' ? 'bg-green-100 text-green-700' : selectedClient.status === 'prospect' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="prospect">Prospect</option>
+                </select>
+              </div>
+            </div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto p-6">
+            {/* Contact Info */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <UserCircle className="w-4 h-4 text-gray-400" />
+                Contact Information
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-3">
+                  <Mail className="w-4 h-4 text-gray-400" />
+                  <div>
+                    <p className="text-xs text-gray-500">Email</p>
+                    <p className="text-sm text-gray-900">{selectedClient.email || 'Not set'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-gray-400" />
+                  <div>
+                    <p className="text-xs text-gray-500">Phone</p>
+                    <p className="text-sm text-gray-900">{selectedClient.phone || 'Not set'}</p>
+                  </div>
+                </div>
+              </div>
+              {selectedClient.notes && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 mb-1">Notes</p>
+                  <p className="text-sm text-gray-700">{selectedClient.notes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Client Boards */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <FolderKanban className="w-4 h-4 text-gray-400" />
+                  Boards ({clientBoards.length})
+                </h3>
+                <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
+                  <Plus className="w-4 h-4" /> New Board
+                </button>
+              </div>
+              
+              {clientBoards.length > 0 ? (
+                <div className="space-y-2">
+                  {clientBoards.map(board => (
+                    <motion.div
+                      key={board.id}
+                      whileHover={{ scale: 1.01 }}
+                      onClick={() => onOpenBoard(board)}
+                      className="p-3 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/50 cursor-pointer transition-all flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${board.status === 'active' ? 'bg-green-100' : board.status === 'completed' ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                          <Layout className={`w-4 h-4 ${board.status === 'active' ? 'text-green-600' : board.status === 'completed' ? 'text-blue-600' : 'text-gray-600'}`} />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">{board.name}</p>
+                          <p className="text-xs text-gray-500">{board.visualNodes.length} elements • {board.progress || 0}% complete</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${board.status === 'active' ? 'bg-green-100 text-green-700' : board.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {board.status}
+                        </span>
+                        <ArrowRight className="w-4 h-4 text-gray-400" />
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  <FolderOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No boards assigned to this client</p>
+                  <button className="mt-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium">Create first board</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Client Modal */}
       <AnimatePresence>
         {showAddModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAddModal(false)}>
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
               <h2 className="text-xl font-bold text-gray-900 mb-4">Add New Client</h2>
-              <form onSubmit={(e) => { e.preventDefault(); const form = e.target as HTMLFormElement; handleAddClient((form.elements.namedItem('name') as HTMLInputElement).value, (form.elements.namedItem('industry') as HTMLInputElement).value); }}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
-                  <input name="name" type="text" required className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Enter client name" />
+              <form onSubmit={(e) => { 
+                e.preventDefault(); 
+                const form = e.target as HTMLFormElement;
+                handleAddClient({
+                  name: (form.elements.namedItem('name') as HTMLInputElement).value,
+                  company: (form.elements.namedItem('company') as HTMLInputElement).value,
+                  email: (form.elements.namedItem('email') as HTMLInputElement).value,
+                  phone: (form.elements.namedItem('phone') as HTMLInputElement).value,
+                });
+              }}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Client Name *</label>
+                    <input name="name" type="text" required className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Enter client name" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                    <input name="company" type="text" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Company name" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input name="email" type="email" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="email@example.com" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <input name="phone" type="tel" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="555-0100" />
+                    </div>
+                  </div>
                 </div>
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
-                  <input name="industry" type="text" required className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Enter industry" />
-                </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 mt-6">
                   <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
                   <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">Add Client</button>
                 </div>
@@ -4089,8 +4795,8 @@ export default function App() {
       <Sidebar currentView={currentView} onViewChange={handleViewChange} isCollapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} userName="Scott Jones" />
       {currentView === 'dashboard' && <DashboardView boards={boards} onOpenBoard={handleOpenBoard} onCreateBoard={handleCreateBoard} />}
       {currentView === 'meeting' && activeBoard && <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} />}
-      {currentView === 'notes' && <NotesView />}
-      {currentView === 'clients' && <ClientsView />}
+      {currentView === 'notes' && <NotesView boards={boards} onOpenBoard={handleOpenBoard} />}
+      {currentView === 'clients' && <ClientsView boards={boards} onOpenBoard={handleOpenBoard} />}
     </div>
   );
 }
