@@ -1044,8 +1044,8 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
       transition={isDragging ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 30 }}
       whileHover={{ scale: isSelected || isDragging ? 1 : 1.02, zIndex: 50 }}
       className={`absolute ${isDrawingMode ? 'pointer-events-none' : 'pointer-events-auto'} ${isResizing ? '' : 'cursor-grab active:cursor-grabbing'} ${isFrame ? 'rounded-2xl border-2 border-dashed' : isText ? '' : isConnector ? '' : 'rounded-xl'} ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}
-      style={{ width: node.width, height: node.height, backgroundColor: isFrame ? `${node.color}80` : isText ? 'transparent' : node.color, borderColor: isFrame ? node.color : undefined, zIndex: isDragging ? 1000 : isSelected ? 100 : isFrame ? 1 : 10, ...getShapeStyles() }}
-      onClick={(e) => onSelect(e)}
+      style={{ width: node.width, height: node.height, backgroundColor: isFrame ? `${node.color}80` : isText ? 'transparent' : node.color, borderColor: isFrame ? node.color : undefined, zIndex: isDragging ? 1000 : isSelected ? 100 : (node.zIndex ?? (isFrame ? 1 : 10)), ...getShapeStyles() }}
+      onClick={(e) => { e.stopPropagation(); onSelect(e); }}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
       drag={!isResizing && !isDrawingMode && !node.locked}
@@ -1443,7 +1443,11 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
 
     {showContextMenu && (
       <>
-        <div className="fixed inset-0 z-[99998] pointer-events-auto" onClick={() => setShowContextMenu(false)} />
+        <div
+          className="fixed inset-0 z-[99998] pointer-events-auto"
+          onClick={() => setShowContextMenu(false)}
+          onMouseDown={(e) => { e.stopPropagation(); setShowContextMenu(false); }}
+        />
         <div
           className="fixed bg-white rounded-2xl shadow-2xl border border-gray-200 z-[99999] w-64 max-h-[70vh] overflow-hidden pointer-events-auto cursor-default flex flex-col"
           style={{
