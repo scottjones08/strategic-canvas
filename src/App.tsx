@@ -1123,6 +1123,24 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
         onSelectNodes([]);
         setConnectingFrom(null);
       }
+      // Arrow keys for panning (MURAL-style)
+      const PAN_STEP = e.shiftKey ? 100 : 50; // Shift for faster panning
+      if (e.code === 'ArrowUp') {
+        e.preventDefault();
+        setPanY(y => y + PAN_STEP);
+      }
+      if (e.code === 'ArrowDown') {
+        e.preventDefault();
+        setPanY(y => y - PAN_STEP);
+      }
+      if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        setPanX(x => x + PAN_STEP);
+      }
+      if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        setPanX(x => x - PAN_STEP);
+      }
       // Cmd/Ctrl + A to select all
       if ((e.metaKey || e.ctrlKey) && e.code === 'KeyA') {
         e.preventDefault();
@@ -1577,8 +1595,8 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       </div>
       {/* Keyboard shortcuts hint */}
       <div className="absolute bottom-4 left-4 text-xs text-gray-400 z-30 space-y-0.5">
-        <div><span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">V</span> select • <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">H</span> pan • <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">B</span> draw</div>
-        <div><span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">Shift</span> + drag lasso • <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">Del</span> delete • <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">⌘D</span> duplicate</div>
+        <div><span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">V</span> select • <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">H</span> pan tool • <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">B</span> draw</div>
+        <div><span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">Space</span>+drag or <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">↑↓←→</span> pan • <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">Shift</span>+arrows faster</div>
       </div>
       
       {/* Lasso Selection */}
