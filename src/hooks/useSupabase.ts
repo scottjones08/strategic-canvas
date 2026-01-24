@@ -9,7 +9,7 @@ export function useOrganizations() {
   const [error, setError] = useState<Error | null>(null);
 
   const fetchOrganizations = useCallback(async () => {
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseConfigured() || !supabase) {
       setLoading(false);
       return;
     }
@@ -44,7 +44,7 @@ export function useBoards(organizationId?: string) {
   const [error, setError] = useState<Error | null>(null);
 
   const fetchBoards = useCallback(async () => {
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseConfigured() || !supabase) {
       setLoading(false);
       return;
     }
@@ -72,7 +72,7 @@ export function useBoards(organizationId?: string) {
   }, [fetchBoards]);
 
   const createBoard = async (board: Partial<Board>) => {
-    if (!isSupabaseConfigured()) return null;
+    if (!isSupabaseConfigured() || !supabase) return null;
 
     const { data, error } = await supabase
       .from('boards')
@@ -86,7 +86,7 @@ export function useBoards(organizationId?: string) {
   };
 
   const updateBoard = async (id: string, updates: Partial<Board>) => {
-    if (!isSupabaseConfigured()) return null;
+    if (!isSupabaseConfigured() || !supabase) return null;
 
     const { data, error } = await supabase
       .from('boards')
@@ -101,7 +101,7 @@ export function useBoards(organizationId?: string) {
   };
 
   const deleteBoard = async (id: string) => {
-    if (!isSupabaseConfigured()) return;
+    if (!isSupabaseConfigured() || !supabase) return;
 
     const { error } = await supabase.from('boards').delete().eq('id', id);
     if (error) throw error;
@@ -118,7 +118,7 @@ export function useNotes(organizationId?: string, parentId?: string | null) {
   const [error, setError] = useState<Error | null>(null);
 
   const fetchNotes = useCallback(async () => {
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseConfigured() || !supabase) {
       setLoading(false);
       return;
     }
@@ -152,7 +152,7 @@ export function useNotes(organizationId?: string, parentId?: string | null) {
   }, [fetchNotes]);
 
   const createNote = async (note: Partial<Note>) => {
-    if (!isSupabaseConfigured()) return null;
+    if (!isSupabaseConfigured() || !supabase) return null;
 
     const { data, error } = await supabase
       .from('notes')
@@ -166,7 +166,7 @@ export function useNotes(organizationId?: string, parentId?: string | null) {
   };
 
   const updateNote = async (id: string, updates: Partial<Note>) => {
-    if (!isSupabaseConfigured()) return null;
+    if (!isSupabaseConfigured() || !supabase) return null;
 
     const { data, error } = await supabase
       .from('notes')
@@ -181,7 +181,7 @@ export function useNotes(organizationId?: string, parentId?: string | null) {
   };
 
   const deleteNote = async (id: string) => {
-    if (!isSupabaseConfigured()) return;
+    if (!isSupabaseConfigured() || !supabase) return;
 
     const { error } = await supabase.from('notes').delete().eq('id', id);
     if (error) throw error;
@@ -194,7 +194,7 @@ export function useNotes(organizationId?: string, parentId?: string | null) {
 // Subscribe to realtime updates
 export function useRealtimeBoard(boardId: string, onUpdate: () => void) {
   useEffect(() => {
-    if (!isSupabaseConfigured() || !boardId) return;
+    if (!isSupabaseConfigured() || !supabase || !boardId) return;
 
     const channel = supabase
       .channel(`board-${boardId}`)
@@ -205,7 +205,9 @@ export function useRealtimeBoard(boardId: string, onUpdate: () => void) {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [boardId, onUpdate]);
 }

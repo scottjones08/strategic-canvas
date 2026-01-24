@@ -92,10 +92,15 @@ export interface ClientWorkspace {
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase: SupabaseClient | null = 
-  supabaseUrl && supabaseKey 
+export const supabase: SupabaseClient | null =
+  supabaseUrl && supabaseKey
     ? createClient(supabaseUrl, supabaseKey)
     : null;
+
+// Check if Supabase is configured
+export function isSupabaseConfigured(): boolean {
+  return supabase !== null;
+}
 
 // ============================================
 // BOARDS API
@@ -474,18 +479,21 @@ export class BoardCollaboration {
         }
       });
 
-    const status = await this.channel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await this.channel?.track({
-          name: this.userName,
-          color: this.userColor,
-          cursor_x: 0,
-          cursor_y: 0
-        });
-      }
+    return new Promise<boolean>((resolve) => {
+      this.channel!.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await this.channel?.track({
+            name: this.userName,
+            color: this.userColor,
+            cursor_x: 0,
+            cursor_y: 0
+          });
+          resolve(true);
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          resolve(false);
+        }
+      });
     });
-
-    return status === 'SUBSCRIBED';
   }
 
   // Broadcast cursor position

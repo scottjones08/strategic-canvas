@@ -1562,7 +1562,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
 };
 
 // Infinite Canvas
-const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNodeIds, onSelectNodes, onCanvasDoubleClick, isDrawingMode, isPanMode, drawingColor, drawingWidth, onAddMindmapChild, onAISparkle, gridSnap, showMinimap, otherUsers, onDisablePanMode }: {
+const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNodeIds, onSelectNodes, onCanvasDoubleClick, isDrawingMode, isPanMode, drawingColor, drawingWidth, onAddMindmapChild, onAISparkle, gridSnap, showMinimap, otherUsers, onDisablePanMode, onDropMedia }: {
   board: Board;
   onUpdateBoard: (updates: Partial<Board>) => void;
   onUpdateWithHistory: (updates: Partial<Board>, action: string) => void;
@@ -1579,6 +1579,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   showMinimap?: boolean;
   otherUsers?: UserPresence[];
   onDisablePanMode?: () => void;
+  onDropMedia?: (file: File, x: number, y: number) => void;
 }) => {
   const [zoom, setZoom] = useState(board.zoom || 1);
   const [panX, setPanX] = useState(board.panX || 0);
@@ -1597,7 +1598,10 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   const [isLassoing, setIsLassoing] = useState(false);
   const [lassoStart, setLassoStart] = useState<{ x: number; y: number } | null>(null);
   const [lassoEnd, setLassoEnd] = useState<{ x: number; y: number } | null>(null);
-  
+
+  // Drag and drop state for media
+  const [isDragOver, setIsDragOver] = useState(false);
+
   // Alignment guides
   const [alignmentGuides, setAlignmentGuides] = useState<{ type: 'vertical' | 'horizontal'; position: number }[]>([]);
   
@@ -1993,6 +1997,39 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     setCurrentPath([]);
   }, [isPanning, isDrawing, currentPath, drawingColor, drawingWidth, board.visualNodes, onUpdateWithHistory, isLassoing, lassoStart, lassoEnd, panX, panY, zoom, onSelectNodes, clearAlignmentGuides]);
 
+  // Drag and drop handlers for media files
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const mediaFile = files.find(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
+
+    if (mediaFile && onDropMedia) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        const x = (e.clientX - rect.left - panX) / zoom;
+        const y = (e.clientY - rect.top - panY) / zoom;
+        onDropMedia(mediaFile, x, y);
+      }
+    }
+  }, [onDropMedia, panX, panY, zoom]);
+
   // Get connector lines
   const connectorLines = board.visualNodes.filter(n => n.type === 'connector' && n.connectorFrom && n.connectorTo).map(conn => {
     const fromNode = board.visualNodes.find(n => n.id === conn.connectorFrom);
@@ -2012,7 +2049,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   return (
     <div
       ref={canvasRef}
-      className={`relative flex-1 overflow-hidden bg-gray-100 ${isDrawingMode ? 'cursor-crosshair' : isPanning ? 'cursor-grabbing' : isPanMode || spacePressed ? 'cursor-grab' : 'cursor-default'}`}
+      className={`relative flex-1 overflow-hidden bg-gray-100 ${isDragOver ? 'ring-4 ring-inset ring-indigo-500 bg-indigo-50' : ''} ${isDrawingMode ? 'cursor-crosshair' : isPanning ? 'cursor-grabbing' : isPanMode || spacePressed ? 'cursor-grab' : 'cursor-default'}`}
       onWheel={handleWheel}
       onClick={() => { if (!isDrawingMode) { onSelectNodes([]); setConnectingFrom(null); } }}
       onDoubleClick={(e) => {
@@ -2025,6 +2062,9 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
@@ -2159,6 +2199,17 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
           />
         )}
       </svg>
+
+      {/* Drop Zone Indicator */}
+      {isDragOver && (
+        <div className="absolute inset-0 flex items-center justify-center bg-indigo-500/10 pointer-events-none z-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 text-center border-2 border-dashed border-indigo-500">
+            <Upload className="w-12 h-12 text-indigo-500 mx-auto mb-3" />
+            <p className="text-lg font-semibold text-gray-800">Drop image or video here</p>
+            <p className="text-sm text-gray-500 mt-1">Supported: JPG, PNG, GIF, MP4, WebM</p>
+          </div>
+        </div>
+      )}
 
       {/* Drawing Mode Indicator */}
       {isDrawingMode && (
@@ -4991,6 +5042,38 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
     handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, newNode], uploadBucketId: bucketId }, 'Add photo bucket');
   }, [currentUser.id, board, handleUpdateBoardWithHistory]);
 
+  // Handle dropped media files (images and videos)
+  const handleDropMedia = useCallback((file: File, x: number, y: number) => {
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+
+    if (!isVideo && !isImage) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      const newNode: VisualNode = {
+        id: generateId(),
+        type: isVideo ? 'youtube' : 'image', // Using 'youtube' type for video since it handles media
+        x: x - (isVideo ? 200 : 150), // Center the node on drop position
+        y: y - (isVideo ? 112 : 150),
+        width: isVideo ? 400 : 300,
+        height: isVideo ? 225 : 300,
+        content: file.name,
+        color: '#ffffff',
+        rotation: 0,
+        locked: false,
+        votes: 0,
+        votedBy: [],
+        createdBy: currentUser.id,
+        comments: [],
+        mediaUrl: dataUrl
+      };
+      handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, newNode] }, `Add ${isVideo ? 'video' : 'image'}`);
+    };
+    reader.readAsDataURL(file);
+  }, [currentUser.id, board.visualNodes, handleUpdateBoardWithHistory]);
+
   const handleAddMindmapChild = useCallback((parentNodeId: string) => {
     const parentNode = board.visualNodes.find(n => n.id === parentNodeId);
     if (!parentNode) return;
@@ -5667,6 +5750,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
           showMinimap={showMinimap}
           otherUsers={otherUsers}
           onDisablePanMode={() => { setIsPanMode(false); setIsDrawingMode(false); }}
+          onDropMedia={handleDropMedia}
         />
 
         <AnimatePresence>
