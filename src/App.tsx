@@ -919,35 +919,84 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
     {showContextMenu && (
       <>
         <div className="fixed inset-0 z-[9998]" onClick={() => setShowContextMenu(false)} />
-        <div className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-[9999] w-56" style={{ left: contextMenuPos.x, top: contextMenuPos.y }} onClick={(e) => e.stopPropagation()}>
-        <div className="px-3 py-2 border-b border-gray-100">
-          <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Colors</p>
-          <div className="flex gap-1.5">
-            {['#fef3c7', '#fce7f3', '#dbeafe', '#d1fae5', '#f3e8ff', '#fee2e2', '#ffffff'].map(color => (
-              <button key={color} onClick={() => { onUpdate({ color }); setShowContextMenu(false); }} className={`w-6 h-6 rounded-lg border-2 ${node.color === color ? 'border-indigo-500' : 'border-gray-200'} hover:scale-110 transition-transform`} style={{ backgroundColor: color }} />
-            ))}
-          </div>
-        </div>
-        {hasTextContent && (
+        <div className="fixed bg-white rounded-2xl shadow-2xl border border-gray-200 py-1 z-[9999] w-64 max-h-[80vh] overflow-y-auto" style={{ left: contextMenuPos.x, top: contextMenuPos.y }} onClick={(e) => e.stopPropagation()}>
+          {/* Colors Section */}
           <div className="px-3 py-2 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Formatting</p>
-            <div className="flex gap-1">
-              <button onClick={() => { toggleBold(); }} className="p-2 hover:bg-gray-100 rounded-lg" title="Bold"><Bold className="w-4 h-4 text-gray-600" /></button>
-              <button onClick={() => { toggleItalic(); }} className="p-2 hover:bg-gray-100 rounded-lg" title="Italic"><Italic className="w-4 h-4 text-gray-600" /></button>
-              <button onClick={() => { addBulletPoint(); }} className="p-2 hover:bg-gray-100 rounded-lg" title="Bullet list"><List className="w-4 h-4 text-gray-600" /></button>
-              <button onClick={() => { addNumberedPoint(); }} className="p-2 hover:bg-gray-100 rounded-lg" title="Numbered list"><ListOrdered className="w-4 h-4 text-gray-600" /></button>
+            <div className="flex gap-1.5">
+              {['#fef3c7', '#fce7f3', '#dbeafe', '#d1fae5', '#f3e8ff', '#fee2e2', '#e0e7ff', '#ffffff'].map(color => (
+                <button key={color} onClick={() => { onUpdate({ color }); setShowContextMenu(false); }} className={`w-6 h-6 rounded-full border-2 ${node.color === color ? 'border-indigo-500 scale-110' : 'border-gray-200'} hover:scale-110 transition-all`} style={{ backgroundColor: color }} />
+              ))}
             </div>
           </div>
-        )}
-        <button onClick={() => { onUpdate({ locked: !node.locked }); setShowContextMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 flex items-center gap-3">{node.locked ? <Unlock className="w-4 h-4 text-gray-500" /> : <Lock className="w-4 h-4 text-gray-500" />}{node.locked ? 'Unlock Element' : 'Lock Element'}</button>
-        <button onClick={() => { onDuplicate(); setShowContextMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 flex items-center gap-3"><FileText className="w-4 h-4 text-gray-500" />Duplicate</button>
-        <button onClick={() => { onStartConnector(node.id); setShowContextMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 flex items-center gap-3"><Minus className="w-4 h-4 text-gray-500" />Connect to...</button>
-        {node.type === 'mindmap' && onAddMindmapChild && (
-          <button onClick={() => { onAddMindmapChild(node.id); setShowContextMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-purple-50 text-purple-700 flex items-center gap-3"><GitBranch className="w-4 h-4" />Add Child Node</button>
-        )}
-        <div className="h-px bg-gray-200 my-1" />
-        <button onClick={() => { onDelete(); setShowContextMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-3"><Trash2 className="w-4 h-4" />Delete</button>
-      </div>
+          
+          {/* Arrange Section */}
+          <div className="py-1 border-b border-gray-100">
+            <button onClick={() => { onUpdate({ zIndex: 999 }); setShowContextMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-3">
+              <ChevronUp className="w-4 h-4 text-gray-400" />
+              <span>Bring to front</span>
+            </button>
+            <button onClick={() => { onUpdate({ zIndex: 1 }); setShowContextMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-3">
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+              <span>Send to back</span>
+            </button>
+          </div>
+          
+          {/* Actions Section */}
+          <div className="py-1 border-b border-gray-100">
+            <button onClick={() => { onDuplicate(); setShowContextMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-3">
+              <Copy className="w-4 h-4 text-gray-400" />
+              <span>Duplicate</span>
+            </button>
+            <button onClick={() => { onUpdate({ locked: !node.locked }); setShowContextMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-3">
+              {node.locked ? <Unlock className="w-4 h-4 text-gray-400" /> : <Lock className="w-4 h-4 text-gray-400" />}
+              <span>{node.locked ? 'Unlock' : 'Lock'}</span>
+              {node.locked && <span className="ml-auto text-xs text-amber-500">🔒</span>}
+            </button>
+            {node.type === 'mindmap' && onAddMindmapChild && (
+              <button onClick={() => { onAddMindmapChild(node.id); setShowContextMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-purple-50 flex items-center gap-3 text-purple-700">
+                <GitBranch className="w-4 h-4" />
+                <span>Add child node</span>
+              </button>
+            )}
+          </div>
+          
+          {/* Connect Section */}
+          <div className="py-1 border-b border-gray-100">
+            <button onClick={() => { onStartConnector(node.id); setShowContextMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-3">
+              <Minus className="w-4 h-4 text-gray-400" />
+              <span>Connect to...</span>
+            </button>
+          </div>
+          
+          {/* Text Formatting (if applicable) */}
+          {hasTextContent && (
+            <div className="px-3 py-2 border-b border-gray-100">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase mb-2">Format</p>
+              <div className="flex gap-1">
+                <button onClick={() => { toggleBold(); }} className="p-2 hover:bg-gray-100 rounded-lg flex-1" title="Bold"><Bold className="w-4 h-4 text-gray-600 mx-auto" /></button>
+                <button onClick={() => { toggleItalic(); }} className="p-2 hover:bg-gray-100 rounded-lg flex-1" title="Italic"><Italic className="w-4 h-4 text-gray-600 mx-auto" /></button>
+                <button onClick={() => { addBulletPoint(); }} className="p-2 hover:bg-gray-100 rounded-lg flex-1" title="Bullet list"><List className="w-4 h-4 text-gray-600 mx-auto" /></button>
+                <button onClick={() => { addNumberedPoint(); }} className="p-2 hover:bg-gray-100 rounded-lg flex-1" title="Numbered list"><ListOrdered className="w-4 h-4 text-gray-600 mx-auto" /></button>
+              </div>
+            </div>
+          )}
+          
+          {/* Copy/Download Section */}
+          <div className="py-1 border-b border-gray-100">
+            <button onClick={() => { navigator.clipboard.writeText(node.content); setShowContextMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-3">
+              <FileText className="w-4 h-4 text-gray-400" />
+              <span>Copy as text</span>
+            </button>
+          </div>
+          
+          {/* Delete */}
+          <div className="py-1">
+            <button onClick={() => { onDelete(); setShowContextMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-3">
+              <Trash2 className="w-4 h-4" />
+              <span>Delete</span>
+            </button>
+          </div>
+        </div>
       </>
     )}
     </>
@@ -1645,78 +1694,124 @@ const Minimap = ({
   onPan: (x: number, y: number) => void;
 }) => {
   const minimapRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   
-  // Calculate bounds of all nodes
+  // Calculate bounds of all nodes (with minimum size for empty canvas)
   const bounds = nodes.length > 0 ? {
-    minX: Math.min(...nodes.map(n => n.x)) - 100,
-    maxX: Math.max(...nodes.map(n => n.x + n.width)) + 100,
-    minY: Math.min(...nodes.map(n => n.y)) - 100,
-    maxY: Math.max(...nodes.map(n => n.y + n.height)) + 100,
-  } : { minX: 0, maxX: 1000, minY: 0, maxY: 1000 };
+    minX: Math.min(...nodes.map(n => n.x)) - 200,
+    maxX: Math.max(...nodes.map(n => n.x + n.width)) + 200,
+    minY: Math.min(...nodes.map(n => n.y)) - 200,
+    maxY: Math.max(...nodes.map(n => n.y + n.height)) + 200,
+  } : { minX: -500, maxX: 1500, minY: -500, maxY: 1500 };
   
-  const contentWidth = bounds.maxX - bounds.minX;
-  const contentHeight = bounds.maxY - bounds.minY;
-  const minimapWidth = 180;
-  const minimapHeight = 120;
-  const scale = Math.min(minimapWidth / contentWidth, minimapHeight / contentHeight);
+  const contentWidth = Math.max(bounds.maxX - bounds.minX, 1000);
+  const contentHeight = Math.max(bounds.maxY - bounds.minY, 800);
+  const minimapWidth = 200;
+  const minimapHeight = 140;
+  const scale = Math.min(minimapWidth / contentWidth, minimapHeight / contentHeight, 0.15);
   
-  // Viewport rectangle
-  const viewportWidth = (canvasWidth / zoom) * scale;
-  const viewportHeight = (canvasHeight / zoom) * scale;
+  // Viewport rectangle position and size
+  const viewportWidth = Math.max((canvasWidth / zoom) * scale, 10);
+  const viewportHeight = Math.max((canvasHeight / zoom) * scale, 10);
   const viewportX = ((-panX / zoom) - bounds.minX) * scale;
   const viewportY = ((-panY / zoom) - bounds.minY) * scale;
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleViewportMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setIsDragging(true);
-    handleMouseMove(e);
+    // Calculate offset from viewport center
+    if (svgRef.current) {
+      const rect = svgRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      setDragOffset({
+        x: mouseX - viewportX - viewportWidth / 2,
+        y: mouseY - viewportY - viewportHeight / 2
+      });
+    }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging && e.type !== 'mousedown') return;
-    if (!minimapRef.current) return;
+  const handleMinimapClick = (e: React.MouseEvent) => {
+    if (isDragging) return;
+    if (!svgRef.current) return;
     
-    const rect = minimapRef.current.getBoundingClientRect();
+    const rect = svgRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
-    // Convert minimap coordinates to canvas coordinates
+    // Convert minimap coordinates to canvas coordinates and center viewport there
     const canvasX = (x / scale) + bounds.minX;
     const canvasY = (y / scale) + bounds.minY;
     
-    // Center the viewport on click position
     const newPanX = -(canvasX - (canvasWidth / zoom / 2)) * zoom;
     const newPanY = -(canvasY - (canvasHeight / zoom / 2)) * zoom;
     
     onPan(newPanX, newPanY);
   };
 
-  const handleMouseUp = () => setIsDragging(false);
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging || !svgRef.current) return;
+    
+    const rect = svgRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left - dragOffset.x;
+    const mouseY = e.clientY - rect.top - dragOffset.y;
+    
+    // Convert to canvas coordinates (viewport center)
+    const canvasX = (mouseX / scale) + bounds.minX;
+    const canvasY = (mouseY / scale) + bounds.minY;
+    
+    const newPanX = -(canvasX - (canvasWidth / zoom / 2)) * zoom;
+    const newPanY = -(canvasY - (canvasHeight / zoom / 2)) * zoom;
+    
+    onPan(newPanX, newPanY);
+  }, [isDragging, dragOffset, scale, bounds, canvasWidth, canvasHeight, zoom, onPan]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
 
   useEffect(() => {
     if (isDragging) {
-      const handleGlobalMouseUp = () => setIsDragging(false);
-      window.addEventListener('mouseup', handleGlobalMouseUp);
-      return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
     }
-  }, [isDragging]);
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   return (
     <div 
       ref={minimapRef}
-      className="absolute bottom-20 right-4 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-2 z-40 cursor-crosshair"
-      style={{ width: minimapWidth + 16, height: minimapHeight + 16 }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      className="absolute bottom-20 right-4 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-2 z-40"
+      style={{ width: minimapWidth + 16, height: minimapHeight + 32 }}
     >
-      <div className="absolute top-1 left-2 text-[10px] font-medium text-gray-400 flex items-center gap-1">
-        <Map className="w-3 h-3" /> Minimap
+      <div className="flex items-center justify-between mb-1 px-1">
+        <span className="text-[10px] font-medium text-gray-400 flex items-center gap-1">
+          <Map className="w-3 h-3" /> Minimap
+        </span>
+        <span className="text-[9px] text-gray-300">Drag viewport to pan</span>
       </div>
-      <svg width={minimapWidth} height={minimapHeight} className="mt-3">
+      <svg 
+        ref={svgRef}
+        width={minimapWidth} 
+        height={minimapHeight} 
+        className="cursor-pointer rounded"
+        onClick={handleMinimapClick}
+      >
         {/* Grid background */}
-        <rect x="0" y="0" width={minimapWidth} height={minimapHeight} fill="#f9fafb" rx="4" />
+        <rect x="0" y="0" width={minimapWidth} height={minimapHeight} fill="#f3f4f6" rx="4" />
+        
+        {/* Grid lines */}
+        {Array.from({ length: 10 }).map((_, i) => (
+          <g key={i}>
+            <line x1={i * minimapWidth / 10} y1="0" x2={i * minimapWidth / 10} y2={minimapHeight} stroke="#e5e7eb" strokeWidth="0.5" />
+            <line x1="0" y1={i * minimapHeight / 10} x2={minimapWidth} y2={i * minimapHeight / 10} stroke="#e5e7eb" strokeWidth="0.5" />
+          </g>
+        ))}
         
         {/* Nodes */}
         {nodes.filter(n => n.type !== 'connector' && n.type !== 'drawing').map(node => (
@@ -1724,26 +1819,28 @@ const Minimap = ({
             key={node.id}
             x={(node.x - bounds.minX) * scale}
             y={(node.y - bounds.minY) * scale}
-            width={Math.max(node.width * scale, 2)}
-            height={Math.max(node.height * scale, 2)}
+            width={Math.max(node.width * scale, 3)}
+            height={Math.max(node.height * scale, 3)}
             fill={node.color || '#dbeafe'}
-            stroke="#6b7280"
+            stroke="#9ca3af"
             strokeWidth="0.5"
             rx="1"
-            opacity="0.8"
           />
         ))}
         
-        {/* Viewport indicator */}
+        {/* Viewport indicator - draggable */}
         <rect
-          x={Math.max(0, viewportX)}
-          y={Math.max(0, viewportY)}
-          width={Math.min(viewportWidth, minimapWidth - viewportX)}
-          height={Math.min(viewportHeight, minimapHeight - viewportY)}
-          fill="rgba(99, 102, 241, 0.1)"
+          x={viewportX}
+          y={viewportY}
+          width={viewportWidth}
+          height={viewportHeight}
+          fill="rgba(99, 102, 241, 0.15)"
           stroke="#6366f1"
           strokeWidth="2"
-          rx="2"
+          rx="3"
+          className={`cursor-grab ${isDragging ? 'cursor-grabbing' : ''}`}
+          style={{ pointerEvents: 'all' }}
+          onMouseDown={handleViewportMouseDown}
         />
       </svg>
     </div>
