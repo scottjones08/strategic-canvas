@@ -77,7 +77,7 @@ export interface BusinessTemplate {
   description: string;
   category: 'planning' | 'strategy' | 'ideation' | 'review';
   nodes: Partial<WhiteboardNode>[];
-  layout: 'freeform' | 'grid' | 'columns';
+  layout: 'freeform' | 'grid' | 'columns' | 'matrix' | 'mindmap';
 }
 
 // Pre-built business planning templates

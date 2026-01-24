@@ -1,11 +1,10 @@
-import type { Whiteboard, WhiteboardNode, Connector, BusinessTemplate, STATUS_COLORS, NodeType, NodeStatus } from '@/types/whiteboard';
+import type { Whiteboard, WhiteboardNode, BusinessTemplate, Connector } from '@/types/whiteboard';
 import { BUSINESS_TEMPLATES } from '@/types/whiteboard';
 
 const STORAGE_KEY = 'fan_consulting_whiteboards';
 
 export class WhiteboardEngine {
   private whiteboards: Map<string, Whiteboard> = new Map();
-  private currentWhiteboard: Whiteboard | null = null;
 
   constructor() {
     this.loadFromStorage();
