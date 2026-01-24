@@ -1080,7 +1080,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
                 const rect = e.currentTarget.getBoundingClientRect();
                 onAISparkle({ x: rect.right + 10, y: rect.top });
               }}
-              className="absolute -top-3 -left-3 w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform z-10 border-2 border-white"
+              className="absolute top-1/2 -left-5 -translate-y-1/2 w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform z-30 border-2 border-white"
               title="AI Actions"
             >
               <Sparkles className="w-4 h-4 text-white" />
