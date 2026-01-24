@@ -283,30 +283,250 @@ const SAMPLE_BOARDS: Board[] = [
   { id: '3', name: 'Team Retrospective', ownerId: '1', visualNodes: [], createdAt: new Date('2024-01-05'), zoom: 1, panX: 0, panY: 0, status: 'completed', progress: 100, lastActivity: new Date(Date.now() - 172800000), participants: 6 },
 ];
 
-const BOARD_TEMPLATES = [
-  { id: 'blank', name: 'Blank Canvas', icon: Layout, description: 'Start from scratch', nodes: [] },
-  { id: 'swot', name: 'SWOT Analysis', icon: BarChart3, description: 'Strategic planning', nodes: [
-    { type: 'frame', x: 50, y: 50, width: 400, height: 350, content: '💪 STRENGTHS', color: '#dcfce7' },
-    { type: 'frame', x: 470, y: 50, width: 400, height: 350, content: '⚠️ WEAKNESSES', color: '#fef3c7' },
-    { type: 'frame', x: 50, y: 420, width: 400, height: 350, content: '🚀 OPPORTUNITIES', color: '#dbeafe' },
-    { type: 'frame', x: 470, y: 420, width: 400, height: 350, content: '⛔ THREATS', color: '#fce7f3' },
+// Template categories for organization
+type TemplateCategory = 'strategy' | 'design' | 'agile' | 'meetings' | 'planning' | 'research' | 'workflow';
+
+interface BoardTemplate {
+  id: string;
+  name: string;
+  icon: typeof Layout;
+  description: string;
+  category: TemplateCategory;
+  nodes: any[];
+}
+
+const BOARD_TEMPLATES: BoardTemplate[] = [
+  // === BLANK ===
+  { id: 'blank', name: 'Blank Canvas', icon: Layout, description: 'Start from scratch', category: 'planning', nodes: [] },
+  
+  // === STRATEGY & PLANNING ===
+  { id: 'swot', name: 'SWOT Analysis', icon: BarChart3, description: 'Strategic planning framework', category: 'strategy', nodes: [
+    { type: 'text', x: 400, y: 10, width: 200, height: 40, content: 'SWOT Analysis', fontSize: 32, color: 'transparent' },
+    { type: 'frame', x: 50, y: 70, width: 400, height: 350, content: '💪 STRENGTHS\n\nWhat do we do well?\nWhat unique resources do we have?', color: '#dcfce7' },
+    { type: 'frame', x: 470, y: 70, width: 400, height: 350, content: '⚠️ WEAKNESSES\n\nWhat could we improve?\nWhere do we lack resources?', color: '#fef3c7' },
+    { type: 'frame', x: 50, y: 440, width: 400, height: 350, content: '🚀 OPPORTUNITIES\n\nWhat trends can we leverage?\nWhat gaps can we fill?', color: '#dbeafe' },
+    { type: 'frame', x: 470, y: 440, width: 400, height: 350, content: '⛔ THREATS\n\nWhat obstacles do we face?\nWhat is the competition doing?', color: '#fce7f3' },
   ]},
-  { id: 'brainstorm', name: 'Brainstorming', icon: Lightbulb, description: 'Generate ideas', nodes: [
-    { type: 'frame', x: 50, y: 50, width: 350, height: 550, content: '💡 IDEAS', color: '#fef3c7' },
-    { type: 'frame', x: 420, y: 50, width: 350, height: 550, content: '❓ QUESTIONS', color: '#f3e8ff' },
-    { type: 'frame', x: 790, y: 50, width: 350, height: 550, content: '✅ ACTIONS', color: '#dcfce7' },
+  
+  { id: 'business-model', name: 'Business Model Canvas', icon: LayoutDashboard, description: 'Visualize your business model', category: 'strategy', nodes: [
+    { type: 'text', x: 350, y: 10, width: 300, height: 40, content: 'Business Model Canvas', fontSize: 28, color: 'transparent' },
+    { type: 'frame', x: 50, y: 70, width: 200, height: 250, content: '🤝 Key Partners\n\nWho are our key partners & suppliers?', color: '#e0e7ff' },
+    { type: 'frame', x: 260, y: 70, width: 200, height: 120, content: '⚙️ Key Activities\n\nWhat do we do?', color: '#dbeafe' },
+    { type: 'frame', x: 260, y: 200, width: 200, height: 120, content: '📦 Key Resources\n\nWhat do we need?', color: '#dbeafe' },
+    { type: 'frame', x: 470, y: 70, width: 200, height: 250, content: '💎 Value Propositions\n\nWhat value do we deliver?', color: '#fef3c7' },
+    { type: 'frame', x: 680, y: 70, width: 200, height: 120, content: '💬 Customer Relationships\n\nHow do we interact?', color: '#dcfce7' },
+    { type: 'frame', x: 680, y: 200, width: 200, height: 120, content: '📣 Channels\n\nHow do we reach them?', color: '#dcfce7' },
+    { type: 'frame', x: 890, y: 70, width: 200, height: 250, content: '👥 Customer Segments\n\nWho do we serve?', color: '#fce7f3' },
+    { type: 'frame', x: 50, y: 340, width: 440, height: 120, content: '💰 Cost Structure\n\nWhat are the major costs?', color: '#fee2e2' },
+    { type: 'frame', x: 500, y: 340, width: 440, height: 120, content: '💵 Revenue Streams\n\nHow do we earn money?', color: '#d1fae5' },
   ]},
-  { id: 'kanban', name: 'Kanban Board', icon: FolderKanban, description: 'Track progress', nodes: [
-    { type: 'frame', x: 50, y: 50, width: 280, height: 600, content: '📋 TO DO', color: '#f3e8ff' },
-    { type: 'frame', x: 350, y: 50, width: 280, height: 600, content: '🔄 IN PROGRESS', color: '#dbeafe' },
-    { type: 'frame', x: 650, y: 50, width: 280, height: 600, content: '✅ DONE', color: '#dcfce7' },
+
+  { id: 'okr', name: 'OKR Planning', icon: Target, description: 'Objectives & Key Results', category: 'strategy', nodes: [
+    { type: 'text', x: 350, y: 10, width: 300, height: 40, content: 'OKR Planning', fontSize: 32, color: 'transparent' },
+    { type: 'frame', x: 50, y: 70, width: 900, height: 200, content: '🎯 OBJECTIVE 1\n\nDescribe your ambitious, qualitative goal', color: '#dbeafe' },
+    { type: 'sticky', x: 70, y: 150, width: 180, height: 100, content: 'Key Result 1.1\n\nMeasurable outcome', color: '#fef3c7' },
+    { type: 'sticky', x: 270, y: 150, width: 180, height: 100, content: 'Key Result 1.2\n\nMeasurable outcome', color: '#fef3c7' },
+    { type: 'sticky', x: 470, y: 150, width: 180, height: 100, content: 'Key Result 1.3\n\nMeasurable outcome', color: '#fef3c7' },
+    { type: 'frame', x: 50, y: 290, width: 900, height: 200, content: '🎯 OBJECTIVE 2\n\nDescribe your ambitious, qualitative goal', color: '#dcfce7' },
+    { type: 'frame', x: 50, y: 510, width: 900, height: 200, content: '🎯 OBJECTIVE 3\n\nDescribe your ambitious, qualitative goal', color: '#f3e8ff' },
   ]},
-  { id: 'client-research', name: 'Client Research', icon: Globe, description: 'Research client website', nodes: [
-    { type: 'frame', x: 50, y: 50, width: 450, height: 300, content: '🌐 COMPANY OVERVIEW', color: '#dbeafe' },
-    { type: 'frame', x: 520, y: 50, width: 450, height: 300, content: '🎯 VALUE PROPOSITION', color: '#dcfce7' },
-    { type: 'frame', x: 50, y: 370, width: 300, height: 250, content: '👥 TARGET AUDIENCE', color: '#fef3c7' },
-    { type: 'frame', x: 370, y: 370, width: 300, height: 250, content: '⚔️ COMPETITORS', color: '#fce7f3' },
-    { type: 'frame', x: 690, y: 370, width: 280, height: 250, content: '💡 OPPORTUNITIES', color: '#f3e8ff' },
+
+  // === WORKFLOW & PROCESS ===
+  { id: 'workflow', name: 'Workflow Diagram', icon: GitBranch, description: 'Map process flows', category: 'workflow', nodes: [
+    { type: 'text', x: 350, y: 10, width: 300, height: 40, content: 'Workflow Diagram', fontSize: 28, color: 'transparent' },
+    // Flow Key Legend
+    { type: 'frame', x: 30, y: 70, width: 150, height: 400, content: 'Flow Key', color: '#f9fafb' },
+    { type: 'shape', shapeType: 'rectangle', x: 50, y: 120, width: 80, height: 40, content: 'Process', color: '#fef3c7' },
+    { type: 'shape', shapeType: 'diamond', x: 50, y: 180, width: 60, height: 60, content: 'Decision', color: '#dbeafe' },
+    { type: 'shape', shapeType: 'circle', x: 50, y: 260, width: 50, height: 50, content: 'Start/End', color: '#fbbf24' },
+    { type: 'shape', shapeType: 'rectangle', x: 50, y: 330, width: 80, height: 40, content: 'Data', color: '#a5f3fc' },
+    // Main workflow area
+    { type: 'frame', x: 200, y: 70, width: 800, height: 500, content: 'Visualization', color: '#ffffff' },
+    // Start
+    { type: 'shape', shapeType: 'circle', x: 250, y: 250, width: 60, height: 60, content: 'Start', color: '#22c55e' },
+    // Process steps
+    { type: 'shape', shapeType: 'rectangle', x: 360, y: 240, width: 120, height: 60, content: 'Step 1\nProcess', color: '#fef3c7' },
+    { type: 'shape', shapeType: 'rectangle', x: 530, y: 240, width: 120, height: 60, content: 'Step 2\nProcess', color: '#fce7f3' },
+    // Decision diamond
+    { type: 'shape', shapeType: 'diamond', x: 700, y: 230, width: 80, height: 80, content: 'Decision?', color: '#dbeafe' },
+    // Branches
+    { type: 'shape', shapeType: 'rectangle', x: 700, y: 350, width: 120, height: 60, content: 'Yes Path', color: '#dcfce7' },
+    { type: 'shape', shapeType: 'rectangle', x: 850, y: 240, width: 100, height: 60, content: 'No Path', color: '#fee2e2' },
+    // End
+    { type: 'shape', shapeType: 'circle', x: 720, y: 450, width: 60, height: 60, content: 'End', color: '#ef4444' },
+  ]},
+
+  { id: 'user-journey', name: 'User Journey Map', icon: Users, description: 'Map customer experience', category: 'design', nodes: [
+    { type: 'text', x: 400, y: 10, width: 300, height: 40, content: 'User Journey Map', fontSize: 28, color: 'transparent' },
+    // Phases
+    { type: 'frame', x: 50, y: 70, width: 200, height: 80, content: '1️⃣ AWARENESS', color: '#dbeafe' },
+    { type: 'frame', x: 260, y: 70, width: 200, height: 80, content: '2️⃣ CONSIDERATION', color: '#e0e7ff' },
+    { type: 'frame', x: 470, y: 70, width: 200, height: 80, content: '3️⃣ DECISION', color: '#fef3c7' },
+    { type: 'frame', x: 680, y: 70, width: 200, height: 80, content: '4️⃣ RETENTION', color: '#dcfce7' },
+    { type: 'frame', x: 890, y: 70, width: 200, height: 80, content: '5️⃣ ADVOCACY', color: '#fce7f3' },
+    // Row labels
+    { type: 'text', x: 10, y: 170, width: 120, height: 30, content: '👤 Actions', fontSize: 14, color: 'transparent' },
+    { type: 'text', x: 10, y: 270, width: 120, height: 30, content: '💭 Thoughts', fontSize: 14, color: 'transparent' },
+    { type: 'text', x: 10, y: 370, width: 120, height: 30, content: '😀 Emotions', fontSize: 14, color: 'transparent' },
+    { type: 'text', x: 10, y: 470, width: 120, height: 30, content: '⚡ Touchpoints', fontSize: 14, color: 'transparent' },
+    { type: 'text', x: 10, y: 570, width: 120, height: 30, content: '💡 Opportunities', fontSize: 14, color: 'transparent' },
+    // Grid frames
+    { type: 'frame', x: 130, y: 160, width: 980, height: 100, content: '', color: '#f9fafb' },
+    { type: 'frame', x: 130, y: 260, width: 980, height: 100, content: '', color: '#ffffff' },
+    { type: 'frame', x: 130, y: 360, width: 980, height: 100, content: '', color: '#f9fafb' },
+    { type: 'frame', x: 130, y: 460, width: 980, height: 100, content: '', color: '#ffffff' },
+    { type: 'frame', x: 130, y: 560, width: 980, height: 100, content: '', color: '#fef3c7' },
+  ]},
+
+  { id: 'process-map', name: 'Process Map', icon: GitBranch, description: 'Document business processes', category: 'workflow', nodes: [
+    { type: 'text', x: 400, y: 10, width: 250, height: 40, content: 'Process Map', fontSize: 28, color: 'transparent' },
+    { type: 'frame', x: 50, y: 70, width: 300, height: 150, content: '📥 INPUTS\n\nWhat triggers this process?\nWhat do we need to start?', color: '#dbeafe' },
+    { type: 'frame', x: 380, y: 70, width: 400, height: 400, content: '⚙️ PROCESS STEPS\n\n1. First step\n2. Second step\n3. Third step\n4. Fourth step', color: '#fef3c7' },
+    { type: 'frame', x: 810, y: 70, width: 300, height: 150, content: '📤 OUTPUTS\n\nWhat are the deliverables?\nWhat is the end result?', color: '#dcfce7' },
+    { type: 'frame', x: 50, y: 240, width: 300, height: 150, content: '👥 ROLES\n\nWho is responsible?\nWho is accountable?', color: '#f3e8ff' },
+    { type: 'frame', x: 810, y: 240, width: 300, height: 150, content: '📊 METRICS\n\nHow do we measure success?\nWhat are the KPIs?', color: '#fce7f3' },
+    { type: 'frame', x: 50, y: 410, width: 400, height: 150, content: '⚠️ RISKS & ISSUES\n\nWhat could go wrong?\nWhat are the bottlenecks?', color: '#fee2e2' },
+    { type: 'frame', x: 480, y: 410, width: 400, height: 150, content: '💡 IMPROVEMENTS\n\nHow can we optimize?\nWhat can be automated?', color: '#d1fae5' },
+  ]},
+
+  // === BRAINSTORMING & IDEATION ===
+  { id: 'brainstorm', name: 'Brainstorming', icon: Lightbulb, description: 'Generate and organize ideas', category: 'design', nodes: [
+    { type: 'text', x: 400, y: 10, width: 300, height: 40, content: 'Brainstorming Session', fontSize: 28, color: 'transparent' },
+    { type: 'frame', x: 50, y: 70, width: 350, height: 550, content: '💡 IDEAS\n\nCapture all ideas here.\nNo judgment, quantity over quality!', color: '#fef3c7' },
+    { type: 'frame', x: 420, y: 70, width: 350, height: 550, content: '❓ QUESTIONS\n\nWhat do we need to explore?\nWhat assumptions to validate?', color: '#f3e8ff' },
+    { type: 'frame', x: 790, y: 70, width: 350, height: 550, content: '✅ ACTIONS\n\nNext steps and owners.\nPrioritized by impact.', color: '#dcfce7' },
+  ]},
+
+  { id: 'mind-map', name: 'Mind Map', icon: GitBranch, description: 'Visual thinking & connections', category: 'design', nodes: [
+    { type: 'text', x: 450, y: 250, width: 200, height: 50, content: 'Central Topic', fontSize: 24, color: 'transparent' },
+    { type: 'shape', shapeType: 'circle', x: 450, y: 300, width: 150, height: 150, content: '🧠\nMain Idea', color: '#8b5cf6' },
+    { type: 'shape', shapeType: 'circle', x: 200, y: 150, width: 120, height: 120, content: 'Branch 1', color: '#3b82f6' },
+    { type: 'shape', shapeType: 'circle', x: 650, y: 100, width: 120, height: 120, content: 'Branch 2', color: '#10b981' },
+    { type: 'shape', shapeType: 'circle', x: 750, y: 350, width: 120, height: 120, content: 'Branch 3', color: '#f59e0b' },
+    { type: 'shape', shapeType: 'circle', x: 600, y: 550, width: 120, height: 120, content: 'Branch 4', color: '#ef4444' },
+    { type: 'shape', shapeType: 'circle', x: 250, y: 500, width: 120, height: 120, content: 'Branch 5', color: '#ec4899' },
+    { type: 'shape', shapeType: 'circle', x: 100, y: 300, width: 120, height: 120, content: 'Branch 6', color: '#06b6d4' },
+  ]},
+
+  { id: 'affinity', name: 'Affinity Diagram', icon: Lightbulb, description: 'Group ideas by themes', category: 'design', nodes: [
+    { type: 'text', x: 350, y: 10, width: 400, height: 40, content: 'Affinity Diagram', fontSize: 28, color: 'transparent' },
+    { type: 'frame', x: 50, y: 70, width: 250, height: 400, content: '🔵 Theme 1\n\nGroup related ideas here', color: '#dbeafe' },
+    { type: 'frame', x: 320, y: 70, width: 250, height: 400, content: '🟢 Theme 2\n\nGroup related ideas here', color: '#dcfce7' },
+    { type: 'frame', x: 590, y: 70, width: 250, height: 400, content: '🟡 Theme 3\n\nGroup related ideas here', color: '#fef3c7' },
+    { type: 'frame', x: 860, y: 70, width: 250, height: 400, content: '🟣 Theme 4\n\nGroup related ideas here', color: '#f3e8ff' },
+    { type: 'frame', x: 50, y: 490, width: 1060, height: 150, content: '📥 UNSORTED IDEAS\n\nDrag ideas from here to themes above', color: '#f9fafb' },
+    { type: 'sticky', x: 70, y: 540, width: 150, height: 80, content: 'Idea 1', color: '#fef3c7' },
+    { type: 'sticky', x: 240, y: 540, width: 150, height: 80, content: 'Idea 2', color: '#fef3c7' },
+    { type: 'sticky', x: 410, y: 540, width: 150, height: 80, content: 'Idea 3', color: '#fef3c7' },
+  ]},
+
+  // === AGILE & PROJECT MANAGEMENT ===
+  { id: 'kanban', name: 'Kanban Board', icon: FolderKanban, description: 'Track work progress', category: 'agile', nodes: [
+    { type: 'text', x: 400, y: 10, width: 200, height: 40, content: 'Kanban Board', fontSize: 28, color: 'transparent' },
+    { type: 'frame', x: 50, y: 70, width: 280, height: 600, content: '📋 BACKLOG\n\nTasks waiting to start', color: '#f3f4f6' },
+    { type: 'frame', x: 350, y: 70, width: 280, height: 600, content: '📝 TO DO\n\nReady to work on', color: '#f3e8ff' },
+    { type: 'frame', x: 650, y: 70, width: 280, height: 600, content: '🔄 IN PROGRESS\n\nCurrently being worked on', color: '#dbeafe' },
+    { type: 'frame', x: 950, y: 70, width: 280, height: 600, content: '✅ DONE\n\nCompleted tasks', color: '#dcfce7' },
+  ]},
+
+  { id: 'sprint-planning', name: 'Sprint Planning', icon: Timer, description: 'Plan your sprint', category: 'agile', nodes: [
+    { type: 'text', x: 400, y: 10, width: 300, height: 40, content: 'Sprint Planning', fontSize: 28, color: 'transparent' },
+    { type: 'frame', x: 50, y: 70, width: 400, height: 200, content: '🎯 SPRINT GOAL\n\nWhat do we want to achieve this sprint?', color: '#dbeafe' },
+    { type: 'frame', x: 470, y: 70, width: 300, height: 200, content: '📊 CAPACITY\n\nTeam: \nDays: \nVelocity: ', color: '#f3e8ff' },
+    { type: 'frame', x: 790, y: 70, width: 300, height: 200, content: '⚠️ RISKS\n\nWhat might block us?', color: '#fee2e2' },
+    { type: 'frame', x: 50, y: 290, width: 1040, height: 350, content: '📋 SPRINT BACKLOG\n\nUser stories and tasks for this sprint', color: '#fef3c7' },
+    { type: 'sticky', x: 70, y: 350, width: 200, height: 100, content: 'User Story 1\n\nAs a user, I want...', color: '#ffffff' },
+    { type: 'sticky', x: 290, y: 350, width: 200, height: 100, content: 'User Story 2\n\nAs a user, I want...', color: '#ffffff' },
+    { type: 'sticky', x: 510, y: 350, width: 200, height: 100, content: 'User Story 3\n\nAs a user, I want...', color: '#ffffff' },
+  ]},
+
+  { id: 'retrospective', name: 'Sprint Retrospective', icon: RotateCcw, description: 'Team reflection & improvement', category: 'agile', nodes: [
+    { type: 'text', x: 350, y: 10, width: 350, height: 40, content: 'Sprint Retrospective', fontSize: 28, color: 'transparent' },
+    { type: 'frame', x: 50, y: 70, width: 350, height: 450, content: '😊 WHAT WENT WELL\n\nCelebrate successes!', color: '#dcfce7' },
+    { type: 'frame', x: 420, y: 70, width: 350, height: 450, content: '😟 WHAT DIDN\'T GO WELL\n\nIdentify challenges', color: '#fee2e2' },
+    { type: 'frame', x: 790, y: 70, width: 350, height: 450, content: '💡 IDEAS FOR IMPROVEMENT\n\nHow can we do better?', color: '#dbeafe' },
+    { type: 'frame', x: 50, y: 540, width: 1090, height: 150, content: '✅ ACTION ITEMS\n\nConmmitments for next sprint', color: '#fef3c7' },
+  ]},
+
+  // === MEETINGS ===
+  { id: 'meeting-agenda', name: 'Meeting Agenda', icon: Calendar, description: 'Structure your meeting', category: 'meetings', nodes: [
+    { type: 'text', x: 400, y: 10, width: 250, height: 40, content: 'Meeting Agenda', fontSize: 28, color: 'transparent' },
+    { type: 'frame', x: 50, y: 70, width: 400, height: 120, content: '📅 MEETING INFO\n\nDate: \nTime: \nAttendees: ', color: '#dbeafe' },
+    { type: 'frame', x: 470, y: 70, width: 400, height: 120, content: '🎯 OBJECTIVES\n\nWhat do we want to achieve?', color: '#dcfce7' },
+    { type: 'frame', x: 50, y: 210, width: 820, height: 300, content: '📋 AGENDA ITEMS\n\n1. Topic (5 min) - Owner\n2. Topic (10 min) - Owner\n3. Topic (15 min) - Owner\n4. Wrap-up (5 min)', color: '#fef3c7' },
+    { type: 'frame', x: 50, y: 530, width: 400, height: 150, content: '📝 NOTES & DECISIONS\n\nCapture key points', color: '#f3e8ff' },
+    { type: 'frame', x: 470, y: 530, width: 400, height: 150, content: '✅ ACTION ITEMS\n\nWho / What / When', color: '#fee2e2' },
+  ]},
+
+  { id: 'standup', name: 'Daily Standup', icon: Users, description: 'Quick team sync', category: 'meetings', nodes: [
+    { type: 'text', x: 400, y: 10, width: 250, height: 40, content: 'Daily Standup', fontSize: 28, color: 'transparent' },
+    { type: 'frame', x: 50, y: 70, width: 350, height: 500, content: '✅ YESTERDAY\n\nWhat did you complete?', color: '#dcfce7' },
+    { type: 'frame', x: 420, y: 70, width: 350, height: 500, content: '📋 TODAY\n\nWhat will you work on?', color: '#dbeafe' },
+    { type: 'frame', x: 790, y: 70, width: 350, height: 500, content: '🚧 BLOCKERS\n\nWhat\'s in your way?', color: '#fee2e2' },
+  ]},
+
+  // === RESEARCH & ANALYSIS ===
+  { id: 'client-research', name: 'Client Research', icon: Globe, description: 'Research client & market', category: 'research', nodes: [
+    { type: 'text', x: 400, y: 10, width: 300, height: 40, content: 'Client Research', fontSize: 28, color: 'transparent' },
+    { type: 'frame', x: 50, y: 70, width: 450, height: 280, content: '🌐 COMPANY OVERVIEW\n\nMission/Vision:\nIndustry:\nSize:\nLocation:', color: '#dbeafe' },
+    { type: 'frame', x: 520, y: 70, width: 450, height: 280, content: '🎯 VALUE PROPOSITION\n\nWhat problems do they solve?\nWhat makes them unique?', color: '#dcfce7' },
+    { type: 'frame', x: 50, y: 370, width: 300, height: 250, content: '👥 TARGET AUDIENCE\n\nWho are their customers?\nDemographics?', color: '#fef3c7' },
+    { type: 'frame', x: 370, y: 370, width: 300, height: 250, content: '⚔️ COMPETITORS\n\nWho else is in this space?\nDifferentiators?', color: '#fce7f3' },
+    { type: 'frame', x: 690, y: 370, width: 280, height: 250, content: '💡 OPPORTUNITIES\n\nHow can we help them?\nQuick wins?', color: '#f3e8ff' },
+  ]},
+
+  { id: 'pestle', name: 'PESTLE Analysis', icon: BarChart3, description: 'Macro environment analysis', category: 'research', nodes: [
+    { type: 'text', x: 400, y: 10, width: 300, height: 40, content: 'PESTLE Analysis', fontSize: 28, color: 'transparent' },
+    { type: 'frame', x: 50, y: 70, width: 350, height: 250, content: '🏛️ POLITICAL\n\nGovernment policies\nTax regulations\nTrade restrictions', color: '#dbeafe' },
+    { type: 'frame', x: 420, y: 70, width: 350, height: 250, content: '💰 ECONOMIC\n\nEconomic growth\nInterest rates\nInflation', color: '#dcfce7' },
+    { type: 'frame', x: 790, y: 70, width: 350, height: 250, content: '👥 SOCIAL\n\nDemographics\nCultural trends\nLifestyle changes', color: '#fef3c7' },
+    { type: 'frame', x: 50, y: 340, width: 350, height: 250, content: '💻 TECHNOLOGICAL\n\nNew technologies\nAutomation\nR&D activity', color: '#f3e8ff' },
+    { type: 'frame', x: 420, y: 340, width: 350, height: 250, content: '⚖️ LEGAL\n\nEmployment law\nHealth & safety\nProduct regulations', color: '#fce7f3' },
+    { type: 'frame', x: 790, y: 340, width: 350, height: 250, content: '🌍 ENVIRONMENTAL\n\nClimate change\nSustainability\nEnvironmental regulations', color: '#d1fae5' },
+  ]},
+
+  { id: 'empathy-map', name: 'Empathy Map', icon: Users, description: 'Understand your user', category: 'design', nodes: [
+    { type: 'text', x: 400, y: 10, width: 250, height: 40, content: 'Empathy Map', fontSize: 28, color: 'transparent' },
+    { type: 'shape', shapeType: 'circle', x: 450, y: 280, width: 150, height: 150, content: '👤\nUser', color: '#e0e7ff' },
+    { type: 'frame', x: 300, y: 70, width: 400, height: 180, content: '👀 SEES\n\nWhat does the user see in their environment?', color: '#dbeafe' },
+    { type: 'frame', x: 50, y: 200, width: 220, height: 200, content: '👂 HEARS\n\nWhat do friends, colleagues say?', color: '#dcfce7' },
+    { type: 'frame', x: 730, y: 200, width: 220, height: 200, content: '💬 SAYS & DOES\n\nAttitude in public, behavior', color: '#fef3c7' },
+    { type: 'frame', x: 300, y: 450, width: 400, height: 180, content: '🧠 THINKS & FEELS\n\nWhat really matters? Worries & aspirations?', color: '#f3e8ff' },
+    { type: 'frame', x: 50, y: 420, width: 220, height: 150, content: '😣 PAINS\n\nFears, frustrations, obstacles', color: '#fee2e2' },
+    { type: 'frame', x: 730, y: 420, width: 220, height: 150, content: '🎯 GAINS\n\nWants, needs, success measures', color: '#d1fae5' },
+  ]},
+
+  // === PLANNING ===  
+  { id: 'project-charter', name: 'Project Charter', icon: FileText, description: 'Define project scope', category: 'planning', nodes: [
+    { type: 'text', x: 400, y: 10, width: 250, height: 40, content: 'Project Charter', fontSize: 28, color: 'transparent' },
+    { type: 'frame', x: 50, y: 70, width: 500, height: 150, content: '📋 PROJECT NAME & DESCRIPTION\n\nWhat is this project about?', color: '#dbeafe' },
+    { type: 'frame', x: 570, y: 70, width: 400, height: 150, content: '🎯 OBJECTIVES\n\nWhat do we want to achieve?', color: '#dcfce7' },
+    { type: 'frame', x: 50, y: 240, width: 300, height: 150, content: '✅ IN SCOPE\n\nWhat\'s included', color: '#d1fae5' },
+    { type: 'frame', x: 370, y: 240, width: 300, height: 150, content: '❌ OUT OF SCOPE\n\nWhat\'s excluded', color: '#fee2e2' },
+    { type: 'frame', x: 690, y: 240, width: 280, height: 150, content: '👥 STAKEHOLDERS\n\nWho\'s involved?', color: '#f3e8ff' },
+    { type: 'frame', x: 50, y: 410, width: 300, height: 150, content: '📅 TIMELINE\n\nKey milestones', color: '#fef3c7' },
+    { type: 'frame', x: 370, y: 410, width: 300, height: 150, content: '💰 BUDGET\n\nResources needed', color: '#fce7f3' },
+    { type: 'frame', x: 690, y: 410, width: 280, height: 150, content: '⚠️ RISKS\n\nWhat could go wrong?', color: '#fee2e2' },
+    { type: 'frame', x: 50, y: 580, width: 920, height: 100, content: '📈 SUCCESS CRITERIA\n\nHow do we know we succeeded?', color: '#e0e7ff' },
+  ]},
+
+  { id: 'roadmap', name: 'Product Roadmap', icon: TrendingUp, description: 'Plan product evolution', category: 'planning', nodes: [
+    { type: 'text', x: 400, y: 10, width: 250, height: 40, content: 'Product Roadmap', fontSize: 28, color: 'transparent' },
+    // Timeline headers
+    { type: 'frame', x: 200, y: 70, width: 250, height: 60, content: 'Q1 2024', color: '#dbeafe' },
+    { type: 'frame', x: 460, y: 70, width: 250, height: 60, content: 'Q2 2024', color: '#dcfce7' },
+    { type: 'frame', x: 720, y: 70, width: 250, height: 60, content: 'Q3 2024', color: '#fef3c7' },
+    { type: 'frame', x: 980, y: 70, width: 250, height: 60, content: 'Q4 2024', color: '#f3e8ff' },
+    // Theme rows
+    { type: 'text', x: 50, y: 150, width: 140, height: 30, content: '🚀 Features', fontSize: 14, color: 'transparent' },
+    { type: 'frame', x: 200, y: 140, width: 1030, height: 120, content: '', color: '#f9fafb' },
+    { type: 'text', x: 50, y: 280, width: 140, height: 30, content: '🔧 Tech Debt', fontSize: 14, color: 'transparent' },
+    { type: 'frame', x: 200, y: 270, width: 1030, height: 120, content: '', color: '#ffffff' },
+    { type: 'text', x: 50, y: 410, width: 140, height: 30, content: '📊 Analytics', fontSize: 14, color: 'transparent' },
+    { type: 'frame', x: 200, y: 400, width: 1030, height: 120, content: '', color: '#f9fafb' },
+    // Sample items
+    { type: 'sticky', x: 220, y: 160, width: 180, height: 80, content: 'Feature A\nLaunch MVP', color: '#dbeafe' },
+    { type: 'sticky', x: 480, y: 160, width: 180, height: 80, content: 'Feature B\nUser feedback', color: '#dcfce7' },
   ]},
 ];
 
@@ -2582,24 +2802,138 @@ const ParsedItemsPanel = ({ items, onAddItem, onDismissItem, onAddAll, isVisible
 
 // Template Modal
 const TemplateModal = ({ isOpen, onClose, onSelectTemplate }: { isOpen: boolean; onClose: () => void; onSelectTemplate: (template: typeof BOARD_TEMPLATES[0]) => void }) => {
+  const [selectedCategory, setSelectedCategory] = useState<TemplateCategory | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  
   if (!isOpen) return null;
+  
+  const categories: { id: TemplateCategory | 'all'; label: string; icon: string }[] = [
+    { id: 'all', label: 'All Templates', icon: '📚' },
+    { id: 'strategy', label: 'Strategy', icon: '🎯' },
+    { id: 'design', label: 'Design & Ideation', icon: '💡' },
+    { id: 'workflow', label: 'Workflow & Process', icon: '⚙️' },
+    { id: 'agile', label: 'Agile & Scrum', icon: '🔄' },
+    { id: 'meetings', label: 'Meetings', icon: '👥' },
+    { id: 'research', label: 'Research', icon: '🔍' },
+    { id: 'planning', label: 'Planning', icon: '📋' },
+  ];
+  
+  const filteredTemplates = BOARD_TEMPLATES.filter(t => {
+    const matchesCategory = selectedCategory === 'all' || t.category === selectedCategory;
+    const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          t.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const getCategoryColor = (category: TemplateCategory): string => {
+    const colors: Record<TemplateCategory, string> = {
+      strategy: 'bg-blue-100 text-blue-700',
+      design: 'bg-purple-100 text-purple-700',
+      workflow: 'bg-amber-100 text-amber-700',
+      agile: 'bg-green-100 text-green-700',
+      meetings: 'bg-pink-100 text-pink-700',
+      research: 'bg-cyan-100 text-cyan-700',
+      planning: 'bg-indigo-100 text-indigo-700',
+    };
+    return colors[category] || 'bg-gray-100 text-gray-700';
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-2xl p-6 w-[600px] max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Choose a Template</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+      <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-2xl w-[900px] max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Template Gallery</h2>
+              <p className="text-sm text-gray-500">Choose a template to jumpstart your whiteboard session</p>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+          </div>
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search templates..."
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          {BOARD_TEMPLATES.map(template => {
-            const Icon = template.icon;
-            return (
-              <motion.button key={template.id} whileHover={{ scale: 1.02 }} onClick={() => { onSelectTemplate(template); onClose(); }} className="flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 text-left">
-                <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0"><Icon className="w-6 h-6 text-indigo-600" /></div>
-                <div><p className="font-semibold text-gray-900">{template.name}</p><p className="text-sm text-gray-500">{template.description}</p></div>
-              </motion.button>
-            );
-          })}
+        
+        <div className="flex flex-1 overflow-hidden">
+          {/* Sidebar Categories */}
+          <div className="w-56 border-r border-gray-100 p-4 bg-gray-50 overflow-y-auto">
+            <p className="text-xs font-semibold text-gray-400 uppercase mb-3">Categories</p>
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-2 transition-all ${
+                  selectedCategory === cat.id 
+                    ? 'bg-indigo-100 text-indigo-700 font-medium' 
+                    : 'hover:bg-gray-100 text-gray-700'
+                }`}
+              >
+                <span>{cat.icon}</span>
+                <span className="text-sm">{cat.label}</span>
+                {cat.id !== 'all' && (
+                  <span className="ml-auto text-xs text-gray-400">
+                    {BOARD_TEMPLATES.filter(t => t.category === cat.id).length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+          
+          {/* Templates Grid */}
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-gray-500">{filteredTemplates.length} templates</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {filteredTemplates.map(template => {
+                const Icon = template.icon;
+                return (
+                  <motion.button 
+                    key={template.id} 
+                    whileHover={{ scale: 1.02, y: -2 }} 
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => { onSelectTemplate(template); onClose(); }} 
+                    className="flex flex-col items-start p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:shadow-lg text-left bg-white transition-all"
+                  >
+                    <div className="flex items-start gap-3 w-full mb-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Icon className="w-6 h-6 text-indigo-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">{template.name}</p>
+                        <p className="text-xs text-gray-500 line-clamp-2">{template.description}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 w-full">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${getCategoryColor(template.category)}`}>
+                        {template.category}
+                      </span>
+                      <span className="text-[10px] text-gray-400 ml-auto">
+                        {template.nodes.length} elements
+                      </span>
+                    </div>
+                  </motion.button>
+                );
+              })}
+            </div>
+            
+            {filteredTemplates.length === 0 && (
+              <div className="text-center py-12 text-gray-400">
+                <Layout className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No templates found</p>
+                <p className="text-sm">Try adjusting your search or category</p>
+              </div>
+            )}
+          </div>
         </div>
       </motion.div>
     </motion.div>
