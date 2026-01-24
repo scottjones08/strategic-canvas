@@ -3139,15 +3139,62 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
     const nodes = board.visualNodes;
     if (nodes.length === 0) return null;
     
-    // Categorize nodes by type
-    const stickyNotes = nodes.filter(n => n.type === 'sticky' && n.content.trim());
-    const opportunities = nodes.filter(n => n.type === 'opportunity' && n.content.trim());
-    const risks = nodes.filter(n => n.type === 'risk' && n.content.trim());
-    const actions = nodes.filter(n => n.type === 'action' && n.content.trim());
-    const frames = nodes.filter(n => n.type === 'frame' && n.content.trim());
-    const mindmaps = nodes.filter(n => n.type === 'mindmap' && n.content.trim());
-    const tables = nodes.filter(n => n.type === 'table' && n.tableData);
-    const links = nodes.filter(n => n.type === 'linklist' && n.links?.length);
+    // Categorize ALL nodes by type (include empty ones in count, filter content for display)
+    const allStickyNotes = nodes.filter(n => n.type === 'sticky');
+    const allOpportunities = nodes.filter(n => n.type === 'opportunity');
+    const allRisks = nodes.filter(n => n.type === 'risk');
+    const allActions = nodes.filter(n => n.type === 'action');
+    const allFrames = nodes.filter(n => n.type === 'frame');
+    const allMindmaps = nodes.filter(n => n.type === 'mindmap');
+    const allTables = nodes.filter(n => n.type === 'table');
+    const allLinks = nodes.filter(n => n.type === 'linklist');
+    const allText = nodes.filter(n => n.type === 'text');
+    const allShapes = nodes.filter(n => n.type === 'shape');
+    const allComments = nodes.filter(n => n.type === 'comment');
+    
+    // Get nodes with actual content for detailed sections
+    const stickyWithContent = allStickyNotes.filter(n => n.content && n.content.trim());
+    const opportunitiesWithContent = allOpportunities.filter(n => n.content && n.content.trim());
+    const risksWithContent = allRisks.filter(n => n.content && n.content.trim());
+    const actionsWithContent = allActions.filter(n => n.content && n.content.trim());
+    const framesWithContent = allFrames.filter(n => n.content && n.content.trim());
+    const mindmapsWithContent = allMindmaps.filter(n => n.content && n.content.trim());
+    const tablesWithData = allTables.filter(n => n.tableData);
+    const linksWithData = allLinks.filter(n => n.links && n.links.length > 0);
+    const textWithContent = allText.filter(n => n.content && n.content.trim());
+    const shapesWithContent = allShapes.filter(n => n.content && n.content.trim());
+    const commentsWithContent = allComments.filter(n => n.content && n.content.trim());
+    
+    // Collect ALL text content from the board for the summary
+    const allContentItems: { type: string; content: string; color?: string }[] = [];
+    
+    nodes.forEach(node => {
+      if (node.content && node.content.trim()) {
+        allContentItems.push({ 
+          type: node.type, 
+          content: node.content.trim(),
+          color: node.color 
+        });
+      }
+      // Also extract table data
+      if (node.type === 'table' && node.tableData) {
+        node.tableData.rows.forEach(row => {
+          row.forEach(cell => {
+            if (cell && cell.trim()) {
+              allContentItems.push({ type: 'table-cell', content: cell.trim() });
+            }
+          });
+        });
+      }
+      // Extract link titles
+      if (node.type === 'linklist' && node.links) {
+        node.links.forEach(link => {
+          if (link.title) {
+            allContentItems.push({ type: 'link', content: `${link.title}: ${link.url}` });
+          }
+        });
+      }
+    });
     
     // Build structured summary HTML
     let summaryHTML = `<h1>🤖 AI Summary Notes</h1>
@@ -3155,66 +3202,105 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
 <p><em>Generated: ${new Date().toLocaleString()}</em></p>
 <hr/>`;
 
-    // Executive Summary
+    // Executive Summary with actual content overview
+    const totalContentItems = allContentItems.length;
     summaryHTML += `<h2>📋 Executive Summary</h2>
-<p>This whiteboard contains <strong>${nodes.length}</strong> elements including ${stickyNotes.length} notes, ${opportunities.length} opportunities, ${risks.length} risks, and ${actions.length} action items.</p>`;
+<p>This whiteboard contains <strong>${nodes.length}</strong> elements with <strong>${totalContentItems}</strong> pieces of content.</p>
+<p>Breakdown: ${allStickyNotes.length} sticky notes, ${allOpportunities.length} opportunities, ${allRisks.length} risks, ${allActions.length} action items, ${allFrames.length} frames, ${allMindmaps.length} mind map nodes, ${allTables.length} tables, ${allText.length} text blocks.</p>`;
+
+    // ALL CONTENT - The main summary of everything
+    if (allContentItems.length > 0) {
+      summaryHTML += `<h2>📝 Complete Content Summary</h2>
+<p>All text content extracted from the whiteboard:</p>`;
+      
+      // Group by type for organized display
+      const contentByType: Record<string, string[]> = {};
+      allContentItems.forEach(item => {
+        if (!contentByType[item.type]) contentByType[item.type] = [];
+        contentByType[item.type].push(item.content);
+      });
+      
+      Object.entries(contentByType).forEach(([type, contents]) => {
+        const typeLabels: Record<string, string> = {
+          'sticky': '📌 Sticky Notes',
+          'opportunity': '💡 Opportunities', 
+          'risk': '⚠️ Risks',
+          'action': '✅ Actions',
+          'frame': '🗂️ Frames',
+          'mindmap': '🧠 Mind Map',
+          'text': '📝 Text',
+          'shape': '⬜ Shapes',
+          'comment': '💬 Comments',
+          'table-cell': '📊 Table Data',
+          'link': '🔗 Links'
+        };
+        const label = typeLabels[type] || type;
+        summaryHTML += `<h3>${label}</h3><ul>`;
+        contents.forEach(c => {
+          // Clean and format content
+          const cleanContent = c.replace(/\n/g, ' ').replace(/\s+/g, ' ');
+          summaryHTML += `<li>${cleanContent}</li>`;
+        });
+        summaryHTML += `</ul>`;
+      });
+    }
 
     // Key Themes from Frames
-    if (frames.length > 0) {
+    if (framesWithContent.length > 0) {
       summaryHTML += `<h2>🗂️ Key Themes & Sections</h2><ul>`;
-      frames.forEach(f => {
-        summaryHTML += `<li><strong>${f.content.split('\\n')[0]}</strong></li>`;
+      framesWithContent.forEach(f => {
+        const title = f.content.split('\n')[0];
+        const rest = f.content.split('\n').slice(1).join(' ').trim();
+        summaryHTML += `<li><strong>${title}</strong>${rest ? `: ${rest}` : ''}</li>`;
       });
       summaryHTML += `</ul>`;
     }
 
-    // Main Ideas from Sticky Notes
-    if (stickyNotes.length > 0) {
-      summaryHTML += `<h2>💭 Main Ideas & Notes</h2><ul>`;
-      stickyNotes.slice(0, 15).forEach(n => {
-        summaryHTML += `<li>${n.content.replace(/\\n/g, ' ').slice(0, 200)}${n.content.length > 200 ? '...' : ''}</li>`;
+    // Detailed Sticky Notes
+    if (stickyWithContent.length > 0) {
+      summaryHTML += `<h2>💭 Sticky Notes Detail</h2><ul>`;
+      stickyWithContent.forEach(n => {
+        const content = n.content.replace(/\n/g, ' ');
+        summaryHTML += `<li>${content}</li>`;
       });
-      if (stickyNotes.length > 15) {
-        summaryHTML += `<li><em>...and ${stickyNotes.length - 15} more notes</em></li>`;
-      }
       summaryHTML += `</ul>`;
     }
 
     // Opportunities
-    if (opportunities.length > 0) {
+    if (opportunitiesWithContent.length > 0) {
       summaryHTML += `<h2>💡 Opportunities Identified</h2><ul>`;
-      opportunities.forEach(n => {
-        summaryHTML += `<li>${n.content.replace(/\\n/g, ' ')}</li>`;
+      opportunitiesWithContent.forEach(n => {
+        summaryHTML += `<li>${n.content.replace(/\n/g, ' ')}</li>`;
       });
       summaryHTML += `</ul>`;
     }
 
     // Risks
-    if (risks.length > 0) {
+    if (risksWithContent.length > 0) {
       summaryHTML += `<h2>⚠️ Risks & Concerns</h2><ul>`;
-      risks.forEach(n => {
-        summaryHTML += `<li>${n.content.replace(/\\n/g, ' ')}</li>`;
+      risksWithContent.forEach(n => {
+        summaryHTML += `<li>${n.content.replace(/\n/g, ' ')}</li>`;
       });
       summaryHTML += `</ul>`;
     }
 
     // Action Items
-    if (actions.length > 0) {
+    if (actionsWithContent.length > 0) {
       summaryHTML += `<h2>✅ Action Items</h2><ol>`;
-      actions.forEach(n => {
-        summaryHTML += `<li>${n.content.replace(/\\n/g, ' ')}</li>`;
+      actionsWithContent.forEach(n => {
+        summaryHTML += `<li>${n.content.replace(/\n/g, ' ')}</li>`;
       });
       summaryHTML += `</ol>`;
     }
 
     // Mind Maps
-    if (mindmaps.length > 0) {
-      const rootMindmaps = mindmaps.filter(n => n.isRootNode);
+    if (mindmapsWithContent.length > 0) {
+      const rootMindmaps = mindmapsWithContent.filter(n => n.isRootNode);
       if (rootMindmaps.length > 0) {
         summaryHTML += `<h2>🧠 Mind Map Topics</h2><ul>`;
         rootMindmaps.forEach(n => {
           summaryHTML += `<li><strong>${n.content}</strong>`;
-          const children = mindmaps.filter(m => m.parentNodeId === n.id);
+          const children = mindmapsWithContent.filter(m => m.parentNodeId === n.id);
           if (children.length > 0) {
             summaryHTML += `<ul>`;
             children.forEach(c => {
@@ -3228,10 +3314,37 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
       }
     }
 
-    // Tables
-    if (tables.length > 0) {
+    // Text blocks
+    if (textWithContent.length > 0) {
+      summaryHTML += `<h2>📝 Text Blocks</h2><ul>`;
+      textWithContent.forEach(n => {
+        summaryHTML += `<li>${n.content.replace(/\n/g, ' ')}</li>`;
+      });
+      summaryHTML += `</ul>`;
+    }
+
+    // Shapes with text
+    if (shapesWithContent.length > 0) {
+      summaryHTML += `<h2>⬜ Shapes with Labels</h2><ul>`;
+      shapesWithContent.forEach(n => {
+        summaryHTML += `<li>${n.content.replace(/\n/g, ' ')}</li>`;
+      });
+      summaryHTML += `</ul>`;
+    }
+
+    // Comments
+    if (commentsWithContent.length > 0) {
+      summaryHTML += `<h2>💬 Comments & Annotations</h2><ul>`;
+      commentsWithContent.forEach(n => {
+        summaryHTML += `<li>${n.content.replace(/\n/g, ' ')}</li>`;
+      });
+      summaryHTML += `</ul>`;
+    }
+
+    // Tables with full data
+    if (tablesWithData.length > 0) {
       summaryHTML += `<h2>📊 Data Tables</h2>`;
-      tables.forEach(t => {
+      tablesWithData.forEach(t => {
         summaryHTML += `<h3>${t.content || 'Untitled Table'}</h3>`;
         if (t.tableData) {
           summaryHTML += `<table style="width:100%;border-collapse:collapse;margin:1rem 0;">`;
@@ -3255,9 +3368,9 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
     }
 
     // Links
-    if (links.length > 0) {
+    if (linksWithData.length > 0) {
       summaryHTML += `<h2>🔗 Resources & Links</h2><ul>`;
-      links.forEach(l => {
+      linksWithData.forEach(l => {
         l.links?.forEach(link => {
           summaryHTML += `<li><a href="${link.url}" target="_blank">${link.title}</a>${link.description ? ` - ${link.description}` : ''}</li>`;
         });
@@ -3269,11 +3382,16 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
     summaryHTML += `<hr/><h2>📈 Session Statistics</h2>
 <table style="width:100%;border-collapse:collapse;">
 <tr><td style="padding:4px;"><strong>Total Elements:</strong></td><td style="padding:4px;">${nodes.length}</td></tr>
-<tr><td style="padding:4px;"><strong>Sticky Notes:</strong></td><td style="padding:4px;">${stickyNotes.length}</td></tr>
-<tr><td style="padding:4px;"><strong>Opportunities:</strong></td><td style="padding:4px;">${opportunities.length}</td></tr>
-<tr><td style="padding:4px;"><strong>Risks:</strong></td><td style="padding:4px;">${risks.length}</td></tr>
-<tr><td style="padding:4px;"><strong>Action Items:</strong></td><td style="padding:4px;">${actions.length}</td></tr>
-<tr><td style="padding:4px;"><strong>Frames/Sections:</strong></td><td style="padding:4px;">${frames.length}</td></tr>
+<tr><td style="padding:4px;"><strong>Content Items:</strong></td><td style="padding:4px;">${totalContentItems}</td></tr>
+<tr><td style="padding:4px;"><strong>Sticky Notes:</strong></td><td style="padding:4px;">${allStickyNotes.length} (${stickyWithContent.length} with content)</td></tr>
+<tr><td style="padding:4px;"><strong>Opportunities:</strong></td><td style="padding:4px;">${allOpportunities.length}</td></tr>
+<tr><td style="padding:4px;"><strong>Risks:</strong></td><td style="padding:4px;">${allRisks.length}</td></tr>
+<tr><td style="padding:4px;"><strong>Action Items:</strong></td><td style="padding:4px;">${allActions.length}</td></tr>
+<tr><td style="padding:4px;"><strong>Frames/Sections:</strong></td><td style="padding:4px;">${allFrames.length}</td></tr>
+<tr><td style="padding:4px;"><strong>Mind Map Nodes:</strong></td><td style="padding:4px;">${allMindmaps.length}</td></tr>
+<tr><td style="padding:4px;"><strong>Text Blocks:</strong></td><td style="padding:4px;">${allText.length}</td></tr>
+<tr><td style="padding:4px;"><strong>Tables:</strong></td><td style="padding:4px;">${allTables.length}</td></tr>
+<tr><td style="padding:4px;"><strong>Comments:</strong></td><td style="padding:4px;">${allComments.length}</td></tr>
 </table>`;
 
     return summaryHTML;
