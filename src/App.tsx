@@ -930,6 +930,45 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
     onContextMenuOpen?.(); // Switch to select mode
   };
 
+  // Handle menu drag
+  const handleMenuDragStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startMenuX = contextMenuPos.x;
+    const startMenuY = contextMenuPos.y;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+      const newX = Math.max(10, Math.min(window.innerWidth - 280, startMenuX + deltaX));
+      const newY = Math.max(10, Math.min(window.innerHeight - 100, startMenuY + deltaY));
+      setContextMenuPos({ x: newX, y: newY });
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // Close menu on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showContextMenu) {
+        setShowContextMenu(false);
+      }
+    };
+    if (showContextMenu) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [showContextMenu]);
+
   const isShape = node.type === 'shape';
   const isText = node.type === 'text';
   const isConnector = node.type === 'connector';
@@ -1404,16 +1443,36 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
 
     {showContextMenu && (
       <>
-        <div className="fixed inset-0 z-[99998]" onClick={() => setShowContextMenu(false)} />
-        <div 
-          className="fixed bg-white rounded-2xl shadow-2xl border border-gray-200 py-1 z-[99999] w-64 max-h-[70vh] overflow-y-auto"
-          style={{ 
-            left: contextMenuPos.x, 
+        <div className="fixed inset-0 z-[99998] pointer-events-auto" onClick={() => setShowContextMenu(false)} />
+        <div
+          className="fixed bg-white rounded-2xl shadow-2xl border border-gray-200 z-[99999] w-64 max-h-[70vh] overflow-hidden pointer-events-auto cursor-default flex flex-col"
+          style={{
+            left: contextMenuPos.x,
             top: contextMenuPos.y,
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)'
-          }} 
+          }}
           onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
         >
+          {/* Draggable Header */}
+          <div
+            className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200 cursor-grab active:cursor-grabbing select-none rounded-t-2xl"
+            onMouseDown={handleMenuDragStart}
+          >
+            <div className="flex items-center gap-2">
+              <GripVertical className="w-4 h-4 text-gray-400" />
+              <span className="text-xs font-medium text-gray-600">Properties</span>
+            </div>
+            <button
+              onClick={() => setShowContextMenu(false)}
+              className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto py-1">
           {/* Colors Section */}
           <div className="px-3 py-2 border-b border-gray-100">
             <div className="flex gap-1.5">
@@ -1490,6 +1549,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
               <span>Delete</span>
             </button>
           </div>
+          </div>{/* End Scrollable Content */}
         </div>
       </>
     )}
@@ -1520,7 +1580,9 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   const [panX, setPanX] = useState(board.panX || 0);
   const [panY, setPanY] = useState(board.panY || 0);
   const [isDrawing, setIsDrawing] = useState(false);
+  const isDrawingRef = useRef(false); // Synchronous ref for immediate access
   const [currentPath, setCurrentPath] = useState<{ x: number; y: number }[]>([]);
+  const currentPathRef = useRef<{ x: number; y: number }[]>([]); // Synchronous ref
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0, panX: 0, panY: 0 });
   const [spacePressed, setSpacePressed] = useState(false);
@@ -1784,8 +1846,11 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     if (isDrawingMode && e.button === 0) {
       e.preventDefault();
       e.stopPropagation();
-      setIsDrawing(true);
       const point = getCanvasPoint(e);
+      // Use refs for synchronous updates - state updates are async
+      isDrawingRef.current = true;
+      currentPathRef.current = [point];
+      setIsDrawing(true);
       setCurrentPath([point]);
       return;
     }
@@ -1814,11 +1879,13 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       return;
     }
 
-    // Drawing
-    if (isDrawing && isDrawingMode) {
+    // Drawing - use ref for synchronous check since state updates are async
+    if ((isDrawingRef.current || isDrawing) && isDrawingMode) {
       e.preventDefault();
       const point = getCanvasPoint(e);
-      setCurrentPath(prev => [...prev, point]);
+      // Update both ref and state
+      currentPathRef.current = [...currentPathRef.current, point];
+      setCurrentPath(currentPathRef.current);
       return;
     }
     
@@ -1873,20 +1940,26 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       return;
     }
 
-    if (!isDrawing || currentPath.length < 2) {
+    // Use ref for synchronous check - get path from ref for most up-to-date data
+    const pathToUse = currentPathRef.current.length > 0 ? currentPathRef.current : currentPath;
+    const wasDrawing = isDrawingRef.current || isDrawing;
+
+    if (!wasDrawing || pathToUse.length < 2) {
+      isDrawingRef.current = false;
+      currentPathRef.current = [];
       setIsDrawing(false);
       setCurrentPath([]);
       return;
     }
 
     // Calculate bounding box
-    const minX = Math.min(...currentPath.map(p => p.x));
-    const minY = Math.min(...currentPath.map(p => p.y));
-    const maxX = Math.max(...currentPath.map(p => p.x));
-    const maxY = Math.max(...currentPath.map(p => p.y));
+    const minX = Math.min(...pathToUse.map(p => p.x));
+    const minY = Math.min(...pathToUse.map(p => p.y));
+    const maxX = Math.max(...pathToUse.map(p => p.x));
+    const maxY = Math.max(...pathToUse.map(p => p.y));
 
     // Normalize points relative to bounding box
-    const normalizedPoints = currentPath.map(p => ({ x: p.x - minX, y: p.y - minY }));
+    const normalizedPoints = pathToUse.map(p => ({ x: p.x - minX, y: p.y - minY }));
 
     const drawingNode: VisualNode = {
       id: generateId(),
@@ -1909,6 +1982,9 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     };
 
     onUpdateWithHistory({ visualNodes: [...board.visualNodes, drawingNode] }, 'Draw');
+    // Reset both refs and state
+    isDrawingRef.current = false;
+    currentPathRef.current = [];
     setIsDrawing(false);
     setCurrentPath([]);
   }, [isPanning, isDrawing, currentPath, drawingColor, drawingWidth, board.visualNodes, onUpdateWithHistory, isLassoing, lassoStart, lassoEnd, panX, panY, zoom, onSelectNodes, clearAlignmentGuides]);
@@ -2082,7 +2158,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
 
       {/* Drawing Mode Indicator */}
       {isDrawingMode && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg z-50 flex items-center gap-2">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg z-50 flex items-center gap-2 pointer-events-none">
           <Pencil className="w-4 h-4" />
           Drawing mode active • Draw on canvas
         </div>
@@ -2090,7 +2166,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
 
       {/* Pan Mode Indicator */}
       {(spacePressed || isPanMode) && !isDrawingMode && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-gray-700 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg z-50 flex items-center gap-2">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-gray-700 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg z-50 flex items-center gap-2 pointer-events-none">
           <Move className="w-4 h-4" />
           Pan mode • Drag to move canvas
         </div>
