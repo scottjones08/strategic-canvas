@@ -830,7 +830,7 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard }: { boards: Board[]
 };
 
 // Sticky Note Component
-const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, onDuplicate, onStartConnector, onAddMindmapChild, onAISparkle, onReact, zoom, selectedCount = 1, isDrawingMode = false }: {
+const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, onDuplicate, onStartConnector, onAddMindmapChild, onAISparkle, onReact, zoom, selectedCount = 1, isDrawingMode = false, onContextMenuOpen }: {
   node: VisualNode;
   isSelected: boolean;
   onSelect: (e?: React.MouseEvent) => void;
@@ -845,6 +845,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
   zoom: number;
   selectedCount?: number;
   isDrawingMode?: boolean;
+  onContextMenuOpen?: () => void;
 }) => {
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -890,16 +891,28 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    // Position menu ensuring it stays on screen
+    const menuWidth = 280;
+    const menuHeight = 500;
+    const x = Math.min(e.clientX, window.innerWidth - menuWidth - 20);
+    const y = Math.min(e.clientY, window.innerHeight - menuHeight - 20);
+    setContextMenuPos({ x: Math.max(10, x), y: Math.max(10, y) });
     setShowContextMenu(true);
     onSelect();
+    onContextMenuOpen?.(); // Switch to select mode
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    // Position menu ensuring it stays on screen
+    const menuWidth = 280;
+    const menuHeight = 500;
+    const x = Math.min(e.clientX, window.innerWidth - menuWidth - 20);
+    const y = Math.min(e.clientY, window.innerHeight - menuHeight - 20);
+    setContextMenuPos({ x: Math.max(10, x), y: Math.max(10, y) });
     setShowContextMenu(true);
     onSelect();
+    onContextMenuOpen?.(); // Switch to select mode
   };
 
   const isShape = node.type === 'shape';
@@ -1376,8 +1389,16 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
 
     {showContextMenu && (
       <>
-        <div className="fixed inset-0 z-[9998]" onClick={() => setShowContextMenu(false)} />
-        <div className="fixed bg-white rounded-2xl shadow-2xl border border-gray-200 py-1 z-[9999] w-64 max-h-[80vh] overflow-y-auto" style={{ left: contextMenuPos.x, top: contextMenuPos.y }} onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[99998]" onClick={() => setShowContextMenu(false)} />
+        <div 
+          className="fixed bg-white rounded-2xl shadow-2xl border border-gray-200 py-1 z-[99999] w-64 max-h-[70vh] overflow-y-auto"
+          style={{ 
+            left: contextMenuPos.x, 
+            top: contextMenuPos.y,
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)'
+          }} 
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Colors Section */}
           <div className="px-3 py-2 border-b border-gray-100">
             <div className="flex gap-1.5">
@@ -1462,7 +1483,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
 };
 
 // Infinite Canvas
-const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNodeIds, onSelectNodes, onCanvasDoubleClick, isDrawingMode, isPanMode, drawingColor, drawingWidth, onAddMindmapChild, onAISparkle, gridSnap, showMinimap, otherUsers }: {
+const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNodeIds, onSelectNodes, onCanvasDoubleClick, isDrawingMode, isPanMode, drawingColor, drawingWidth, onAddMindmapChild, onAISparkle, gridSnap, showMinimap, otherUsers, onDisablePanMode }: {
   board: Board;
   onUpdateBoard: (updates: Partial<Board>) => void;
   onUpdateWithHistory: (updates: Partial<Board>, action: string) => void;
@@ -1478,6 +1499,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   gridSnap?: boolean;
   showMinimap?: boolean;
   otherUsers?: UserPresence[];
+  onDisablePanMode?: () => void;
 }) => {
   const [zoom, setZoom] = useState(board.zoom || 1);
   const [panX, setPanX] = useState(board.panX || 0);
@@ -2067,6 +2089,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
               zoom={zoom}
               selectedCount={selectedNodeIds.length}
               isDrawingMode={isDrawingMode}
+              onContextMenuOpen={onDisablePanMode}
             />
           ))}
         </AnimatePresence>
@@ -4705,6 +4728,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
           gridSnap={gridSnap}
           showMinimap={showMinimap}
           otherUsers={otherUsers}
+          onDisablePanMode={() => { setIsPanMode(false); setIsDrawingMode(false); }}
         />
 
         <AnimatePresence>
