@@ -573,4 +573,97 @@ export const workspaceApi = {
   }
 };
 
+// ============================================
+// ORGANIZATIONS (CLIENTS) API
+// ============================================
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  logo_url: string | null;
+  website: string | null;
+  industry: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const organizationsApi = {
+  // Get all organizations (clients)
+  async getAll(): Promise<Organization[]> {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    const { data, error } = await supabase
+      .from('organizations')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get single organization by ID
+  async getById(id: string): Promise<Organization | null> {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    const { data, error } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  },
+
+  // Create new organization (client)
+  async create(org: { name: string; slug?: string; website?: string; industry?: string }): Promise<Organization> {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    // Generate slug from name if not provided
+    const slug = org.slug || org.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    const { data, error } = await supabase
+      .from('organizations')
+      .insert({
+        name: org.name,
+        slug,
+        website: org.website || null,
+        industry: org.industry || null
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Update organization
+  async update(id: string, updates: Partial<Organization>): Promise<Organization> {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    const { data, error } = await supabase
+      .from('organizations')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Delete organization
+  async delete(id: string): Promise<void> {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    const { error } = await supabase
+      .from('organizations')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  }
+};
+
 export default supabase;

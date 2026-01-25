@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Target,
@@ -109,7 +109,17 @@ import {
   WifiOff,
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import { createClient, RealtimeChannel } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
+import { organizationsApi, boardsApi, notesApi, isSupabaseConfigured } from './lib/supabase';
+import TranscriptionPanelPro from './components/TranscriptionPanel';
+import TranscriptToWhiteboardModal, { VisualNodeInput } from './components/TranscriptToWhiteboardModal';
+import { FullTranscript } from './lib/transcription';
+import { CollaborationOverlay, UserPresenceList } from './components';
+import { useCollaboration } from './hooks/useCollaboration';
+// Note: getUserColor and getUserInitials available from realtime-collaboration if needed
+import ShareBoardModal from './components/ShareBoardModal';
+import ClientCommentsPanel from './components/ClientCommentsPanel';
+import { getCommentsForBoard, ClientComment, toggleCommentResolved } from './lib/client-portal';
 
 // Supabase client
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -231,7 +241,10 @@ interface UserPresence {
   color: string;
   cursorX: number;
   cursorY: number;
+  cursor?: { x: number; y: number } | null;
+  activeNodeId?: string | null;
   lastSeen: Date;
+  isOnline?: boolean;
 }
 
 interface HistoryEntry {
@@ -241,19 +254,34 @@ interface HistoryEntry {
   userId?: string;
 }
 
-// Client interface
+// Client interface (maps to fan_consulting organizations table)
 interface Client {
   id: string;
   name: string;
+  slug: string;
   company?: string;
   email?: string;
   phone?: string;
   avatar?: string;
+  logo_url?: string | null;
+  website?: string | null;
+  industry?: string | null;
   color: string;
   status: 'active' | 'inactive' | 'prospect';
   createdAt: Date;
   notes?: string;
 }
+
+// Generate a color from organization id/name for visual consistency
+const generateClientColor = (id: string): string => {
+  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash) + id.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
 
 // Project Note interface
 interface ProjectNote {
@@ -279,24 +307,6 @@ const PARTICIPANTS = [
 ];
 
 const NODE_COLORS = ['#fef3c7', '#fce7f3', '#dbeafe', '#d1fae5', '#f3e8ff', '#fee2e1'];
-
-const SAMPLE_CLIENTS: Client[] = [
-  { id: 'client-1', name: 'Acme Corp', company: 'Acme Corporation', email: 'contact@acme.com', phone: '555-0100', color: '#3b82f6', status: 'active', createdAt: new Date('2024-01-01'), notes: 'Enterprise client, Q1 strategy engagement' },
-  { id: 'client-2', name: 'TechStart Inc', company: 'TechStart Inc', email: 'hello@techstart.io', phone: '555-0200', color: '#10b981', status: 'active', createdAt: new Date('2024-01-10'), notes: 'Startup client, product roadmap project' },
-  { id: 'client-3', name: 'Global Services', company: 'Global Services LLC', email: 'info@globalservices.com', color: '#f59e0b', status: 'prospect', createdAt: new Date('2024-01-15'), notes: 'Potential client, initial consultation scheduled' },
-];
-
-const SAMPLE_NOTES: ProjectNote[] = [
-  { id: 'note-1', title: 'Project Overview', content: '<h2>Project Goals</h2><p>This document outlines our strategic objectives for Q1.</p><ul><li>Increase market share by 15%</li><li>Launch 3 new features</li><li>Improve customer satisfaction</li></ul>', icon: '📋', parentId: null, linkedBoardIds: ['1'], tags: ['strategy', 'q1'], createdAt: new Date('2024-01-15'), updatedAt: new Date() },
-  { id: 'note-2', title: 'Meeting Notes', content: '<h2>Weekly Sync - Jan 20</h2><p>Discussed roadmap priorities and resource allocation.</p><h3>Action Items</h3><ol><li>Review competitor analysis</li><li>Prepare demo for client</li></ol>', icon: '📝', parentId: null, linkedBoardIds: ['2'], tags: ['meetings'], createdAt: new Date('2024-01-20'), updatedAt: new Date() },
-  { id: 'note-3', title: 'Client Requirements', content: '<p>Detailed requirements gathered from Acme Corp stakeholder interviews.</p><table><tr><th>Requirement</th><th>Priority</th><th>Status</th></tr><tr><td>Dashboard redesign</td><td>High</td><td>In Progress</td></tr><tr><td>API integration</td><td>Medium</td><td>Planned</td></tr></table>', icon: '📄', parentId: null, clientId: 'client-1', linkedBoardIds: ['1'], tags: ['requirements', 'acme'], createdAt: new Date('2024-01-18'), updatedAt: new Date() },
-];
-
-const SAMPLE_BOARDS: Board[] = [
-  { id: '1', name: 'Q1 Strategy Planning', ownerId: '1', visualNodes: [], createdAt: new Date('2024-01-15'), zoom: 1, panX: 0, panY: 0, status: 'active', progress: 65, lastActivity: new Date(), participants: 4, clientId: 'client-1', linkedNoteIds: ['note-1', 'note-3'] },
-  { id: '2', name: 'Product Roadmap Review', ownerId: '1', visualNodes: [], createdAt: new Date('2024-01-10'), zoom: 1, panX: 0, panY: 0, status: 'active', progress: 40, lastActivity: new Date(Date.now() - 86400000), participants: 3, clientId: 'client-2', linkedNoteIds: ['note-2'] },
-  { id: '3', name: 'Team Retrospective', ownerId: '1', visualNodes: [], createdAt: new Date('2024-01-05'), zoom: 1, panX: 0, panY: 0, status: 'completed', progress: 100, lastActivity: new Date(Date.now() - 172800000), participants: 6 },
-];
 
 // Template categories for organization
 type TemplateCategory = 'strategy' | 'design' | 'agile' | 'meetings' | 'planning' | 'research' | 'workflow';
@@ -647,20 +657,60 @@ const Sidebar = ({
 };
 
 // Dashboard View
-const DashboardView = ({ boards, onOpenBoard, onCreateBoard }: { boards: Board[]; onOpenBoard: (board: Board) => void; onCreateBoard: (name: string, template: string) => void }) => {
+const DashboardView = ({ boards, onOpenBoard, onCreateBoard, clients, onAddClient, isLoadingClients }: {
+  boards: Board[];
+  onOpenBoard: (board: Board) => void;
+  onCreateBoard: (name: string, template: string, clientId: string) => void;
+  clients: Client[];
+  onAddClient: (client: Partial<Client>) => Promise<void>;
+  isLoadingClients: boolean;
+}) => {
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('blank');
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [showNewClientForm, setShowNewClientForm] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientWebsite, setNewClientWebsite] = useState('');
+  const [newClientIndustry, setNewClientIndustry] = useState('');
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
   const activeBoards = boards.filter(b => b.status === 'active');
   const completedBoards = boards.filter(b => b.status === 'completed');
   const totalProgress = boards.length > 0 ? Math.round(boards.reduce((acc, b) => acc + (b.progress || 0), 0) / boards.length) : 0;
 
   const handleCreateBoard = () => {
-    if (!newBoardName.trim()) return;
-    onCreateBoard(newBoardName, selectedTemplate);
+    if (!newBoardName.trim() || !selectedClientId) return;
+    onCreateBoard(newBoardName, selectedTemplate, selectedClientId);
     setNewBoardName('');
     setSelectedTemplate('blank');
+    setSelectedClientId('');
     setShowNewBoardModal(false);
+  };
+
+  const handleCreateNewClient = async () => {
+    if (!newClientName.trim()) return;
+    setIsCreatingClient(true);
+    try {
+      await onAddClient({
+        name: newClientName,
+        website: newClientWebsite || undefined,
+        industry: newClientIndustry || undefined
+      });
+      setNewClientName('');
+      setNewClientWebsite('');
+      setNewClientIndustry('');
+      setShowNewClientForm(false);
+    } catch (error) {
+      console.error('Failed to create client:', error);
+    } finally {
+      setIsCreatingClient(false);
+    }
+  };
+
+  const getClientName = (clientId: string | undefined) => {
+    if (!clientId) return 'No Client';
+    const client = clients.find(c => c.id === clientId);
+    return client?.name || 'Unknown Client';
   };
 
   const getStatusColor = (status: string) => {
@@ -736,13 +786,82 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard }: { boards: Board[]
                 <button onClick={() => setShowNewBoardModal(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
               </div>
               <div className="space-y-4">
+                {/* Client Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Board Name</label>
-                  <input type="text" value={newBoardName} onChange={(e) => setNewBoardName(e.target.value)} placeholder="e.g., Q2 Strategy Planning" className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" autoFocus />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Client *</label>
+                  {!showNewClientForm ? (
+                    <div className="space-y-2">
+                      {isLoadingClients ? (
+                        <div className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-400 bg-gray-50">
+                          Loading clients...
+                        </div>
+                      ) : (
+                        <select
+                          value={selectedClientId}
+                          onChange={(e) => setSelectedClientId(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="">Choose a client...</option>
+                          {clients.map(client => (
+                            <option key={client.id} value={client.id}>{client.name}</option>
+                          ))}
+                        </select>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowNewClientForm(true)}
+                        className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+                      >
+                        <Plus className="w-4 h-4" /> Add New Client
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-gray-50 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">New Client</span>
+                        <button onClick={() => setShowNewClientForm(false)} className="text-gray-400 hover:text-gray-600">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={newClientName}
+                        onChange={(e) => setNewClientName(e.target.value)}
+                        placeholder="Client name *"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                      />
+                      <input
+                        type="text"
+                        value={newClientWebsite}
+                        onChange={(e) => setNewClientWebsite(e.target.value)}
+                        placeholder="Website (optional)"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                      />
+                      <input
+                        type="text"
+                        value={newClientIndustry}
+                        onChange={(e) => setNewClientIndustry(e.target.value)}
+                        placeholder="Industry (optional)"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                      />
+                      <button
+                        onClick={handleCreateNewClient}
+                        disabled={!newClientName.trim() || isCreatingClient}
+                        className="w-full px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                      >
+                        {isCreatingClient ? 'Creating...' : 'Create Client'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Board Name *</label>
+                  <input type="text" value={newBoardName} onChange={(e) => setNewBoardName(e.target.value)} placeholder="e.g., Q2 Strategy Planning" className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Choose a Template</label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto">
                     {BOARD_TEMPLATES.map(t => (
                       <button key={t.id} onClick={() => setSelectedTemplate(t.id)} className={`p-4 rounded-xl border-2 text-left transition-all ${selectedTemplate === t.id ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
                         <div className="flex items-center gap-3 mb-2">
@@ -755,7 +874,7 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard }: { boards: Board[]
                   </div>
                 </div>
                 <div className="flex gap-3 pt-2">
-                  <motion.button whileHover={{ scale: 1.02 }} onClick={handleCreateBoard} disabled={!newBoardName.trim()} className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed">Create Board</motion.button>
+                  <motion.button whileHover={{ scale: 1.02 }} onClick={handleCreateBoard} disabled={!newBoardName.trim() || !selectedClientId} className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed">Create Board</motion.button>
                   <motion.button whileHover={{ scale: 1.02 }} onClick={() => setShowNewBoardModal(false)} className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium">Cancel</motion.button>
                 </div>
               </div>
@@ -770,9 +889,9 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard }: { boards: Board[]
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Board Name</th>
+                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Client</th>
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Status</th>
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Progress</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Participants</th>
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Last Activity</th>
                   <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
                 </tr>
@@ -797,6 +916,9 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard }: { boards: Board[]
                           <p className="text-xs text-gray-500">Created {formatDate(board.createdAt)}</p>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-gray-700">{getClientName(board.clientId)}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(board.status || 'active')}`}>
@@ -845,28 +967,26 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard }: { boards: Board[]
 };
 
 // Sticky Note Component
-const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, onDuplicate, onStartConnector, onAddMindmapChild, onAISparkle, onReact, zoom, selectedCount = 1, isDrawingMode = false, onContextMenuOpen }: {
+const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicate, onStartConnector, onAddMindmapChild, onAISparkle, zoom, selectedCount = 1, isDrawingMode = false, onContextMenuOpen, connectingFrom }: {
   node: VisualNode;
   isSelected: boolean;
   onSelect: (e?: React.MouseEvent) => void;
   onUpdate: (updates: Partial<VisualNode>) => void;
-  onVote: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
   onStartConnector: (nodeId: string) => void;
   onAddMindmapChild?: (nodeId: string) => void;
   onAISparkle?: (position: { x: number; y: number }) => void;
-  onReact?: (emoji: string) => void;
   zoom: number;
   selectedCount?: number;
   isDrawingMode?: boolean;
   onContextMenuOpen?: () => void;
+  connectingFrom?: string | null;
 }) => {
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [showReactions, setShowReactions] = useState(false);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
   const isFrame = node.type === 'frame';
-  const REACTION_EMOJIS = ['👍', '❤️', '🎉', '🔥', '💡', '⭐'];
 
   const handleResizeStart = (e: React.MouseEvent, direction: string) => {
     e.stopPropagation();
@@ -1040,39 +1160,23 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
     <>
     <motion.div
       initial={{ scale: 0.9, opacity: 0, x: node.x, y: node.y }}
-      animate={{ scale: 1, opacity: 1, x: node.x, y: node.y, rotate: node.rotation, boxShadow: isDragging ? '0 25px 50px -12px rgba(0, 0, 0, 0.25)' : isFrame || isText || isConnector ? 'none' : '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+      animate={{ scale: 1, opacity: 1, x: node.x, y: node.y, rotate: node.rotation, boxShadow: isDragging ? '0 25px 50px -12px rgba(0, 0, 0, 0.25)' : isFrame || isText || isConnector || node.type === 'drawing' ? 'none' : '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
       transition={isDragging ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 30 }}
       whileHover={{ scale: isSelected || isDragging ? 1 : 1.02, zIndex: 50 }}
-      className={`absolute ${isDrawingMode ? 'pointer-events-none' : 'pointer-events-auto'} ${isResizing ? '' : 'cursor-grab active:cursor-grabbing'} ${isFrame ? 'rounded-2xl border-2 border-dashed' : isText ? '' : isConnector ? '' : 'rounded-xl'} ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}
-      style={{ width: node.width, height: node.height, backgroundColor: isFrame ? `${node.color}80` : isText ? 'transparent' : node.color, borderColor: isFrame ? node.color : undefined, zIndex: isDragging ? 1000 : isSelected ? 100 : (node.zIndex ?? (isFrame ? 1 : 10)), ...getShapeStyles() }}
+      className={`absolute group ${isDrawingMode ? 'pointer-events-none' : 'pointer-events-auto'} ${isResizing ? '' : 'cursor-grab active:cursor-grabbing'} ${isFrame ? 'rounded-2xl border-2 border-dashed' : isText || isConnector || node.type === 'drawing' ? '' : 'rounded-xl'} ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}
+      style={{ width: node.width, height: node.height, backgroundColor: isFrame ? `${node.color}80` : isText || isConnector || node.type === 'drawing' ? 'transparent' : node.color, borderColor: isFrame ? node.color : undefined, zIndex: isDragging ? 1000 : isSelected ? 100 : (node.zIndex ?? (isFrame ? 1 : 10)), ...getShapeStyles() }}
       onClick={(e) => { e.stopPropagation(); onSelect(e); }}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
-      drag={!isResizing && !isDrawingMode && !node.locked}
+      drag={!isResizing && !isDrawingMode && !node.locked && !connectingFrom}
       dragMomentum={false}
       dragElastic={0}
       dragTransition={{ power: 0, timeConstant: 0 }}
       onDragStart={() => setIsDragging(true)}
       onDragEnd={(_, info) => { setIsDragging(false); if (!isResizing) onUpdate({ x: node.x + info.offset.x / zoom, y: node.y + info.offset.y / zoom }); }}
     >
-      {!isFrame && (
+      {!isFrame && !isConnector && node.type !== 'drawing' && (
         <>
-          <div className="absolute -top-3 -right-3 flex items-center gap-1 z-10">
-            <button onClick={(e) => { e.stopPropagation(); setShowReactions(!showReactions); }} className="w-7 h-7 bg-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform border border-gray-200" title="Add reaction">
-              <span className="text-xs">😊</span>
-            </button>
-            <button onClick={(e) => { e.stopPropagation(); onVote(); }} className="w-7 h-7 bg-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform border border-gray-200">
-              <span className="text-xs">👍</span>
-              {node.votes > 0 && <span className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-indigo-600 text-white text-[10px] rounded-full flex items-center justify-center font-medium">{node.votes}</span>}
-            </button>
-          </div>
-          {showReactions && (
-            <div className="absolute -top-12 right-0 bg-white rounded-xl shadow-xl border border-gray-200 p-1.5 flex gap-1 z-20" onClick={(e) => e.stopPropagation()}>
-              {REACTION_EMOJIS.map(emoji => (
-                <button key={emoji} onClick={() => { onReact?.(emoji); setShowReactions(false); }} className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-sm hover:scale-125 transition-transform">{emoji}</button>
-              ))}
-            </div>
-          )}
           {isSelected && onAISparkle && (
             <button
               onClick={(e) => {
@@ -1086,15 +1190,24 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
               <Sparkles className="w-4 h-4 text-white" />
             </button>
           )}
-          {/* Reactions display */}
-          {node.reactions && node.reactions.length > 0 && (
-            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white rounded-full shadow-md border border-gray-200 px-2 py-0.5 flex gap-1 z-10">
-              {node.reactions.map(r => (
-                <span key={r.emoji} className="text-xs flex items-center gap-0.5">
-                  {r.emoji}<span className="text-[10px] text-gray-500">{r.userIds.length}</span>
-                </span>
-              ))}
-            </div>
+          {/* Connection handle - right side */}
+          {!node.locked && !connectingFrom && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onStartConnector(node.id);
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2
+                         w-8 h-8 rounded-full bg-white border-2 border-gray-300
+                         flex items-center justify-center opacity-0 group-hover:opacity-100
+                         hover:border-indigo-500 hover:bg-indigo-100 hover:scale-110
+                         transition-all z-[60] cursor-crosshair shadow-md"
+              title="Click to connect to another element"
+            >
+              <ArrowRight className="w-4 h-4 text-indigo-500" />
+            </button>
           )}
         </>
       )}
@@ -1104,20 +1217,50 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
           <>
             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-200/50">
               <GripVertical className="w-4 h-4 text-gray-400" />
-              <span className="text-sm font-bold text-gray-700">{node.content.split('\n')[0]}</span>
+              <input
+                type="text"
+                value={node.content.split('\n')[0]}
+                onChange={(e) => {
+                  const lines = node.content.split('\n');
+                  lines[0] = e.target.value;
+                  onUpdate({ content: lines.join('\n') });
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 text-sm font-bold text-gray-700 bg-transparent border-none outline-none"
+                placeholder="Frame title..."
+              />
             </div>
-            <div className="flex-1 text-xs text-gray-500 whitespace-pre-wrap">{node.content.split('\n').slice(1).join('\n')}</div>
+            <textarea
+              value={node.content.split('\n').slice(1).join('\n')}
+              onChange={(e) => {
+                const title = node.content.split('\n')[0];
+                onUpdate({ content: title + '\n' + e.target.value });
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 text-xs text-gray-600 bg-transparent border-none outline-none resize-none w-full"
+              placeholder="Add notes..."
+            />
           </>
         )}
 
         {node.type === 'youtube' && node.mediaUrl && (
           <div className="w-full h-full rounded-xl overflow-hidden relative group">
-            <iframe src={node.mediaUrl} className="w-full h-full pointer-events-none" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="YouTube video" />
-            <div className="absolute inset-0 bg-transparent group-hover:bg-black/10 transition-colors flex items-center justify-center">
-              <div className="opacity-0 group-hover:opacity-100 bg-white/90 px-3 py-2 rounded-lg text-xs font-medium text-gray-700 shadow-lg transition-opacity">
-                <GripVertical className="w-4 h-4 inline mr-1" />Drag to move • Double-click for options
+            <iframe
+              src={node.mediaUrl}
+              className="w-full h-full"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              title="YouTube video"
+              style={{ pointerEvents: isSelected ? 'auto' : 'none' }}
+            />
+            {!isSelected && (
+              <div className="absolute inset-0 bg-transparent hover:bg-black/5 transition-colors flex items-center justify-center cursor-grab">
+                <div className="opacity-0 group-hover:opacity-100 bg-white/90 px-3 py-2 rounded-lg text-xs font-medium text-gray-700 shadow-lg transition-opacity">
+                  Click to select • Then interact with video
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -1176,8 +1319,48 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
           />
         )}
 
-        {isConnector && (
-          <div className="w-full h-1 rounded-full" style={{ backgroundColor: node.color, borderStyle: node.connectorStyle || 'solid' }} />
+        {isConnector && !node.connectorFrom && !node.connectorTo && (
+          <svg className="w-full h-full" viewBox={`0 0 ${node.width} ${node.height}`} preserveAspectRatio="none">
+            <defs>
+              <marker id={`arrow-${node.id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill={node.color || '#6b7280'} />
+              </marker>
+            </defs>
+            <line
+              x1="0"
+              y1={node.height / 2}
+              x2={node.width - 10}
+              y2={node.height / 2}
+              stroke={node.color || '#6b7280'}
+              strokeWidth="3"
+              strokeDasharray={node.connectorStyle === 'dashed' ? '10,6' : node.connectorStyle === 'dotted' ? '3,6' : 'none'}
+              markerEnd={`url(#arrow-${node.id})`}
+            />
+          </svg>
+        )}
+
+        {/* Drawing - render SVG path that scales with the node */}
+        {node.type === 'drawing' && node.paths && (
+          <svg
+            className="w-full h-full"
+            viewBox={`0 0 ${node.width} ${node.height}`}
+            preserveAspectRatio="none"
+            style={{ overflow: 'visible' }}
+          >
+            {node.paths.map((path, pathIndex) => (
+              <path
+                key={pathIndex}
+                d={path.points.reduce((acc: string, point: { x: number; y: number }, i: number) =>
+                  i === 0 ? `M ${point.x} ${point.y}` : `${acc} L ${point.x} ${point.y}`, ''
+                )}
+                stroke={path.color || '#3b82f6'}
+                strokeWidth={path.width || 3}
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ))}
+          </svg>
         )}
 
         {isComment && (
@@ -1435,9 +1618,67 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
             <button onClick={() => onUpdate({ color: '#f3e8ff' })} className="w-6 h-6 rounded bg-purple-100 hover:ring-2 ring-gray-300" title="Purple" />
             <div className="w-px h-5 bg-gray-200 mx-1" />
             <button onClick={() => onUpdate({ locked: !node.locked })} className="p-1.5 hover:bg-gray-100 rounded" title={node.locked ? 'Unlock' : 'Lock'}><Link className="w-4 h-4 text-gray-500" /></button>
-            <button className="p-1.5 hover:bg-gray-100 rounded" title="More options"><MoreVertical className="w-4 h-4 text-gray-500" /></button>
+            <div className="relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowMoreOptions(!showMoreOptions); }}
+                className={`p-1.5 hover:bg-gray-100 rounded ${showMoreOptions ? 'bg-gray-100' : ''}`}
+                title="More options"
+              >
+                <MoreVertical className="w-4 h-4 text-gray-500" />
+              </button>
+              {showMoreOptions && (
+                <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-[300] min-w-[160px]">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDuplicate(); setShowMoreOptions(false); }}
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <Copy className="w-4 h-4" /> Duplicate
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onStartConnector(node.id); setShowMoreOptions(false); }}
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <ArrowRight className="w-4 h-4" /> Connect to...
+                  </button>
+                  <div className="h-px bg-gray-200 my-1" />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(); setShowMoreOptions(false); }}
+                    className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" /> Delete
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </>
+      )}
+
+      {/* Highlight when this node is the connection source */}
+      {connectingFrom === node.id && (
+        <div className="absolute inset-0 border-2 border-indigo-500 rounded-lg
+                        pointer-events-none animate-pulse z-50" />
+      )}
+
+      {/* Show connection target indicator on other nodes */}
+      {connectingFrom && connectingFrom !== node.id && !isFrame && !isConnector && node.type !== 'drawing' && (
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onStartConnector(node.id);
+          }}
+          onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+          onMouseUp={(e) => { e.stopPropagation(); }}
+          className="absolute inset-[-2px] border-3 border-dashed border-indigo-500
+                     rounded-xl cursor-pointer hover:bg-indigo-200/40
+                     flex items-center justify-center pointer-events-auto"
+          style={{ zIndex: 9999, backgroundColor: 'rgba(99, 102, 241, 0.15)' }}
+        >
+          <div className="bg-indigo-600 text-white rounded-full p-3 shadow-xl animate-pulse">
+            <ArrowRight className="w-6 h-6" />
+          </div>
+        </div>
       )}
     </motion.div>
 
@@ -1562,7 +1803,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onVote, onDelete, on
 };
 
 // Infinite Canvas
-const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNodeIds, onSelectNodes, onCanvasDoubleClick, isDrawingMode, isPanMode, drawingColor, drawingWidth, onAddMindmapChild, onAISparkle, gridSnap, showMinimap, otherUsers, onDisablePanMode, onDropMedia }: {
+const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNodeIds, onSelectNodes, onCanvasDoubleClick, isDrawingMode, isPanMode, drawingColor, drawingWidth, onAddMindmapChild, onAISparkle, gridSnap, showMinimap, otherUsers, onDisablePanMode, onDropMedia, onCursorMove, editingNodes: _editingNodes }: {
   board: Board;
   onUpdateBoard: (updates: Partial<Board>) => void;
   onUpdateWithHistory: (updates: Partial<Board>, action: string) => void;
@@ -1580,6 +1821,8 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   otherUsers?: UserPresence[];
   onDisablePanMode?: () => void;
   onDropMedia?: (file: File, x: number, y: number) => void;
+  onCursorMove?: (cursor: { x: number; y: number } | null) => void;
+  editingNodes?: Map<string, { userId: string; userName: string; color: string }>;
 }) => {
   const [zoom, setZoom] = useState(board.zoom || 1);
   const [panX, setPanX] = useState(board.panX || 0);
@@ -1588,11 +1831,28 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   const isDrawingRef = useRef(false); // Synchronous ref for immediate access
   const [currentPath, setCurrentPath] = useState<{ x: number; y: number }[]>([]);
   const currentPathRef = useRef<{ x: number; y: number }[]>([]); // Synchronous ref
+  const [drawingTick, setDrawingTick] = useState(0); // Force re-render for real-time drawing
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0, panX: 0, panY: 0 });
   const [spacePressed, setSpacePressed] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  
+  // Build cursor map for collaboration overlay
+  const cursorMap = useMemo(() => {
+    const entries: [string, { x: number; y: number; name: string; color: string }][] = [];
+    if (otherUsers) {
+      otherUsers.forEach(u => {
+        entries.push([u.id, {
+          x: u.cursor?.x ?? u.cursorX ?? 0,
+          y: u.cursor?.y ?? u.cursorY ?? 0,
+          name: u.name,
+          color: u.color
+        }]);
+      });
+    }
+    return new globalThis.Map(entries);
+  }, [otherUsers]);
   
   // Lasso selection state
   const [isLassoing, setIsLassoing] = useState(false);
@@ -1632,7 +1892,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     const draggedRight = newX + draggedNode.width;
     const draggedBottom = newY + draggedNode.height;
     
-    board.visualNodes.filter(n => n.id !== draggedNode.id && n.type !== 'connector' && n.type !== 'drawing').forEach(node => {
+    board.visualNodes.filter(n => n.id !== draggedNode.id && n.type !== 'connector').forEach(node => {
       const nodeCenterX = node.x + node.width / 2;
       const nodeCenterY = node.y + node.height / 2;
       const nodeRight = node.x + node.width;
@@ -1758,7 +2018,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       // Cmd/Ctrl + A to select all
       if ((e.metaKey || e.ctrlKey) && e.code === 'KeyA') {
         e.preventDefault();
-        onSelectNodes(board.visualNodes.filter(n => n.type !== 'connector' && n.type !== 'drawing').map(n => n.id));
+        onSelectNodes(board.visualNodes.filter(n => !(n.type === 'connector' && n.connectorFrom && n.connectorTo)).map(n => n.id));
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -1877,6 +2137,12 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
 
   // Combined mouse move handler
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    // Broadcast cursor position for collaboration (throttled by the hook)
+    if (onCursorMove) {
+      const point = getCanvasPoint(e);
+      onCursorMove(point);
+    }
+    
     // Panning
     if (isPanning) {
       e.preventDefault();
@@ -1891,9 +2157,9 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     if ((isDrawingRef.current || isDrawing) && isDrawingMode) {
       e.preventDefault();
       const point = getCanvasPoint(e);
-      // Update both ref and state
+      // Update ref and force re-render with tick
       currentPathRef.current = [...currentPathRef.current, point];
-      setCurrentPath(currentPathRef.current);
+      setDrawingTick(t => t + 1); // Force immediate re-render
       return;
     }
     
@@ -1904,7 +2170,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
         setLassoEnd({ x: e.clientX - rect.left, y: e.clientY - rect.top });
       }
     }
-  }, [isPanning, panStart, isDrawing, isDrawingMode, getCanvasPoint, isLassoing, lassoStart]);
+  }, [isPanning, panStart, isDrawing, isDrawingMode, getCanvasPoint, isLassoing, lassoStart, onCursorMove]);
 
   // Combined mouse up handler
   const handleMouseUp = useCallback(() => {
@@ -1931,7 +2197,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       
       // Find all nodes that intersect with the selection rectangle
       const selectedIds = board.visualNodes
-        .filter(n => n.type !== 'connector' && n.type !== 'drawing')
+        .filter(n => !(n.type === 'connector' && n.connectorFrom && n.connectorTo))
         .filter(n => {
           return n.x < canvasRight && n.x + n.width > canvasLeft &&
                  n.y < canvasBottom && n.y + n.height > canvasTop;
@@ -2031,10 +2297,14 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   }, [onDropMedia, panX, panY, zoom]);
 
   // Get connector lines
-  const connectorLines = board.visualNodes.filter(n => n.type === 'connector' && n.connectorFrom && n.connectorTo).map(conn => {
+  const allConnectors = board.visualNodes.filter(n => n.type === 'connector');
+  const connectorLines = allConnectors.filter(n => n.connectorFrom && n.connectorTo).map(conn => {
     const fromNode = board.visualNodes.find(n => n.id === conn.connectorFrom);
     const toNode = board.visualNodes.find(n => n.id === conn.connectorTo);
-    if (!fromNode || !toNode) return null;
+    if (!fromNode || !toNode) {
+      console.log('Connector has invalid node refs:', conn.id, { from: conn.connectorFrom, to: conn.connectorTo });
+      return null;
+    }
     return {
       id: conn.id,
       x1: fromNode.x + fromNode.width / 2,
@@ -2045,6 +2315,11 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       style: conn.connectorStyle
     };
   }).filter(Boolean);
+
+  // Debug: Log connector status
+  if (allConnectors.length > 0 || connectorLines.length > 0) {
+    console.log('Connectors:', { total: allConnectors.length, rendered: connectorLines.length, lines: connectorLines });
+  }
 
   return (
     <div
@@ -2082,7 +2357,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       />
 
       {/* SVG Layer for Connectors and Drawings */}
-      <svg className="absolute inset-0 pointer-events-none" style={{ transform: `translate(${panX}px, ${panY}px) scale(${zoom})`, transformOrigin: 'top left' }}>
+      <svg className="absolute inset-0 pointer-events-none" style={{ transform: `translate(${panX}px, ${panY}px) scale(${zoom})`, transformOrigin: 'top left', overflow: 'visible' }}>
         <defs>
           {/* Arrow markers with different colors */}
           <marker id="arrowhead-gray" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
@@ -2104,15 +2379,34 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
             <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#f97316" />
           </marker>
         </defs>
-        {/* Connector lines with arrows */}
+        {/* Connector lines with arrows - curved bezier paths */}
         {connectorLines.map((line: any) => {
-          // Calculate angle and offset end point to not overlap with arrowhead
+          // Calculate control points for smooth bezier curve
           const dx = line.x2 - line.x1;
           const dy = line.y2 - line.y1;
-          const length = Math.sqrt(dx * dx + dy * dy);
-          const offsetX = length > 20 ? (dx / length) * 15 : 0;
-          const offsetY = length > 20 ? (dy / length) * 15 : 0;
-          
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          // Determine curve direction based on relative positions
+          const isHorizontal = Math.abs(dx) > Math.abs(dy);
+          const curveStrength = Math.min(distance * 0.4, 100);
+
+          let cx1, cy1, cx2, cy2;
+          if (isHorizontal) {
+            // Horizontal flow - curve vertically
+            cx1 = line.x1 + curveStrength;
+            cy1 = line.y1;
+            cx2 = line.x2 - curveStrength;
+            cy2 = line.y2;
+          } else {
+            // Vertical flow - curve horizontally
+            cx1 = line.x1;
+            cy1 = line.y1 + (dy > 0 ? curveStrength : -curveStrength);
+            cx2 = line.x2;
+            cy2 = line.y2 + (dy > 0 ? -curveStrength : curveStrength);
+          }
+
+          const pathD = `M ${line.x1} ${line.y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${line.x2} ${line.y2}`;
+
           // Get arrow color marker
           const getMarker = (color: string) => {
             if (color?.includes('3b82f6') || color?.includes('blue')) return 'url(#arrowhead-blue)';
@@ -2122,28 +2416,24 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
             if (color?.includes('f97316') || color?.includes('orange')) return 'url(#arrowhead-orange)';
             return 'url(#arrowhead-gray)';
           };
-          
+
           return (
             <g key={line.id}>
-              {/* Shadow line */}
-              <line 
-                x1={line.x1} 
-                y1={line.y1} 
-                x2={line.x2 - offsetX} 
-                y2={line.y2 - offsetY} 
-                stroke="rgba(0,0,0,0.1)" 
-                strokeWidth="4" 
+              {/* Shadow path */}
+              <path
+                d={pathD}
+                fill="none"
+                stroke="rgba(0,0,0,0.08)"
+                strokeWidth="4"
                 strokeLinecap="round"
               />
-              {/* Main line */}
-              <line 
-                x1={line.x1} 
-                y1={line.y1} 
-                x2={line.x2 - offsetX} 
-                y2={line.y2 - offsetY} 
-                stroke={line.color || '#6b7280'} 
-                strokeWidth="2.5" 
-                strokeDasharray={line.style === 'dashed' ? '10,6' : line.style === 'dotted' ? '3,6' : 'none'} 
+              {/* Main curved path */}
+              <path
+                d={pathD}
+                fill="none"
+                stroke={line.color || '#6b7280'}
+                strokeWidth="2"
+                strokeDasharray={line.style === 'dashed' ? '8,4' : line.style === 'dotted' ? '2,4' : undefined}
                 strokeLinecap="round"
                 markerEnd={getMarker(line.color)}
               />
@@ -2171,26 +2461,11 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
             />
           );
         })}
-        {/* Existing drawings */}
-        {board.visualNodes.filter(n => n.type === 'drawing' && n.paths).map(drawing => (
-          <g key={drawing.id} transform={`translate(${drawing.x}, ${drawing.y})`}>
-            {drawing.paths?.map((path, pathIndex) => (
-              <path
-                key={pathIndex}
-                d={path.points.reduce((acc, point, i) => i === 0 ? `M ${point.x} ${point.y}` : `${acc} L ${point.x} ${point.y}`, '')}
-                stroke={path.color}
-                strokeWidth={path.width}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ))}
-          </g>
-        ))}
-        {/* Current drawing in progress */}
-        {isDrawing && currentPath.length > 1 && (
+        {/* Current drawing in progress - use refs for real-time feedback */}
+        {isDrawingRef.current && currentPathRef.current.length > 0 && (
           <path
-            d={currentPath.reduce((acc, point, i) => i === 0 ? `M ${point.x} ${point.y}` : `${acc} L ${point.x} ${point.y}`, '')}
+            key={`drawing-${drawingTick}`}
+            d={currentPathRef.current.reduce((acc, point, i) => i === 0 ? `M ${point.x} ${point.y}` : `${acc} L ${point.x} ${point.y}`, '')}
             stroke={drawingColor || '#3b82f6'}
             strokeWidth={drawingWidth || 3}
             fill="none"
@@ -2237,7 +2512,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
 
       <motion.div className="absolute origin-top-left pointer-events-none" style={{ transform: `translate(${panX}px, ${panY}px) scale(${zoom})` }}>
         <AnimatePresence>
-          {board.visualNodes.filter(n => n.type !== 'connector' && n.type !== 'drawing').map(node => (
+          {board.visualNodes.filter(n => !(n.type === 'connector' && n.connectorFrom && n.connectorTo)).map(node => (
             <StickyNote
               key={node.id}
               node={node}
@@ -2272,7 +2547,6 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
                   onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === node.id ? { ...n, ...updates } : n) }, 'Edit element');
                 }
               }}
-              onVote={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === node.id ? { ...n, votes: n.votes + 1 } : n) }, 'Vote')}
               onDelete={() => {
                 // Delete all selected nodes if multiple are selected
                 if (selectedNodeIds.length > 1 && selectedNodeIds.includes(node.id)) {
@@ -2286,25 +2560,11 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
               onStartConnector={handleStartConnector}
               onAddMindmapChild={onAddMindmapChild}
               onAISparkle={onAISparkle}
-              onReact={(emoji) => {
-                const currentReactions = node.reactions || [];
-                const existingReaction = currentReactions.find(r => r.emoji === emoji);
-                let newReactions;
-                if (existingReaction) {
-                  if (existingReaction.userIds.includes('1')) {
-                    newReactions = currentReactions.map(r => r.emoji === emoji ? { ...r, userIds: r.userIds.filter(id => id !== '1') } : r).filter(r => r.userIds.length > 0);
-                  } else {
-                    newReactions = currentReactions.map(r => r.emoji === emoji ? { ...r, userIds: [...r.userIds, '1'] } : r);
-                  }
-                } else {
-                  newReactions = [...currentReactions, { emoji, userIds: ['1'] }];
-                }
-                onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === node.id ? { ...n, reactions: newReactions } : n) }, 'React');
-              }}
               zoom={zoom}
               selectedCount={selectedNodeIds.length}
               isDrawingMode={isDrawingMode}
               onContextMenuOpen={onDisablePanMode}
+              connectingFrom={connectingFrom}
             />
           ))}
         </AnimatePresence>
@@ -2317,7 +2577,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
         <button onClick={() => { setZoom(1); setPanX(0); setPanY(0); }} className="p-2 hover:bg-gray-100 rounded-lg" title="Reset view (0)"><Maximize2 className="w-4 h-4 text-gray-600" /></button>
         <button
           onClick={() => {
-            const nodes = board.visualNodes.filter(n => n.type !== 'connector' && n.type !== 'drawing');
+            const nodes = board.visualNodes.filter(n => !(n.type === 'connector' && n.connectorFrom && n.connectorTo));
             if (nodes.length === 0) return;
             const minX = Math.min(...nodes.map(n => n.x));
             const maxX = Math.max(...nodes.map(n => n.x + n.width));
@@ -2363,10 +2623,14 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
         />
       )}
       
-      {/* Other Users' Cursors */}
-      {otherUsers?.map(user => (
-        <UserCursor key={user.id} user={user} />
-      ))}
+      {/* Other Users' Cursors - Enhanced Collaboration Overlay */}
+      <CollaborationOverlay
+        cursors={cursorMap}
+        zoom={zoom}
+        panX={panX}
+        panY={panY}
+        showCursors={true}
+      />
     </div>
   );
 };
@@ -2510,7 +2774,7 @@ const Minimap = ({
         ))}
         
         {/* Nodes */}
-        {nodes.filter(n => n.type !== 'connector' && n.type !== 'drawing').map(node => (
+        {nodes.filter(n => !(n.type === 'connector' && n.connectorFrom && n.connectorTo)).map(node => (
           <rect
             key={node.id}
             x={(node.x - bounds.minX) * scale}
@@ -2590,110 +2854,10 @@ const AlignmentGuides = ({
   );
 };
 
-// Presentation Mode Component
-const PresentationMode = ({
-  isOpen,
-  frames,
-  currentFrameIndex,
-  onClose,
-  onNext,
-  onPrev,
-  onGoTo
-}: {
-  isOpen: boolean;
-  frames: VisualNode[];
-  currentFrameIndex: number;
-  onClose: () => void;
-  onNext: () => void;
-  onPrev: () => void;
-  onGoTo: (index: number) => void;
-}) => {
-  useEffect(() => {
-    if (!isOpen) return;
-    
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowRight' || e.key === ' ') onNext();
-      if (e.key === 'ArrowLeft') onPrev();
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose, onNext, onPrev]);
-
-  if (!isOpen) return null;
-  
-  const currentFrame = frames[currentFrameIndex];
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-gray-900 z-[100] flex flex-col"
-    >
-      {/* Header */}
-      <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-gradient-to-b from-black/50 to-transparent z-10">
-        <div className="flex items-center gap-4">
-          <h2 className="text-white text-xl font-bold">{currentFrame?.content || 'Untitled Frame'}</h2>
-          <span className="text-white/60 text-sm">{currentFrameIndex + 1} / {frames.length}</span>
-        </div>
-        <button onClick={onClose} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg">
-          <X className="w-6 h-6" />
-        </button>
-      </div>
-      
-      {/* Frame content area */}
-      <div className="flex-1 flex items-center justify-center p-20">
-        {currentFrame && (
-          <motion.div
-            key={currentFrame.id}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl p-8 max-w-4xl"
-            style={{ backgroundColor: currentFrame.color || '#ffffff' }}
-          >
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">{currentFrame.content}</h1>
-          </motion.div>
-        )}
-      </div>
-      
-      {/* Navigation */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-center gap-4 bg-gradient-to-t from-black/50 to-transparent">
-        <button 
-          onClick={onPrev} 
-          disabled={currentFrameIndex === 0}
-          className="p-3 text-white bg-white/10 hover:bg-white/20 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-        
-        <div className="flex gap-2">
-          {frames.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => onGoTo(i)}
-              className={`w-3 h-3 rounded-full transition-all ${i === currentFrameIndex ? 'bg-white scale-125' : 'bg-white/40 hover:bg-white/60'}`}
-            />
-          ))}
-        </div>
-        
-        <button 
-          onClick={onNext}
-          disabled={currentFrameIndex === frames.length - 1}
-          className="p-3 text-white bg-white/10 hover:bg-white/20 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          <ChevronRight className="w-6 h-6" />
-        </button>
-      </div>
-      
-      {/* Keyboard hints */}
-      <div className="absolute bottom-4 left-4 text-white/40 text-xs">
-        <span className="bg-white/10 px-2 py-1 rounded">←</span> / <span className="bg-white/10 px-2 py-1 rounded">→</span> navigate • <span className="bg-white/10 px-2 py-1 rounded">Esc</span> exit
-      </div>
-    </motion.div>
-  );
-};
+// Presentation Mode Components - Imported from separate files
+import { PresentationMode } from './components/PresentationMode';
+import { SlideOrderPanel } from './components/SlideOrderPanel';
+import { extractSlidesFromBoard } from './lib/presentation';
 
 // Version History Panel
 const VersionHistoryPanel = ({
@@ -2762,28 +2926,8 @@ const VersionHistoryPanel = ({
   );
 };
 
-// User Cursor Component (for collaboration)
-const UserCursor = ({ user }: { user: UserPresence }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0 }}
-      className="absolute pointer-events-none z-50"
-      style={{ left: user.cursorX, top: user.cursorY }}
-    >
-      <svg width="24" height="24" viewBox="0 0 24 24" fill={user.color}>
-        <path d="M5 3l14 7-7 1.5L10.5 19 5 3z" stroke="white" strokeWidth="1.5" />
-      </svg>
-      <div 
-        className="absolute left-5 top-5 px-2 py-1 rounded-md text-xs font-medium text-white whitespace-nowrap"
-        style={{ backgroundColor: user.color }}
-      >
-        {user.name}
-      </div>
-    </motion.div>
-  );
-};
+// Note: UserCursor component replaced by CollaborationOverlay which provides
+// enhanced cursor rendering with smooth animations and name labels
 
 // Share/Collaboration Modal
 const ShareModal = ({
@@ -3626,7 +3770,7 @@ const TemplateModal = ({ isOpen, onClose, onSelectTemplate }: { isOpen: boolean;
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000]" onClick={onClose}>
       <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-2xl w-[900px] max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="p-6 border-b border-gray-100">
@@ -3870,19 +4014,19 @@ const ActionItemsPanel = ({ actionItems, onToggleComplete, onAddAction, onAssign
 
   if (isMinimized) {
     return (
-      <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="absolute right-4 bottom-4 z-40">
+      <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="absolute right-4 top-[72px] z-40">
         <motion.button whileHover={{ scale: 1.05 }} onClick={onToggleMinimize} className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl shadow-lg border border-gray-200">
           <ListTodo className="w-5 h-5 text-indigo-600" />
           <span className="font-medium text-gray-700">Actions</span>
           {pendingCount > 0 && <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">{pendingCount}</span>}
-          <ChevronUp className="w-4 h-4 text-gray-400" />
+          <ChevronDown className="w-4 h-4 text-gray-400" />
         </motion.button>
       </motion.div>
     );
   }
 
   return (
-    <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="absolute right-4 bottom-4 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 z-40 max-h-[400px] flex flex-col">
+    <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="absolute right-4 top-[72px] w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 z-40 max-h-[400px] flex flex-col">
       <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-t-2xl">
         <div className="flex items-center gap-3">
           <ListTodo className="w-5 h-5" />
@@ -3890,7 +4034,7 @@ const ActionItemsPanel = ({ actionItems, onToggleComplete, onAddAction, onAssign
           {pendingCount > 0 && <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs font-medium">{pendingCount} pending</span>}
         </div>
         <motion.button whileHover={{ scale: 1.1 }} onClick={onToggleMinimize} className="p-1.5 bg-white/20 rounded-lg hover:bg-white/30">
-          <ChevronDown className="w-4 h-4" />
+          <ChevronUp className="w-4 h-4" />
         </motion.button>
       </div>
       <div className="p-4 flex-1 overflow-hidden flex flex-col">
@@ -4202,11 +4346,12 @@ const AISparkleMenu = ({
 };
 
 // Meeting View
-const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: { 
-  board: Board; 
-  onUpdateBoard: (updates: Partial<Board>) => void; 
+const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreateTranscriptNote }: {
+  board: Board;
+  onUpdateBoard: (updates: Partial<Board>) => void;
   onBack: () => void;
   onCreateAISummary?: (boardId: string, boardName: string, summary: string) => void;
+  onCreateTranscriptNote?: (boardId: string, boardName: string, transcriptContent: string, startTime: Date, endTime: Date) => void;
 }) => {
   const [currentUser] = useState({ id: '1', name: 'Scott Jones', color: '#10b981' });
   const [isRecording, setIsRecording] = useState(false);
@@ -4219,8 +4364,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
   const [showMediaModal, setShowMediaModal] = useState<'youtube' | 'image' | 'qr' | null>(null);
   const [currentSpeaker, setCurrentSpeaker] = useState('1');
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
-  const [isTranscriptMinimized, setIsTranscriptMinimized] = useState(false);
-  const [isActionsMinimized, setIsActionsMinimized] = useState(false);
+  const [isTranscriptMinimized, setIsTranscriptMinimized] = useState(true);
+  const [isActionsMinimized, setIsActionsMinimized] = useState(true);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [activePicker, setActivePicker] = useState<string | null>(null);
@@ -4240,8 +4385,11 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
   const [showTimer, setShowTimer] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState(board.name);
   const timerRef = useRef<NodeJS.Timeout>();
-  
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
   // New feature states
   const [gridSnap, setGridSnap] = useState(false);
   const [showMinimap, setShowMinimap] = useState(true);
@@ -4249,95 +4397,88 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [presentationFrameIndex, setPresentationFrameIndex] = useState(0);
-  const [otherUsers, setOtherUsers] = useState<UserPresence[]>([]);
+  const [showSlideOrderPanel, setShowSlideOrderPanel] = useState(false);
+  const [excludedSlides, setExcludedSlides] = useState<Set<string>>(new Set());
+  const [slideOrder, setSlideOrder] = useState<string[]>([]);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showClientShareModal, setShowClientShareModal] = useState(false);
+  const [showClientCommentsPanel, setShowClientCommentsPanel] = useState(false);
+  const [clientComments, setClientComments] = useState<ClientComment[]>([]);
+  const [_selectedClientCommentId, setSelectedClientCommentId] = useState<string | null>(null);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [showAITools, setShowAITools] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const channelRef = useRef<RealtimeChannel | null>(null);
+  const [showTranscriptToWhiteboardModal, setShowTranscriptToWhiteboardModal] = useState(false);
+  const [currentTranscriptForWhiteboard, setCurrentTranscriptForWhiteboard] = useState<FullTranscript | null>(null);
   
-  // Real-time collaboration setup
-  useEffect(() => {
-    if (!supabase) return;
-    
-    // Generate a unique user ID for this session
-    const myUserId = `user-${Math.random().toString(36).substr(2, 9)}`;
-    const myColor = NODE_COLORS[Math.floor(Math.random() * NODE_COLORS.length)];
-    const myName = `Guest ${Math.floor(Math.random() * 1000)}`;
-    
-    // Subscribe to the board channel
-    const channel = supabase.channel(`board:${board.id}`, {
-      config: {
-        presence: { key: myUserId },
-        broadcast: { self: false }
+  // Generate a stable user ID for this session
+  const [sessionUserId] = useState(() => `user-${Math.random().toString(36).substr(2, 9)}`);
+  const [sessionUserName] = useState(() => currentUser.name || `Guest ${Math.floor(Math.random() * 1000)}`);
+  
+  // Real-time collaboration using the new hook
+  const {
+    isConnected,
+    users: collaborationUsers,
+    currentUser: collabCurrentUser,
+    cursors: _cursors, // Available for future use
+    broadcastCursor,
+    editingNodes,
+    startEditing: _startEditing, // Available for node editing integration
+    stopEditing: _stopEditing, // Available for node editing integration
+    broadcastNodeChange: _broadcastNodeChange // Available for real-time sync
+  } = useCollaboration({
+    boardId: board.id,
+    userId: sessionUserId,
+    userName: sessionUserName,
+    userColor: currentUser.color,
+    enabled: !!supabase,
+    onNodeChange: (change) => {
+      // Another user updated the board
+      if (change.type === 'update' || change.type === 'add' || change.type === 'delete') {
+        if (change.data?.nodes) {
+          onUpdateBoard({ visualNodes: change.data.nodes });
+        }
       }
-    });
-    
-    // Handle presence updates
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        const users: UserPresence[] = [];
-        Object.entries(state).forEach(([key, presences]: [string, any]) => {
-          if (key !== myUserId && presences.length > 0) {
-            const presence = presences[0];
-            users.push({
-              id: key,
-              name: presence.name || 'Anonymous',
-              color: presence.color || '#6b7280',
-              cursorX: presence.cursorX || 0,
-              cursorY: presence.cursorY || 0,
-              lastSeen: new Date()
-            });
-          }
-        });
-        setOtherUsers(users);
-      })
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        console.log('User joined:', key, newPresences);
-      })
-      .on('presence', { event: 'leave' }, ({ key }) => {
-        setOtherUsers(prev => prev.filter(u => u.id !== key));
-      })
-      .on('broadcast', { event: 'cursor' }, ({ payload }) => {
-        setOtherUsers(prev => prev.map(u => 
-          u.id === payload.userId 
-            ? { ...u, cursorX: payload.x, cursorY: payload.y }
-            : u
-        ));
-      })
-      .on('broadcast', { event: 'board_update' }, ({ payload }) => {
-        // Another user updated the board
-        if (payload.nodes) {
-          onUpdateBoard({ visualNodes: payload.nodes });
-        }
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          setIsConnected(true);
-          await channel.track({
-            name: myName,
-            color: myColor,
-            cursorX: 0,
-            cursorY: 0
-          });
-        }
-      });
-    
-    channelRef.current = channel;
-    
-    return () => {
-      channel.unsubscribe();
-      setIsConnected(false);
-    };
-  }, [board.id, onUpdateBoard]);
+    }
+  });
+  
+  // Convert collaboration users to the old format for backward compatibility
+  const otherUsers: UserPresence[] = collaborationUsers.map(u => ({
+    id: u.id,
+    name: u.name,
+    color: u.color,
+    cursorX: u.cursor?.x ?? 0,
+    cursorY: u.cursor?.y ?? 0,
+    cursor: u.cursor,
+    activeNodeId: u.activeNodeId,
+    lastSeen: u.lastSeen,
+    isOnline: u.isOnline
+  }));
   
   // Refs for handlers that will be defined later
   const addNodesRef = useRef<(nodes: VisualNode[], action: string) => void>(() => {});
   
   // Get frames for presentation
   const frames = board.visualNodes.filter(n => n.type === 'frame');
+  
+  // Load client comments for this board
+  useEffect(() => {
+    const comments = getCommentsForBoard(board.id);
+    setClientComments(comments);
+  }, [board.id]);
+  
+  // Handle resolving client comments
+  const handleResolveClientComment = useCallback((commentId: string) => {
+    toggleCommentResolved(commentId, currentUser.name);
+    setClientComments(getCommentsForBoard(board.id));
+  }, [board.id, currentUser.name]);
+  
+  // Handle selecting a client comment (pan to location)
+  const handleSelectClientComment = useCallback((comment: ClientComment) => {
+    setSelectedClientCommentId(comment.id);
+    // Pan to the comment location - this would need to integrate with the canvas
+    // For now just select it
+  }, []);
   
   // Generate AI Summary from board content
   const generateAISummary = useCallback(() => {
@@ -4820,15 +4961,26 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
       setTranscript([]);
     } else {
       setIsRecording(false);
+      const endTime = new Date();
       if (transcript.length > 0 && recordingStartTime) {
-        const savedTranscript: SavedTranscript = { id: generateId(), entries: transcript, startedAt: recordingStartTime, endedAt: new Date(), duration: recordingDuration };
+        const savedTranscript: SavedTranscript = { id: generateId(), entries: transcript, startedAt: recordingStartTime, endedAt: endTime, duration: recordingDuration };
         const newSavedTranscripts = [...savedTranscripts, savedTranscript];
         setSavedTranscripts(newSavedTranscripts);
         localStorage.setItem(`board-transcripts-${board.id}`, JSON.stringify(newSavedTranscripts));
         onUpdateBoard({ transcripts: newSavedTranscripts });
+
+        // Create a note with the full transcript
+        if (onCreateTranscriptNote) {
+          const transcriptContent = transcript.map(entry => {
+            const speaker = PARTICIPANTS.find(p => p.id === entry.speaker);
+            const timeStamp = `${Math.floor(entry.timestamp / 60)}:${(entry.timestamp % 60).toString().padStart(2, '0')}`;
+            return `[${timeStamp}] ${speaker?.name || 'Unknown'}: ${entry.text}`;
+          }).join('\n');
+          onCreateTranscriptNote(board.id, board.name, transcriptContent, recordingStartTime, endTime);
+        }
       }
     }
-  }, [isRecording, transcript, recordingStartTime, recordingDuration, savedTranscripts, board.id, onUpdateBoard]);
+  }, [isRecording, transcript, recordingStartTime, recordingDuration, savedTranscripts, board.id, board.name, onUpdateBoard, onCreateTranscriptNote]);
 
   const handleAddTranscript = useCallback((text: string) => {
     if (!text.trim()) return;
@@ -5172,14 +5324,67 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
       <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <motion.button whileHover={{ scale: 1.05 }} onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronLeft className="w-5 h-5 text-gray-600" /></motion.button>
-          <div><h1 className="font-bold text-gray-900">{board.name}</h1><span className="text-sm text-gray-500">Whiteboard</span></div>
+          <div>
+            {isEditingName ? (
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                onBlur={() => {
+                  if (editedName.trim() && editedName !== board.name) {
+                    onUpdateBoard({ name: editedName.trim() });
+                  } else {
+                    setEditedName(board.name);
+                  }
+                  setIsEditingName(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    if (editedName.trim() && editedName !== board.name) {
+                      onUpdateBoard({ name: editedName.trim() });
+                    }
+                    setIsEditingName(false);
+                  } else if (e.key === 'Escape') {
+                    setEditedName(board.name);
+                    setIsEditingName(false);
+                  }
+                }}
+                className="font-bold text-gray-900 bg-white border border-indigo-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[200px]"
+                autoFocus
+              />
+            ) : (
+              <h1
+                className="font-bold text-gray-900 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded-lg transition-colors flex items-center gap-2 group"
+                onClick={() => {
+                  setIsEditingName(true);
+                  setEditedName(board.name);
+                }}
+                title="Click to rename"
+              >
+                {board.name}
+                <Pencil className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </h1>
+            )}
+            <span className="text-sm text-gray-500">Whiteboard</span>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <div className={`flex items-center gap-3 px-4 py-2 rounded-full ${isRecording ? 'bg-red-500' : 'bg-gray-200'}`}>
             <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: isRecording ? 1 : 0, repeat: isRecording ? Infinity : 0 }} className={`w-3 h-3 rounded-full ${isRecording ? 'bg-white' : 'bg-gray-400'}`} />
             {isRecording && <span className="text-white font-mono font-medium">{Math.floor(recordingDuration / 60).toString().padStart(2, '0')}:{(recordingDuration % 60).toString().padStart(2, '0')}</span>}
           </div>
-          <div className="flex -space-x-2">{PARTICIPANTS.slice(0, 4).map(p => <div key={p.id} className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-medium shadow-sm" style={{ backgroundColor: p.color }}>{p.name.charAt(0)}</div>)}</div>
+          {/* Real-time User Presence */}
+          <UserPresenceList
+            users={collaborationUsers}
+            currentUser={collabCurrentUser}
+            isConnected={isConnected}
+            editingNodes={editingNodes}
+            onFollowUser={(userId) => {
+              // TODO: Pan to user's cursor position
+              console.log('Follow user:', userId);
+            }}
+          />
           <div className="w-px h-8 bg-gray-200" />
           <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
             <motion.button whileHover={{ scale: 1.05 }} onClick={handleUndo} disabled={historyIndex <= 0} className={`p-2 rounded-lg ${historyIndex <= 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white'}`} title="Undo"><Undo2 className="w-4 h-4 text-gray-600" /></motion.button>
@@ -5217,12 +5422,29 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
             )}
           </motion.button>
           <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowAIPanel(!showAIPanel)} className={`px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${showAIPanel ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'}`}><Brain className="w-4 h-4" />AI Assistant</motion.button>
-          <motion.button whileHover={{ scale: 1.05 }} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-indigo-200"><Share2 className="w-4 h-4" />Share</motion.button>
+          {/* Client Comments Button */}
+          {clientComments.length > 0 && (
+            <motion.button 
+              whileHover={{ scale: 1.05 }} 
+              onClick={() => setShowClientCommentsPanel(!showClientCommentsPanel)} 
+              className={`px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2 relative ${showClientCommentsPanel ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
+            >
+              <MessageCircle className="w-4 h-4" />
+              Client Comments
+              {clientComments.filter(c => !c.resolved && !c.parentId).length > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {clientComments.filter(c => !c.resolved && !c.parentId).length}
+                </span>
+              )}
+            </motion.button>
+          )}
+          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowClientShareModal(true)} className="px-3 py-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-xl text-sm font-medium flex items-center gap-2"><Users className="w-4 h-4" />Client Portal</motion.button>
+          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowShareModal(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-indigo-200"><Share2 className="w-4 h-4" />Share</motion.button>
         </div>
       </header>
 
-      <div className="flex-1 flex relative" onClick={() => activePicker && setActivePicker(null)}>
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="absolute left-4 top-4 flex flex-col gap-2 z-30 max-h-[calc(100vh-180px)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent pr-1" onClick={(e) => e.stopPropagation()}>
+      <div className="flex-1 flex relative overflow-hidden" onClick={() => activePicker && setActivePicker(null)}>
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="absolute left-4 top-4 flex flex-col gap-2 z-[100] max-h-[calc(100vh-180px)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent pr-1" onClick={(e) => e.stopPropagation()}>
           <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200 relative">
             <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Notes</p>
             {[{ id: 'sticky', icon: FileText, label: 'Sticky Note', hasPicker: true }, { id: 'frame', icon: Layout, label: 'Frame' }, { id: 'opportunity', icon: Lightbulb, label: 'Opportunity', hasPicker: true }, { id: 'risk', icon: AlertCircle, label: 'Risk', hasPicker: true }, { id: 'action', icon: CheckSquare, label: 'Action', hasPicker: true }].map(tool => (
@@ -5239,10 +5461,10 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
                 <AnimatePresence>
                   {activePicker === tool.id && (
                     <motion.div
-                      initial={{ opacity: 0, x: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: -10, scale: 0.95 }}
-                      className="absolute left-full ml-2 top-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-3 z-50 w-64"
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      className="fixed left-20 top-24 bg-white rounded-xl shadow-2xl border border-gray-200 p-3 z-[200] w-64"
                     >
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-semibold text-gray-800">{tool.label}</span>
@@ -5617,22 +5839,53 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
               <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Export Canvas</div>
             </motion.button>
             {frames.length > 0 && (
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                onClick={() => { setIsPresentationMode(true); setPresentationFrameIndex(0); }}
-                className="p-3 hover:bg-gray-100 rounded-xl group relative"
-                title="Present"
-              >
-                <Presentation className="w-5 h-5 text-gray-700" />
-                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Present ({frames.length} frames)</div>
-              </motion.button>
+              <>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  onClick={() => { setIsPresentationMode(true); setPresentationFrameIndex(0); }}
+                  className="p-3 hover:bg-gray-100 rounded-xl group relative"
+                  title="Present"
+                >
+                  <Presentation className="w-5 h-5 text-gray-700" />
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Present ({frames.length} frames)</div>
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  onClick={() => setShowSlideOrderPanel(true)}
+                  className="p-3 hover:bg-gray-100 rounded-xl group relative"
+                  title="Slide Order"
+                >
+                  <ListOrdered className="w-5 h-5 text-gray-700" />
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Slide Order & Settings</div>
+                </motion.button>
+              </>
             )}
           </div>
         </motion.div>
 
         <ParsedItemsPanel items={parsedItems} onAddItem={handleAddParsedItemToBoard} onDismissItem={(id) => setParsedItems(prev => prev.filter(p => p.id !== id))} onAddAll={handleAddAllParsedItems} isVisible={!isTranscriptMinimized} />
 
-        <TranscriptPanel transcript={transcript} isRecording={isRecording} onToggleRecording={handleToggleRecording} currentSpeaker={currentSpeaker} onSpeakerChange={setCurrentSpeaker} onAddNote={handleAddTranscript} isMinimized={isTranscriptMinimized} onToggleMinimize={() => setIsTranscriptMinimized(!isTranscriptMinimized)} savedTranscripts={savedTranscripts} />
+        {/* Professional Transcription Panel with Speaker Diarization */}
+        <TranscriptionPanelPro
+          boardId={board.id}
+          boardName={board.name}
+          isMinimized={isTranscriptMinimized}
+          onToggleMinimize={() => setIsTranscriptMinimized(!isTranscriptMinimized)}
+          onCreateNote={(title, content, _actionItems) => {
+            if (onCreateTranscriptNote) {
+              // Create note with full HTML content
+              // Action items are included in the content by the TranscriptionPanel
+              onCreateTranscriptNote(board.id, title, content, new Date(), new Date());
+            }
+          }}
+          onGenerateWhiteboard={(transcript) => {
+            setCurrentTranscriptForWhiteboard(transcript);
+            setShowTranscriptToWhiteboardModal(true);
+          }}
+        />
+        
+        {/* Legacy TranscriptPanel for backward compatibility (hidden by default) */}
+        {false && <TranscriptPanel transcript={transcript} isRecording={isRecording} onToggleRecording={handleToggleRecording} currentSpeaker={currentSpeaker} onSpeakerChange={setCurrentSpeaker} onAddNote={handleAddTranscript} isMinimized={true} onToggleMinimize={() => {}} savedTranscripts={savedTranscripts} />}
 
         <ActionItemsPanel actionItems={actionItems} onToggleComplete={handleToggleActionComplete} onAddAction={handleAddAction} onAssignUser={handleAssignUser} isMinimized={isActionsMinimized} onToggleMinimize={() => setIsActionsMinimized(!isActionsMinimized)} />
 
@@ -5751,6 +6004,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
           otherUsers={otherUsers}
           onDisablePanMode={() => { setIsPanMode(false); setIsDrawingMode(false); }}
           onDropMedia={handleDropMedia}
+          onCursorMove={broadcastCursor}
+          editingNodes={editingNodes}
         />
 
         <AnimatePresence>
@@ -5786,16 +6041,48 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
         {showExportModal && <ExportModal isOpen={showExportModal} onClose={() => setShowExportModal(false)} onExport={handleExport} />}
         {isPresentationMode && (
           <PresentationMode
+            board={board}
             isOpen={isPresentationMode}
-            frames={frames}
-            currentFrameIndex={presentationFrameIndex}
-            onClose={() => setIsPresentationMode(false)}
-            onNext={() => setPresentationFrameIndex(i => Math.min(i + 1, frames.length - 1))}
-            onPrev={() => setPresentationFrameIndex(i => Math.max(i - 1, 0))}
-            onGoTo={setPresentationFrameIndex}
+            onExit={() => setIsPresentationMode(false)}
+            startSlide={presentationFrameIndex}
           />
         )}
       </AnimatePresence>
+      
+      {/* Slide Order Panel */}
+      <SlideOrderPanel
+        slides={extractSlidesFromBoard(board)}
+        excludedSlides={excludedSlides}
+        currentSlide={presentationFrameIndex}
+        onReorder={(fromIndex, toIndex) => {
+          const newOrder = [...slideOrder];
+          const [removed] = newOrder.splice(fromIndex, 1);
+          newOrder.splice(toIndex, 0, removed);
+          setSlideOrder(newOrder);
+        }}
+        onToggleExclusion={(slideId) => {
+          setExcludedSlides(prev => {
+            const next = new Set(prev);
+            if (next.has(slideId)) {
+              next.delete(slideId);
+            } else {
+              next.add(slideId);
+            }
+            return next;
+          });
+        }}
+        onReset={() => {
+          setSlideOrder([]);
+          setExcludedSlides(new Set());
+        }}
+        onClose={() => setShowSlideOrderPanel(false)}
+        onStartPresentation={(slideIndex) => {
+          setPresentationFrameIndex(slideIndex);
+          setIsPresentationMode(true);
+          setShowSlideOrderPanel(false);
+        }}
+        isOpen={showSlideOrderPanel}
+      />
       
       {/* Version History Panel */}
       <AnimatePresence>
@@ -5825,7 +6112,26 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
             onCreateSticky={handleVoiceToSticky}
           />
         )}
+        {showClientShareModal && (
+          <ShareBoardModal
+            isOpen={showClientShareModal}
+            onClose={() => setShowClientShareModal(false)}
+            boardId={board.id}
+            boardName={board.name}
+            companyName="Fan Consulting"
+          />
+        )}
       </AnimatePresence>
+      
+      {/* Client Comments Panel */}
+      <ClientCommentsPanel
+        isOpen={showClientCommentsPanel}
+        onClose={() => setShowClientCommentsPanel(false)}
+        comments={clientComments}
+        onSelectComment={handleSelectClientComment}
+        onResolveComment={handleResolveClientComment}
+        isOwner={true}
+      />
       
       {/* AI Tools Panel */}
       <AnimatePresence>
@@ -5840,6 +6146,38 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary }: {
           />
         )}
       </AnimatePresence>
+      
+      {/* Transcript to Whiteboard Modal */}
+      {showTranscriptToWhiteboardModal && currentTranscriptForWhiteboard && (
+        <TranscriptToWhiteboardModal
+          isOpen={showTranscriptToWhiteboardModal}
+          onClose={() => {
+            setShowTranscriptToWhiteboardModal(false);
+            setCurrentTranscriptForWhiteboard(null);
+          }}
+          transcript={currentTranscriptForWhiteboard}
+          onAddNodes={(nodes: VisualNodeInput[]) => {
+            // Calculate viewport center for positioning
+            const viewportCenterX = (-board.panX + window.innerWidth / 2) / (board.zoom || 1);
+            const viewportCenterY = (-board.panY + window.innerHeight / 2) / (board.zoom || 1);
+            
+            // Convert VisualNodeInput to VisualNode with proper defaults
+            const visualNodes: VisualNode[] = nodes.map((node: VisualNodeInput) => ({
+              ...node,
+              // Offset positions relative to viewport center
+              x: viewportCenterX + node.x - 100,
+              y: viewportCenterY + node.y - 100,
+              createdBy: currentUser.id,
+            }));
+            
+            handleUpdateBoardWithHistory(
+              { visualNodes: [...board.visualNodes, ...visualNodes] },
+              `Add ${nodes.length} items from transcript`
+            );
+          }}
+          startPosition={{ x: 0, y: 0 }}
+        />
+      )}
     </div>
   );
 };
@@ -6183,41 +6521,64 @@ const NotesView = ({ boards, onOpenBoard, notes, onUpdateNotes }: {
 };
 
 // Clients View
-const ClientsView = ({ boards, onOpenBoard }: { boards: Board[]; onOpenBoard: (board: Board) => void }) => {
-  const [clients, setClients] = useState<Client[]>(SAMPLE_CLIENTS);
+const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange }: {
+  boards: Board[];
+  onOpenBoard: (board: Board) => void;
+  clients: Client[];
+  onClientsChange: (clients: Client[]) => void;
+}) => {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'prospect'>('all');
+  const [isLoading, setIsLoading] = useState(false);
 
   const selectedClient = clients.find(c => c.id === selectedClientId);
   const clientBoards = selectedClientId ? boards.filter(b => b.clientId === selectedClientId) : [];
-  
+
   const filteredClients = clients.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           c.company?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filterStatus === 'all' || c.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
 
-  const handleAddClient = (data: Partial<Client>) => {
-    const newClient: Client = {
-      id: generateId(),
-      name: data.name || 'New Client',
-      company: data.company,
-      email: data.email,
-      phone: data.phone,
-      color: NODE_COLORS[Math.floor(Math.random() * NODE_COLORS.length)],
-      status: 'active',
-      createdAt: new Date(),
-      notes: ''
-    };
-    setClients(prev => [...prev, newClient]);
-    setShowAddModal(false);
+  const handleAddClient = async (data: Partial<Client>) => {
+    setIsLoading(true);
+    try {
+      // Save to fan_consulting database
+      const org = await organizationsApi.create({
+        name: data.name || 'New Client',
+        website: data.website || undefined,
+        industry: data.industry || undefined
+      });
+
+      // Convert to Client format and add to local state
+      const newClient: Client = {
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        company: org.name,
+        logo_url: org.logo_url,
+        website: org.website,
+        industry: org.industry,
+        color: generateClientColor(org.id),
+        status: 'active',
+        createdAt: new Date(org.created_at),
+        notes: ''
+      };
+      onClientsChange([...clients, newClient]);
+      setShowAddModal(false);
+    } catch (error) {
+      console.error('Failed to create client:', error);
+      alert('Failed to create client. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUpdateClient = (id: string, updates: Partial<Client>) => {
-    setClients(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    onClientsChange(clients.map(c => c.id === id ? { ...c, ...updates } : c));
   };
 
   const getBoardCountForClient = (clientId: string) => boards.filter(b => b.clientId === clientId).length;
@@ -6437,8 +6798,10 @@ const ClientsView = ({ boards, onOpenBoard }: { boards: Board[]; onOpenBoard: (b
                   </div>
                 </div>
                 <div className="flex gap-3 mt-6">
-                  <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
-                  <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">Add Client</button>
+                  <button type="button" onClick={() => setShowAddModal(false)} disabled={isLoading} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50">Cancel</button>
+                  <button type="submit" disabled={isLoading} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">
+                    {isLoading ? 'Adding...' : 'Add Client'}
+                  </button>
                 </div>
               </form>
             </motion.div>
@@ -6453,18 +6816,245 @@ const ClientsView = ({ boards, onOpenBoard }: { boards: Board[]; onOpenBoard: (b
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [boards, setBoards] = useState<Board[]>(SAMPLE_BOARDS);
+  const [boards, setBoards] = useState<Board[]>([]);
   const [activeBoard, setActiveBoard] = useState<Board | null>(null);
-  const [notes, setNotes] = useState<ProjectNote[]>(SAMPLE_NOTES);
+  const [notes, setNotes] = useState<ProjectNote[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [isLoadingClients, setIsLoadingClients] = useState(true);
+  const [supabaseConnected, setSupabaseConnected] = useState(false);
+  const [supabaseTablesExist, setSupabaseTablesExist] = useState(true); // Assume true, set false on first error
+
+  // Fetch clients from fan_consulting database on mount, fallback to localStorage
+  useEffect(() => {
+    const fetchClients = async () => {
+      // First, check if Supabase is configured
+      if (isSupabaseConfigured()) {
+        try {
+          const orgs = await organizationsApi.getAll();
+          const mappedClients: Client[] = orgs.map(org => ({
+            id: org.id,
+            name: org.name,
+            slug: org.slug,
+            company: org.name,
+            logo_url: org.logo_url,
+            website: org.website,
+            industry: org.industry,
+            color: generateClientColor(org.id),
+            status: 'active' as const,
+            createdAt: new Date(org.created_at),
+            notes: ''
+          }));
+          setClients(mappedClients);
+          setSupabaseConnected(true);
+          // Also save to localStorage as backup
+          localStorage.setItem('fan-canvas-clients', JSON.stringify(mappedClients));
+        } catch (error) {
+          console.error('Failed to fetch clients from Supabase:', error);
+          // Fallback to localStorage
+          loadClientsFromLocalStorage();
+        }
+      } else {
+        console.log('Supabase not configured, using localStorage');
+        loadClientsFromLocalStorage();
+      }
+      setIsLoadingClients(false);
+    };
+
+    const loadClientsFromLocalStorage = () => {
+      const savedClients = localStorage.getItem('fan-canvas-clients');
+      if (savedClients) {
+        try {
+          const parsed = JSON.parse(savedClients);
+          setClients(parsed.map((c: any) => ({
+            ...c,
+            createdAt: new Date(c.createdAt)
+          })));
+        } catch (e) {
+          console.error('Failed to parse saved clients:', e);
+        }
+      }
+    };
+
+    fetchClients();
+  }, []);
 
   const handleOpenBoard = (board: Board) => { setActiveBoard(board); setCurrentView('meeting'); };
+
+  // Auto-save to localStorage and Supabase whenever board updates
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const handleUpdateBoard = (updates: Partial<Board>) => {
     if (activeBoard) {
-      const updatedBoard = { ...activeBoard, ...updates };
+      const updatedBoard = { ...activeBoard, ...updates, lastActivity: new Date() };
       setActiveBoard(updatedBoard);
-      setBoards(prev => prev.map(b => b.id === activeBoard.id ? updatedBoard : b));
+      setBoards(prev => {
+        const newBoards = prev.map(b => b.id === activeBoard.id ? updatedBoard : b);
+        // Auto-save with debounce
+        if (autoSaveTimeoutRef.current) {
+          clearTimeout(autoSaveTimeoutRef.current);
+        }
+        autoSaveTimeoutRef.current = setTimeout(async () => {
+          // Save to localStorage
+          localStorage.setItem('fan-canvas-boards', JSON.stringify(newBoards));
+          console.log('Auto-saved board to localStorage:', updatedBoard.name);
+
+          // Save to Supabase if configured and tables exist
+          if (isSupabaseConfigured() && supabaseTablesExist) {
+            try {
+              await boardsApi.update(updatedBoard.id, {
+                name: updatedBoard.name,
+                visual_nodes: updatedBoard.visualNodes,
+                zoom: updatedBoard.zoom || 1,
+                pan_x: updatedBoard.panX || 0,
+                pan_y: updatedBoard.panY || 0,
+                last_activity: new Date().toISOString()
+              });
+              console.log('Auto-saved board to Supabase:', updatedBoard.name);
+            } catch (error: any) {
+              // Check if table doesn't exist (PGRST205 error)
+              if (error?.code === 'PGRST205') {
+                console.warn('Supabase tables not set up. Run database/supabase_setup.sql in your Supabase SQL Editor.');
+                setSupabaseTablesExist(false);
+              } else {
+                console.error('Failed to save board to Supabase:', error);
+              }
+            }
+          }
+        }, 500);
+        return newBoards;
+      });
     }
   };
+
+  // Load boards from localStorage on mount (only once)
+  const boardsLoadedRef = useRef(false);
+  useEffect(() => {
+    if (boardsLoadedRef.current) return; // Only load once
+    boardsLoadedRef.current = true;
+
+    const savedBoards = localStorage.getItem('fan-canvas-boards');
+    if (savedBoards) {
+      try {
+        const parsed = JSON.parse(savedBoards);
+        // Clean up orphan connectors (connectors referencing non-existent nodes)
+        const cleanedBoards = parsed.map((b: any) => {
+          const nodeIds = new Set(b.visualNodes?.map((n: any) => n.id) || []);
+          const cleanedNodes = b.visualNodes?.filter((n: any) => {
+            // Keep non-connectors
+            if (n.type !== 'connector') return true;
+            // Keep connectors without from/to (standalone lines)
+            if (!n.connectorFrom && !n.connectorTo) return true;
+            // Only keep connectors where both referenced nodes exist
+            return nodeIds.has(n.connectorFrom) && nodeIds.has(n.connectorTo);
+          }) || [];
+          return {
+            ...b,
+            visualNodes: cleanedNodes,
+            createdAt: new Date(b.createdAt),
+            lastActivity: b.lastActivity ? new Date(b.lastActivity) : new Date()
+          };
+        });
+        setBoards(cleanedBoards);
+        // Save cleaned boards back to localStorage
+        localStorage.setItem('fan-canvas-boards', JSON.stringify(cleanedBoards));
+        console.log('Loaded boards from localStorage (cleaned orphan connectors)');
+      } catch (e) {
+        console.error('Failed to load saved boards:', e);
+      }
+    }
+  }, []);
+
+  // Load notes from localStorage on mount (only once)
+  const notesLoadedRef = useRef(false);
+  useEffect(() => {
+    if (notesLoadedRef.current) return; // Only load once
+    notesLoadedRef.current = true;
+
+    const savedNotes = localStorage.getItem('fan-canvas-notes');
+    if (savedNotes) {
+      try {
+        const parsed = JSON.parse(savedNotes);
+        setNotes(parsed.map((n: any) => ({
+          ...n,
+          createdAt: new Date(n.createdAt),
+          updatedAt: n.updatedAt ? new Date(n.updatedAt) : new Date()
+        })));
+        console.log('Loaded notes from localStorage');
+      } catch (e) {
+        console.error('Failed to load saved notes:', e);
+      }
+    }
+  }, []);
+
+  // Auto-save notes to localStorage and Supabase whenever notes change
+  const notesAutoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    if (notes.length === 0) return;
+
+    if (notesAutoSaveTimeoutRef.current) {
+      clearTimeout(notesAutoSaveTimeoutRef.current);
+    }
+
+    notesAutoSaveTimeoutRef.current = setTimeout(async () => {
+      // Save to localStorage
+      localStorage.setItem('fan-canvas-notes', JSON.stringify(notes));
+      console.log('Auto-saved notes to localStorage');
+
+      // Save to Supabase if configured and tables exist
+      if (isSupabaseConfigured() && supabaseTablesExist) {
+        try {
+          // For each note, upsert to Supabase
+          for (const note of notes) {
+            const supabaseNote = {
+              id: note.id,
+              title: note.title,
+              content: note.content || '',
+              icon: note.icon || '📝',
+              parent_id: note.parentId || null,
+              sort_order: 0,
+              tags: note.tags || [],
+              is_ai_generated: note.tags?.includes('ai-summary') || note.tags?.includes('auto-generated') || false,
+              source_board_id: note.linkedBoardIds?.[0] || null,
+              owner_id: null,
+              organization_id: null
+            };
+
+            try {
+              await notesApi.update(note.id, supabaseNote);
+            } catch (updateError: any) {
+              // Check if table doesn't exist
+              if (updateError?.code === 'PGRST205') {
+                console.warn('Supabase tables not set up. Run database/supabase_setup.sql in your Supabase SQL Editor.');
+                setSupabaseTablesExist(false);
+                break;
+              }
+              // If update fails (note doesn't exist), try to create
+              try {
+                await notesApi.create(supabaseNote);
+              } catch (createError: any) {
+                if (createError?.code === 'PGRST205') {
+                  console.warn('Supabase tables not set up. Run database/supabase_setup.sql in your Supabase SQL Editor.');
+                  setSupabaseTablesExist(false);
+                  break;
+                }
+                console.error('Failed to save note to Supabase:', createError);
+              }
+            }
+          }
+          if (supabaseTablesExist) {
+            console.log('Auto-saved notes to Supabase');
+          }
+        } catch (error: any) {
+          if (error?.code === 'PGRST205') {
+            console.warn('Supabase tables not set up. Run database/supabase_setup.sql in your Supabase SQL Editor.');
+            setSupabaseTablesExist(false);
+          } else {
+            console.error('Failed to save notes to Supabase:', error);
+          }
+        }
+      }
+    }, 1000);
+  }, [notes]);
+
   const handleBackToDashboard = () => { setCurrentView('dashboard'); setActiveBoard(null); };
   
   // Handler for creating AI summary notes from whiteboard
@@ -6505,12 +7095,66 @@ export default function App() {
     }
   }, [notes]);
 
-  const handleCreateBoard = (name: string, templateId: string) => {
+  // Handler for creating transcript notes from recordings
+  // Supports both legacy format (raw text) and new format (pre-formatted HTML)
+  const handleCreateTranscriptNote = useCallback((boardId: string, titleOrBoardName: string, transcriptContent: string, startTime: Date, endTime: Date) => {
+    const formatDate = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const formatTime = (date: Date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const duration = Math.round((endTime.getTime() - startTime.getTime()) / 1000 / 60);
+
+    // Check if content is already HTML (from new TranscriptionPanel)
+    const isPreFormattedHTML = transcriptContent.includes('<div') || transcriptContent.includes('<p') || transcriptContent.includes('<h');
+    
+    let noteContent: string;
+    let noteTitle: string;
+    
+    if (isPreFormattedHTML) {
+      // New format: content is already formatted HTML, title is the actual title
+      noteContent = `<h2>🎙️ Meeting Transcript</h2>
+<p><strong>Date:</strong> ${formatDate(new Date())}</p>
+<hr/>
+${transcriptContent}`;
+      noteTitle = titleOrBoardName;
+    } else {
+      // Legacy format: content is raw text, titleOrBoardName is board name
+      noteContent = `<h2>Recording Session</h2>
+<p><strong>Date:</strong> ${formatDate(startTime)}</p>
+<p><strong>Time:</strong> ${formatTime(startTime)} - ${formatTime(endTime)} (${duration} min)</p>
+<p><strong>Board:</strong> ${titleOrBoardName}</p>
+<hr/>
+<h3>Full Transcript</h3>
+<pre style="white-space: pre-wrap; font-family: inherit; background: #f5f5f5; padding: 12px; border-radius: 8px;">${transcriptContent}</pre>`;
+      noteTitle = `${titleOrBoardName} - Transcript ${formatDate(startTime)}`;
+    }
+
+    const newNote: ProjectNote = {
+      id: generateId(),
+      title: noteTitle,
+      content: noteContent,
+      icon: '🎙️',
+      parentId: null,
+      linkedBoardIds: [boardId],
+      tags: ['transcript', 'recording', 'diarization'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    setNotes(prev => [newNote, ...prev]);
+
+    // Also update the board to link to this note
+    setBoards(prev => prev.map(b =>
+      b.id === boardId
+        ? { ...b, linkedNoteIds: [...(b.linkedNoteIds || []), newNote.id] }
+        : b
+    ));
+  }, []);
+
+  const handleCreateBoard = (name: string, templateId: string, clientId: string) => {
     const template = BOARD_TEMPLATES.find(t => t.id === templateId);
     const newBoard: Board = {
       id: generateId(),
       name,
       ownerId: '1',
+      clientId,
       visualNodes: template?.nodes?.map((n: any, i: number) => ({
         id: generateId(),
         type: n.type || 'sticky',
@@ -6550,7 +7194,8 @@ export default function App() {
         setActiveBoard(lastActiveBoard);
         setCurrentView('meeting');
       } else {
-        handleCreateBoard('New Board', 'blank');
+        // Switch to dashboard to create a new board (requires client selection)
+        setCurrentView('dashboard');
       }
     } else {
       setCurrentView(view);
@@ -6558,13 +7203,80 @@ export default function App() {
     }
   };
 
+  const handleAddClient = async (data: Partial<Client>) => {
+    const clientName = data.name || 'New Client';
+
+    // If Supabase is configured, try to create in database
+    if (isSupabaseConfigured() && supabaseConnected) {
+      try {
+        const org = await organizationsApi.create({
+          name: clientName,
+          website: data.website || undefined,
+          industry: data.industry || undefined
+        });
+
+        const newClient: Client = {
+          id: org.id,
+          name: org.name,
+          slug: org.slug,
+          company: org.name,
+          logo_url: org.logo_url,
+          website: org.website,
+          industry: org.industry,
+          color: generateClientColor(org.id),
+          status: 'active',
+          createdAt: new Date(org.created_at),
+          notes: ''
+        };
+        setClients(prev => {
+          const updated = [...prev, newClient];
+          localStorage.setItem('fan-canvas-clients', JSON.stringify(updated));
+          return updated;
+        });
+        return;
+      } catch (error) {
+        console.error('Failed to create client in Supabase:', error);
+        // Fall through to local-only creation
+      }
+    }
+
+    // Create client locally (when Supabase not configured or failed)
+    const newClient: Client = {
+      id: crypto.randomUUID(),
+      name: clientName,
+      slug: clientName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+      company: clientName,
+      logo_url: null,
+      website: data.website || null,
+      industry: data.industry || null,
+      color: generateClientColor(crypto.randomUUID()),
+      status: 'active',
+      createdAt: new Date(),
+      notes: ''
+    };
+    setClients(prev => {
+      const updated = [...prev, newClient];
+      localStorage.setItem('fan-canvas-clients', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   return (
     <div className="h-screen flex bg-gray-50 overflow-hidden">
       <Sidebar currentView={currentView} onViewChange={handleViewChange} isCollapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} userName="Scott Jones" />
-      {currentView === 'dashboard' && <DashboardView boards={boards} onOpenBoard={handleOpenBoard} onCreateBoard={handleCreateBoard} />}
-      {currentView === 'meeting' && activeBoard && <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} />}
+      {currentView === 'dashboard' && (
+        <DashboardView
+          boards={boards}
+          onOpenBoard={handleOpenBoard}
+          onCreateBoard={handleCreateBoard}
+          clients={clients}
+          onAddClient={handleAddClient}
+          isLoadingClients={isLoadingClients}
+        />
+      )}
+      {currentView === 'meeting' && activeBoard && <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} onCreateTranscriptNote={handleCreateTranscriptNote} />}
       {currentView === 'notes' && <NotesView boards={boards} onOpenBoard={handleOpenBoard} notes={notes} onUpdateNotes={setNotes} />}
-      {currentView === 'clients' && <ClientsView boards={boards} onOpenBoard={handleOpenBoard} />}
+      {currentView === 'clients' && <ClientsView boards={boards} onOpenBoard={handleOpenBoard} clients={clients} onClientsChange={setClients} />}
     </div>
   );
 }
