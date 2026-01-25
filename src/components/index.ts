@@ -32,6 +32,10 @@ export { default as ClientCommentsPanel } from './ClientCommentsPanel';
 export { default as ParticipantsPanel } from './ParticipantsPanel';
 export type { ParticipantActivity } from './ParticipantsPanel';
 
+// Unified workspace panel
+export { default as UnifiedLeftPanel } from './UnifiedLeftPanel';
+export type { ParticipantActivity as UnifiedPanelActivity } from './UnifiedLeftPanel';
+
 // Canvas components
 export { default as SmoothCanvas } from './SmoothCanvas';
 export type { SmoothCanvasRef, SmoothCanvasProps } from './SmoothCanvas';

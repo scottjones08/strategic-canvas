@@ -111,12 +111,13 @@ import {
 import QRCode from 'qrcode';
 import { createClient } from '@supabase/supabase-js';
 import { organizationsApi, boardsApi, notesApi, isSupabaseConfigured } from './lib/supabase';
-import TranscriptionPanelPro from './components/TranscriptionPanel';
+// TranscriptionPanel is now integrated into UnifiedLeftPanel
 import TranscriptToWhiteboardModal, { VisualNodeInput } from './components/TranscriptToWhiteboardModal';
 import { FullTranscript } from './lib/transcription';
-import { CollaborationOverlay, UserPresenceList, ParticipantsPanel } from './components';
+import { CollaborationOverlay, UserPresenceList } from './components';
 import { useCollaboration } from './hooks/useCollaboration';
-import type { ParticipantActivity } from './components/ParticipantsPanel';
+import UnifiedLeftPanel from './components/UnifiedLeftPanel';
+import type { ParticipantActivity } from './components/UnifiedLeftPanel';
 // Note: getUserColor and getUserInitials available from realtime-collaboration if needed
 import ShareBoardModal from './components/ShareBoardModal';
 import ClientCommentsPanel from './components/ClientCommentsPanel';
@@ -592,7 +593,7 @@ const Sidebar = ({
           </div>
           {!isCollapsed && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 min-w-0">
-              <h1 className="font-bold text-gray-900">Fan WorkShop</h1>
+              <h1 className="font-bold text-gray-900">Fan Canvas</h1>
               <p className="text-xs text-gray-500">Collaborative Whiteboard</p>
             </motion.div>
           )}
@@ -3542,8 +3543,9 @@ const ExportModal = ({
   );
 };
 
-// Transcript Panel
-const TranscriptPanel = ({
+// Transcript Panel (Legacy - kept for backward compatibility but disabled)
+// @ts-ignore - Kept for backward compatibility
+const _TranscriptPanel = ({
   transcript, isRecording, onToggleRecording, currentSpeaker, onSpeakerChange, onAddNote, isMinimized, onToggleMinimize, savedTranscripts: _savedTranscripts
 }: {
   transcript: TranscriptEntry[];
@@ -4008,93 +4010,196 @@ const QRCodeModal = ({ boardId, onClose, onCreateBucket }: { boardId: string; on
   );
 };
 
-// Action Items Panel
-const ActionItemsPanel = ({ actionItems, onToggleComplete, onAddAction, onAssignUser, isMinimized, onToggleMinimize }: { actionItems: ActionItem[]; onToggleComplete: (id: string) => void; onAddAction: (content: string) => void; onAssignUser: (id: string, assigneeId: string | undefined) => void; isMinimized: boolean; onToggleMinimize: () => void }) => {
+// Action Items Panel (Legacy - now part of UnifiedSidebar)
+// @ts-ignore - Kept for potential future use
+const _ActionItemsPanel = ({ actionItems, onToggleComplete, onAddAction, onAssignUser, isMinimized, onToggleMinimize }: { actionItems: ActionItem[]; onToggleComplete: (id: string) => void; onAddAction: (content: string) => void; onAssignUser: (id: string, assigneeId: string | undefined) => void; isMinimized: boolean; onToggleMinimize: () => void }) => {
   const [newAction, setNewAction] = useState('');
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState<string | null>(null);
   const pendingCount = actionItems.filter(a => !a.isComplete).length;
+  const completedCount = actionItems.filter(a => a.isComplete).length;
 
+  // Minimized view - compact pill that stacks below transcript
   if (isMinimized) {
     return (
-      <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="absolute right-4 top-[72px] z-40">
-        <motion.button whileHover={{ scale: 1.05 }} onClick={onToggleMinimize} className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl shadow-lg border border-gray-200">
-          <ListTodo className="w-5 h-5 text-indigo-600" />
-          <span className="font-medium text-gray-700">Actions</span>
-          {pendingCount > 0 && <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">{pendingCount}</span>}
-          <ChevronDown className="w-4 h-4 text-gray-400" />
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="absolute right-4 top-[72px] z-[99]"
+      >
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={onToggleMinimize}
+          className="flex items-center gap-2.5 px-4 py-2.5 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/80 hover:bg-white hover:shadow-xl transition-all"
+        >
+          <div className="relative flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-100">
+            <ListTodo className="w-3.5 h-3.5 text-emerald-600" />
+            {pendingCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {pendingCount}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="text-sm font-semibold text-gray-800 leading-tight">Actions</span>
+            <span className="text-xs text-gray-500 leading-tight">
+              {pendingCount > 0 ? `${pendingCount} pending` : completedCount > 0 ? `${completedCount} done` : 'Add tasks'}
+            </span>
+          </div>
+          <ChevronDown className="w-4 h-4 text-gray-400 ml-1" />
         </motion.button>
       </motion.div>
     );
   }
 
+  // Expanded view - positioned below transcript pill
   return (
-    <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="absolute right-4 top-[72px] w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 z-40 max-h-[400px] flex flex-col">
-      <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-t-2xl">
-        <div className="flex items-center gap-3">
-          <ListTodo className="w-5 h-5" />
-          <h3 className="font-semibold">Action Items</h3>
-          {pendingCount > 0 && <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs font-medium">{pendingCount} pending</span>}
+    <motion.div
+      initial={{ y: -20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: -20, opacity: 0 }}
+      className="absolute right-4 top-[72px] w-[360px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/80 z-[99] max-h-[380px] flex flex-col overflow-hidden"
+    >
+      {/* Header */}
+      <div className="p-3.5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-emerald-500 to-teal-500 text-white">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+            <ListTodo className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">Action Items</h3>
+            <p className="text-xs text-white/80">
+              {pendingCount > 0 ? `${pendingCount} pending` : 'All done!'}
+              {completedCount > 0 && ` · ${completedCount} completed`}
+            </p>
+          </div>
         </div>
-        <motion.button whileHover={{ scale: 1.1 }} onClick={onToggleMinimize} className="p-1.5 bg-white/20 rounded-lg hover:bg-white/30">
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={onToggleMinimize}
+          className="p-1.5 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+        >
           <ChevronUp className="w-4 h-4" />
         </motion.button>
       </div>
-      <div className="p-4 flex-1 overflow-hidden flex flex-col">
-        <div className="flex gap-2 mb-3">
-          <input type="text" value={newAction} onChange={(e) => setNewAction(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && newAction.trim()) { onAddAction(newAction); setNewAction(''); }}} placeholder="Add action item..." className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          <motion.button whileHover={{ scale: 1.05 }} onClick={() => { if (newAction.trim()) { onAddAction(newAction); setNewAction(''); }}} className="px-3 py-2 bg-indigo-600 text-white rounded-xl"><Plus className="w-4 h-4" /></motion.button>
+
+      {/* Add new action */}
+      <div className="p-3 border-b border-gray-100 bg-gray-50/50">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newAction}
+            onChange={(e) => setNewAction(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && newAction.trim()) { onAddAction(newAction); setNewAction(''); }}}
+            placeholder="Add new action item..."
+            className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+          />
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => { if (newAction.trim()) { onAddAction(newAction); setNewAction(''); }}}
+            className="px-3 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+          </motion.button>
         </div>
-        <div className="space-y-2 flex-1 overflow-y-auto">
-          <AnimatePresence>
-            {actionItems.map(item => {
-              const assignee = PARTICIPANTS.find(p => p.id === item.assigneeId);
-              return (
-                <motion.div key={item.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex items-start gap-3 p-3 rounded-xl ${item.isComplete ? 'bg-gray-50' : 'bg-white border border-gray-200'}`}>
-                  <motion.button whileHover={{ scale: 1.1 }} onClick={() => onToggleComplete(item.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${item.isComplete ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>{item.isComplete && <Check className="w-3 h-3 text-white" />}</motion.button>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${item.isComplete ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.content}</p>
-                    <div className="flex items-center gap-2 mt-1.5 relative">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setShowAssigneeDropdown(showAssigneeDropdown === item.id ? null : item.id); }}
-                        className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors"
-                      >
-                        {assignee ? (
-                          <>
-                            <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium" style={{ backgroundColor: assignee.color }}>{assignee.name.charAt(0)}</div>
-                            <span>{assignee.name}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Users className="w-4 h-4" />
-                            <span>Assign</span>
-                          </>
-                        )}
-                      </button>
+      </div>
+
+      {/* Action items list */}
+      <div className="flex-1 overflow-y-auto p-2">
+        <AnimatePresence mode="popLayout">
+          {actionItems.map(item => {
+            const assignee = PARTICIPANTS.find(p => p.id === item.assigneeId);
+            return (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                layout
+                className={`flex items-start gap-3 p-3 rounded-xl mb-2 transition-colors ${
+                  item.isComplete
+                    ? 'bg-gray-50/80'
+                    : 'bg-white border border-gray-100 shadow-sm hover:shadow-md'
+                }`}
+              >
+                <motion.button
+                  whileHover={{ scale: 1.15 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => onToggleComplete(item.id)}
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
+                    item.isComplete
+                      ? 'bg-emerald-500 border-emerald-500'
+                      : 'border-gray-300 hover:border-emerald-400'
+                  }`}
+                >
+                  {item.isComplete && <Check className="w-3 h-3 text-white" />}
+                </motion.button>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm leading-snug ${item.isComplete ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                    {item.content}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2 relative">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowAssigneeDropdown(showAssigneeDropdown === item.id ? null : item.id); }}
+                      className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md transition-colors ${
+                        assignee
+                          ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {assignee ? (
+                        <>
+                          <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px] font-bold" style={{ backgroundColor: assignee.color }}>{assignee.name.charAt(0)}</div>
+                          <span>{assignee.name}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Users className="w-3.5 h-3.5" />
+                          <span>Assign</span>
+                        </>
+                      )}
+                    </button>
+                    <AnimatePresence>
                       {showAssigneeDropdown === item.id && (
-                        <div className="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 w-40">
+                        <motion.div
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -5 }}
+                          className="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-[150] w-36"
+                        >
                           <button onClick={() => { onAssignUser(item.id, undefined); setShowAssigneeDropdown(null); }} className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 text-gray-500">Unassigned</button>
                           {PARTICIPANTS.map(p => (
                             <button key={p.id} onClick={() => { onAssignUser(item.id, p.id); setShowAssigneeDropdown(null); }} className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2">
-                              <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium" style={{ backgroundColor: p.color }}>{p.name.charAt(0)}</div>
+                              <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px] font-bold" style={{ backgroundColor: p.color }}>{p.name.charAt(0)}</div>
                               <span className="text-gray-700">{p.name}</span>
                             </button>
                           ))}
-                        </div>
+                        </motion.div>
                       )}
-                    </div>
+                    </AnimatePresence>
                   </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-          {actionItems.length === 0 && <div className="text-center py-6 text-gray-400"><ListTodo className="w-6 h-6 mx-auto mb-2 opacity-40" /><p className="text-xs">No action items yet</p></div>}
-        </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+        {actionItems.length === 0 && (
+          <div className="text-center py-8 text-gray-400">
+            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+              <ListTodo className="w-6 h-6 text-gray-300" />
+            </div>
+            <p className="text-sm font-medium text-gray-500">No action items yet</p>
+            <p className="text-xs mt-1">Add your first task above</p>
+          </div>
+        )}
       </div>
     </motion.div>
   );
 };
 
-// Timer Component for facilitation
+// Timer Component for facilitation - positioned at top center for visibility
 const FacilitationTimer = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const [timeLeft, setTimeLeft] = useState(5 * 60); // 5 minutes default
   const [isRunning, setIsRunning] = useState(false);
@@ -4106,7 +4211,6 @@ const FacilitationTimer = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
     } else if (timeLeft === 0) {
       setIsRunning(false);
-      // Play a sound or show notification
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('Timer Complete!', { body: 'Time is up!' });
       }
@@ -4130,35 +4234,75 @@ const FacilitationTimer = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
   return (
     <motion.div
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      exit={{ scale: 0.8, opacity: 0 }}
-      className="absolute top-20 right-4 bg-white rounded-2xl shadow-2xl border border-gray-200 p-4 z-50 w-64"
+      initial={{ y: -50, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: -50, opacity: 0 }}
+      className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/80 p-4 z-[200] w-72"
     >
-      <div className="flex items-center justify-between mb-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Timer className="w-5 h-5 text-indigo-600" />
-          <h3 className="font-semibold text-gray-800">Timer</h3>
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isRunning ? 'bg-orange-100' : 'bg-indigo-100'}`}>
+            <Timer className={`w-4 h-4 ${isRunning ? 'text-orange-600' : 'text-indigo-600'}`} />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800 text-sm">Session Timer</h3>
+            <p className="text-xs text-gray-500">{isRunning ? 'Running' : 'Paused'}</p>
+          </div>
         </div>
-        <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-400" /></button>
+        <button
+          onClick={onClose}
+          className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <X className="w-4 h-4 text-gray-400" />
+        </button>
       </div>
 
-      <div className={`text-5xl font-mono font-bold text-center py-6 rounded-xl mb-4 ${timeLeft === 0 ? 'bg-red-50 text-red-600 animate-pulse' : timeLeft < 60 ? 'bg-orange-50 text-orange-600' : 'bg-gray-50 text-gray-800'}`}>
+      {/* Timer display */}
+      <div className={`text-5xl font-mono font-bold text-center py-5 rounded-xl mb-3 transition-colors ${
+        timeLeft === 0 ? 'bg-red-50 text-red-600 animate-pulse' :
+        timeLeft < 60 ? 'bg-orange-50 text-orange-600' :
+        isRunning ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-50 text-gray-800'
+      }`}>
         {formatTime(timeLeft)}
       </div>
 
-      <div className="flex gap-2 mb-4">
-        <button onClick={() => setIsRunning(!isRunning)} className={`flex-1 py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 ${isRunning ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+      {/* Controls */}
+      <div className="flex gap-2 mb-3">
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setIsRunning(!isRunning)}
+          className={`flex-1 py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors ${
+            isRunning ? 'bg-orange-500 text-white hover:bg-orange-600' : 'bg-emerald-500 text-white hover:bg-emerald-600'
+          }`}
+        >
           {isRunning ? <><Pause className="w-4 h-4" />Pause</> : <><Play className="w-4 h-4" />Start</>}
-        </button>
-        <button onClick={() => setTimeLeft(presetMinutes * 60)} className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200">
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setTimeLeft(presetMinutes * 60)}
+          className="p-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
+        >
           <RotateCcw className="w-4 h-4" />
-        </button>
+        </motion.button>
       </div>
 
+      {/* Presets */}
       <div className="flex gap-1.5">
         {[1, 3, 5, 10, 15].map(mins => (
-          <button key={mins} onClick={() => setPreset(mins)} className={`flex-1 py-2 rounded-lg text-xs font-medium ${presetMinutes === mins ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>{mins}m</button>
+          <button
+            key={mins}
+            onClick={() => setPreset(mins)}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
+              presetMinutes === mins
+                ? 'bg-indigo-500 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {mins}m
+          </button>
         ))}
       </div>
     </motion.div>
@@ -4206,24 +4350,36 @@ const AIChatPanel = ({
       initial={{ x: 400, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 400, opacity: 0 }}
-      className="absolute right-4 top-4 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 flex flex-col max-h-[calc(100vh-120px)]"
+      className="absolute right-4 top-4 w-[380px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/80 z-[150] flex flex-col max-h-[calc(100vh-120px)]"
     >
-      <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-t-2xl">
-        <div className="flex items-center gap-2">
-          <Brain className="w-5 h-5" />
-          <span className="font-semibold">Fan AI</span>
+      {/* Header with gradient */}
+      <div className="p-3.5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-t-2xl">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+            <Brain className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="font-semibold text-sm">Fan AI Assistant</span>
+            <p className="text-xs text-white/70">Powered by AI</p>
+          </div>
         </div>
-        <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg transition-colors">
-          <X className="w-5 h-5" />
+        <button onClick={onClose} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
+          <X className="w-4 h-4" />
         </button>
       </div>
 
+      {/* Selected nodes indicator */}
       {selectedNodes.length > 0 && (
-        <div className="px-4 py-2 bg-purple-50 border-b border-purple-100 text-xs text-purple-700">
-          <span className="font-medium">{selectedNodes.length} element{selectedNodes.length > 1 ? 's' : ''} selected</span>
-          {selectedNodes.length === 1 && selectedNodes[0].content && (
-            <p className="truncate mt-1 text-purple-600">"{selectedNodes[0].content.substring(0, 50)}..."</p>
-          )}
+        <div className="px-4 py-2.5 bg-purple-50/80 border-b border-purple-100/50 text-xs text-purple-700 flex items-center gap-2">
+          <div className="w-5 h-5 rounded bg-purple-200 flex items-center justify-center text-purple-700 font-bold text-[10px]">
+            {selectedNodes.length}
+          </div>
+          <div>
+            <span className="font-medium">element{selectedNodes.length > 1 ? 's' : ''} selected</span>
+            {selectedNodes.length === 1 && selectedNodes[0].content && (
+              <p className="truncate text-purple-500 mt-0.5">"{selectedNodes[0].content.substring(0, 40)}..."</p>
+            )}
+          </div>
         </div>
       )}
 
@@ -4355,7 +4511,18 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   onCreateAISummary?: (boardId: string, boardName: string, summary: string) => void;
   onCreateTranscriptNote?: (boardId: string, boardName: string, transcriptContent: string, startTime: Date, endTime: Date) => void;
 }) => {
-  const [currentUser] = useState({ id: '1', name: 'Scott Jones', color: '#10b981' });
+  // User state with localStorage persistence
+  const [currentUser, setCurrentUser] = useState(() => {
+    const savedName = localStorage.getItem('fan-canvas-user-name');
+    const savedColor = localStorage.getItem('fan-canvas-user-color');
+    return {
+      id: '1',
+      name: savedName || 'Guest',
+      color: savedColor || `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
+    };
+  });
+  const [isEditingUserName, setIsEditingUserName] = useState(!localStorage.getItem('fan-canvas-user-name'));
+  const [editingUserNameValue, setEditingUserNameValue] = useState(currentUser.name);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [recordingStartTime, setRecordingStartTime] = useState<Date | null>(null);
@@ -4364,10 +4531,11 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   const [parsedItems, setParsedItems] = useState<ParsedItem[]>([]);
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [showMediaModal, setShowMediaModal] = useState<'youtube' | 'image' | 'qr' | null>(null);
-  const [currentSpeaker, setCurrentSpeaker] = useState('1');
+  const [_currentSpeaker, _setCurrentSpeaker] = useState('1');
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
-  const [isTranscriptMinimized, setIsTranscriptMinimized] = useState(true);
-  const [isActionsMinimized, setIsActionsMinimized] = useState(true);
+  const [isTranscriptMinimized, _setIsTranscriptMinimized] = useState(true);
+  const [_isActionsMinimized, _setIsActionsMinimized] = useState(true);
+  const [_sidebarCollapsed, _setSidebarCollapsed] = useState(false); // Legacy - now handled by ParticipantsPanel
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [activePicker, setActivePicker] = useState<string | null>(null);
@@ -4419,7 +4587,15 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   
   // Generate a stable user ID for this session
   const [sessionUserId] = useState(() => `user-${Math.random().toString(36).substr(2, 9)}`);
-  const [sessionUserName] = useState(() => currentUser.name || `Guest ${Math.floor(Math.random() * 1000)}`);
+
+  // Save user name to localStorage and update state
+  const handleSaveUserName = useCallback((name: string) => {
+    const trimmedName = name.trim() || 'Guest';
+    localStorage.setItem('fan-canvas-user-name', trimmedName);
+    localStorage.setItem('fan-canvas-user-color', currentUser.color);
+    setCurrentUser(prev => ({ ...prev, name: trimmedName }));
+    setIsEditingUserName(false);
+  }, [currentUser.color]);
   
   // Real-time collaboration using the new hook
   const {
@@ -4435,7 +4611,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   } = useCollaboration({
     boardId: board.id,
     userId: sessionUserId,
-    userName: sessionUserName,
+    userName: currentUser.name,
     userColor: currentUser.color,
     enabled: !!supabase,
     onNodeChange: (change) => {
@@ -5007,7 +5183,9 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleToggleRecording = useCallback(() => {
+  // Legacy recording toggle - now handled by UnifiedLeftPanel's internal useTranscription hook
+  // @ts-ignore - Keeping for potential future use
+  const _handleToggleRecording = useCallback(() => {
     if (!isRecording) {
       setIsRecording(true);
       setRecordingDuration(0);
@@ -5036,9 +5214,10 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     }
   }, [isRecording, transcript, recordingStartTime, recordingDuration, savedTranscripts, board.id, board.name, onUpdateBoard, onCreateTranscriptNote]);
 
-  const handleAddTranscript = useCallback((text: string) => {
+  // @ts-ignore - Kept for legacy transcript handling
+  const _handleAddTranscript = useCallback((text: string) => {
     if (!text.trim()) return;
-    const entry = { id: generateId(), speaker: currentSpeaker, text: text.trim(), timestamp: recordingDuration };
+    const entry = { id: generateId(), speaker: _currentSpeaker, text: text.trim(), timestamp: recordingDuration };
     setTranscript(prev => [...prev, entry]);
 
     const lower = text.toLowerCase();
@@ -5054,7 +5233,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     if (confidence >= 0.7 && text.trim().length > 10) {
       setParsedItems(prev => [...prev, { id: generateId(), type: itemType, content: text.trim(), confidence, timestamp: recordingDuration }]);
     }
-  }, [currentSpeaker, recordingDuration]);
+  }, [_currentSpeaker, recordingDuration]);
 
   const handleAddParsedItemToBoard = useCallback((item: ParsedItem) => {
     const typeColors: Record<ParsedItem['type'], { bg: string; nodeType: VisualNode['type'] }> = {
@@ -5375,6 +5554,46 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
 
   return (
     <div className="flex-1 flex flex-col bg-gray-100 overflow-hidden">
+      {/* User Name Modal - shown to new users */}
+      <AnimatePresence>
+        {isEditingUserName && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[20000]"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl p-6 w-96 shadow-2xl"
+            >
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Welcome to Fan Canvas!</h2>
+              <p className="text-sm text-gray-500 mb-4">Enter your name so collaborators can identify you.</p>
+              <input
+                type="text"
+                value={editingUserNameValue}
+                onChange={(e) => setEditingUserNameValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveUserName(editingUserNameValue); }}
+                placeholder="Your name..."
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
+                autoFocus
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleSaveUserName(editingUserNameValue)}
+                  className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+                >
+                  Join Board
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-3 text-center">Your name will be visible to other collaborators</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <motion.button whileHover={{ scale: 1.05 }} onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronLeft className="w-5 h-5 text-gray-600" /></motion.button>
@@ -5919,29 +6138,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
 
         <ParsedItemsPanel items={parsedItems} onAddItem={handleAddParsedItemToBoard} onDismissItem={(id) => setParsedItems(prev => prev.filter(p => p.id !== id))} onAddAll={handleAddAllParsedItems} isVisible={!isTranscriptMinimized} />
 
-        {/* Professional Transcription Panel with Speaker Diarization */}
-        <TranscriptionPanelPro
-          boardId={board.id}
-          boardName={board.name}
-          isMinimized={isTranscriptMinimized}
-          onToggleMinimize={() => setIsTranscriptMinimized(!isTranscriptMinimized)}
-          onCreateNote={(title, content, _actionItems) => {
-            if (onCreateTranscriptNote) {
-              // Create note with full HTML content
-              // Action items are included in the content by the TranscriptionPanel
-              onCreateTranscriptNote(board.id, title, content, new Date(), new Date());
-            }
-          }}
-          onGenerateWhiteboard={(transcript) => {
-            setCurrentTranscriptForWhiteboard(transcript);
-            setShowTranscriptToWhiteboardModal(true);
-          }}
-        />
-        
-        {/* Legacy TranscriptPanel for backward compatibility (hidden by default) */}
-        {false && <TranscriptPanel transcript={transcript} isRecording={isRecording} onToggleRecording={handleToggleRecording} currentSpeaker={currentSpeaker} onSpeakerChange={setCurrentSpeaker} onAddNote={handleAddTranscript} isMinimized={true} onToggleMinimize={() => {}} savedTranscripts={savedTranscripts} />}
-
-        <ActionItemsPanel actionItems={actionItems} onToggleComplete={handleToggleActionComplete} onAddAction={handleAddAction} onAssignUser={handleAssignUser} isMinimized={isActionsMinimized} onToggleMinimize={() => setIsActionsMinimized(!isActionsMinimized)} />
+        {/* Transcription is now integrated into UnifiedLeftPanel */}
 
         {/* Timer */}
         <AnimatePresence>
@@ -5998,47 +6195,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           )}
         </AnimatePresence>
 
-        <AnimatePresence>
-          {showHistoryPanel && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="absolute right-4 top-20 w-72 bg-white rounded-2xl shadow-xl border border-gray-200 z-40 overflow-hidden"
-            >
-              <div className="p-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-                <div className="flex items-center gap-2">
-                  <History className="w-4 h-4 text-gray-600" />
-                  <span className="font-medium text-gray-800 text-sm">History</span>
-                </div>
-                <button onClick={() => setShowHistoryPanel(false)} className="p-1 hover:bg-gray-200 rounded-lg">
-                  <X className="w-4 h-4 text-gray-500" />
-                </button>
-              </div>
-              <div className="max-h-80 overflow-y-auto">
-                {history.map((entry, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      setHistoryIndex(index);
-                      onUpdateBoard({ visualNodes: entry.nodes });
-                    }}
-                    className={`w-full p-3 text-left hover:bg-gray-50 border-b border-gray-100 transition-colors ${index === historyIndex ? 'bg-indigo-50 border-l-2 border-l-indigo-500' : ''}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className={`text-sm ${index === historyIndex ? 'font-medium text-indigo-700' : 'text-gray-700'}`}>{entry.action}</span>
-                      {index === historyIndex && <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Current</span>}
-                    </div>
-                    <span className="text-xs text-gray-400">{entry.timestamp.toLocaleTimeString()}</span>
-                  </button>
-                ))}
-                {history.length === 0 && (
-                  <div className="p-4 text-center text-gray-400 text-sm">No history yet</div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* History is now part of ParticipantsPanel tabs */}
 
         <InfiniteCanvas
           board={board}
@@ -6188,9 +6345,10 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
         isOwner={true}
       />
       
-      {/* Participants Panel - Office 365 style collaboration */}
+      {/* Unified Left Panel - combines Transcript, People, Actions, History */}
       {showParticipantsPanel && (
-        <ParticipantsPanel
+        <UnifiedLeftPanel
+          // People props
           users={collaborationUsers}
           currentUser={collabCurrentUser}
           isConnected={isConnected}
@@ -6199,7 +6357,6 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           onToggleCursors={() => setShowCursorsToggle(!showCursorsToggle)}
           onFollowUser={(userId) => {
             setFollowingUserId(userId);
-            // If following someone, pan to their cursor
             if (userId) {
               const user = collaborationUsers.find(u => u.id === userId);
               if (user?.cursor) {
@@ -6214,6 +6371,34 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           shareUrl={`${window.location.origin}/board/${board.id}`}
           onInvite={() => setShowShareModal(true)}
           recentActivity={recentActivity}
+          onEditUserName={() => setIsEditingUserName(true)}
+          // Transcript props (professional features)
+          boardId={board.id}
+          boardName={board.name}
+          clientId={board.clientId}
+          onCreateNote={(title, content, _actionItems) => {
+            if (onCreateTranscriptNote) {
+              onCreateTranscriptNote(board.id, title, content, new Date(), new Date());
+            }
+          }}
+          onGenerateWhiteboard={(transcriptData) => {
+            setCurrentTranscriptForWhiteboard(transcriptData);
+            setShowTranscriptToWhiteboardModal(true);
+          }}
+          autoSaveToNotes={true}
+          // Action items props
+          actionItems={actionItems}
+          onToggleActionComplete={handleToggleActionComplete}
+          onAddAction={handleAddAction}
+          onAssignUser={handleAssignUser}
+          participants={PARTICIPANTS}
+          // History props
+          history={history}
+          currentHistoryIndex={historyIndex}
+          onRestoreHistory={(index) => {
+            setHistoryIndex(index);
+            onUpdateBoard({ visualNodes: history[index].nodes });
+          }}
         />
       )}
       

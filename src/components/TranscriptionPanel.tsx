@@ -18,7 +18,6 @@ import {
   Play,
   FileText,
   Minimize2,
-  Maximize2,
   Settings,
   Download,
   Upload,
@@ -261,38 +260,47 @@ export default function TranscriptionPanel({
     await navigator.clipboard.writeText(text);
   }, [exportAsText]);
 
-  // Minimized view - show recording indicator
+  // Minimized view - show recording indicator as a compact pill
   if (isMinimized) {
     return (
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="absolute right-4 top-4 z-40"
+        className="absolute right-4 top-4 z-[100]"
       >
         <motion.button
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={onToggleMinimize}
-          className={`flex items-center gap-3 px-4 py-3 rounded-2xl shadow-lg border transition-all ${
-            isRecording 
-              ? 'bg-red-50 border-red-200 animate-pulse' 
-              : isProcessing 
-              ? 'bg-amber-50 border-amber-200'
-              : 'bg-white border-gray-200 hover:shadow-xl'
+          className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-lg border backdrop-blur-sm transition-all ${
+            isRecording
+              ? 'bg-red-500/95 border-red-400 text-white'
+              : isProcessing
+              ? 'bg-amber-500/95 border-amber-400 text-white'
+              : 'bg-white/95 border-gray-200/80 hover:bg-white hover:shadow-xl'
           }`}
         >
-          <div className={`w-3 h-3 rounded-full ${
-            isRecording ? 'bg-red-500 animate-pulse' : isProcessing ? 'bg-amber-500 animate-pulse' : 'bg-gray-300'
-          }`} />
-          <span className={`font-medium ${isRecording ? 'text-red-700' : 'text-gray-700'}`}>
-            {isRecording ? 'Recording...' : 'Transcript'}
-          </span>
-          {isRecording && (
-            <span className="text-sm font-mono text-red-600">{formatDuration(duration)}</span>
-          )}
-          {transcript && !isRecording && (
-            <span className="text-sm text-gray-500">({transcript.segments.length})</span>
-          )}
-          <Maximize2 className="w-4 h-4 text-gray-400" />
+          <div className={`relative flex items-center justify-center w-6 h-6 rounded-lg ${
+            isRecording ? 'bg-white/20' : isProcessing ? 'bg-white/20' : 'bg-indigo-100'
+          }`}>
+            {isRecording ? (
+              <>
+                <Mic className="w-3.5 h-3.5 text-white" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-white rounded-full animate-ping" />
+              </>
+            ) : (
+              <FileText className={`w-3.5 h-3.5 ${isProcessing ? 'text-white' : 'text-indigo-600'}`} />
+            )}
+          </div>
+          <div className="flex flex-col items-start">
+            <span className={`text-sm font-semibold leading-tight ${isRecording || isProcessing ? 'text-white' : 'text-gray-800'}`}>
+              {isRecording ? 'Recording' : isProcessing ? 'Processing' : 'Transcript'}
+            </span>
+            <span className={`text-xs leading-tight ${isRecording || isProcessing ? 'text-white/80' : 'text-gray-500'}`}>
+              {isRecording ? formatDuration(duration) : transcript?.segments.length ? `${transcript.segments.length} entries` : 'Click to open'}
+            </span>
+          </div>
+          <ChevronDown className={`w-4 h-4 ml-1 ${isRecording || isProcessing ? 'text-white/70' : 'text-gray-400'}`} />
         </motion.button>
       </motion.div>
     );
@@ -455,7 +463,8 @@ export default function TranscriptionPanel({
     <motion.div
       initial={{ x: 400, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      className="absolute right-4 top-4 w-[420px] bg-white rounded-2xl shadow-2xl overflow-hidden z-40 flex flex-col border border-gray-200"
+      exit={{ x: 400, opacity: 0 }}
+      className="absolute right-4 top-4 w-[400px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden z-[100] flex flex-col border border-gray-200/80"
       style={{ maxHeight: 'calc(100vh - 120px)' }}
     >
       {/* Header */}
