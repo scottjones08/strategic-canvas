@@ -114,8 +114,9 @@ import { organizationsApi, boardsApi, notesApi, isSupabaseConfigured } from './l
 import TranscriptionPanelPro from './components/TranscriptionPanel';
 import TranscriptToWhiteboardModal, { VisualNodeInput } from './components/TranscriptToWhiteboardModal';
 import { FullTranscript } from './lib/transcription';
-import { CollaborationOverlay, UserPresenceList } from './components';
+import { CollaborationOverlay, UserPresenceList, ParticipantsPanel } from './components';
 import { useCollaboration } from './hooks/useCollaboration';
+import type { ParticipantActivity } from './components/ParticipantsPanel';
 // Note: getUserColor and getUserInitials available from realtime-collaboration if needed
 import ShareBoardModal from './components/ShareBoardModal';
 import ClientCommentsPanel from './components/ClientCommentsPanel';
@@ -1803,7 +1804,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
 };
 
 // Infinite Canvas
-const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNodeIds, onSelectNodes, onCanvasDoubleClick, isDrawingMode, isPanMode, drawingColor, drawingWidth, onAddMindmapChild, onAISparkle, gridSnap, showMinimap, otherUsers, onDisablePanMode, onDropMedia, onCursorMove, editingNodes: _editingNodes }: {
+const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNodeIds, onSelectNodes, onCanvasDoubleClick, isDrawingMode, isPanMode, drawingColor, drawingWidth, onAddMindmapChild, onAISparkle, gridSnap, showMinimap, otherUsers, onDisablePanMode, onDropMedia, onCursorMove, editingNodes: _editingNodes, showCursors = true }: {
   board: Board;
   onUpdateBoard: (updates: Partial<Board>) => void;
   onUpdateWithHistory: (updates: Partial<Board>, action: string) => void;
@@ -1823,6 +1824,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   onDropMedia?: (file: File, x: number, y: number) => void;
   onCursorMove?: (cursor: { x: number; y: number } | null) => void;
   editingNodes?: Map<string, { userId: string; userName: string; color: string }>;
+  showCursors?: boolean;
 }) => {
   const [zoom, setZoom] = useState(board.zoom || 1);
   const [panX, setPanX] = useState(board.panX || 0);
@@ -2629,7 +2631,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
         zoom={zoom}
         panX={panX}
         panY={panY}
-        showCursors={true}
+        showCursors={showCursors}
       />
     </div>
   );
@@ -4405,6 +4407,10 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   const [showClientShareModal, setShowClientShareModal] = useState(false);
   const [showClientCommentsPanel, setShowClientCommentsPanel] = useState(false);
   const [clientComments, setClientComments] = useState<ClientComment[]>([]);
+  const [showParticipantsPanel, _setShowParticipantsPanel] = useState(true); // Panel always visible for now
+  const [showCursorsToggle, setShowCursorsToggle] = useState(true);
+  const [followingUserId, setFollowingUserId] = useState<string | null>(null);
+  const [recentActivity, setRecentActivity] = useState<ParticipantActivity[]>([]);
   const [_selectedClientCommentId, setSelectedClientCommentId] = useState<string | null>(null);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [showAITools, setShowAITools] = useState(false);
@@ -4454,6 +4460,54 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     lastSeen: u.lastSeen,
     isOnline: u.isOnline
   }));
+  
+  // Track user joins/leaves for activity feed
+  const prevUsersRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const currentUserIds = new Set(collaborationUsers.map(u => u.id));
+    
+    // Check for new users (joined)
+    collaborationUsers.forEach(user => {
+      if (!prevUsersRef.current.has(user.id)) {
+        setRecentActivity(prev => [{
+          userId: user.id,
+          type: 'joined' as const,
+          timestamp: new Date(),
+        }, ...prev].slice(0, 50));
+      }
+    });
+    
+    // Check for users who left
+    prevUsersRef.current.forEach(userId => {
+      if (!currentUserIds.has(userId)) {
+        setRecentActivity(prev => [{
+          userId,
+          type: 'left' as const,
+          timestamp: new Date(),
+        }, ...prev].slice(0, 50));
+        
+        // Stop following if the user we're following left
+        if (followingUserId === userId) {
+          setFollowingUserId(null);
+        }
+      }
+    });
+    
+    prevUsersRef.current = currentUserIds;
+  }, [collaborationUsers, followingUserId]);
+  
+  // Follow user viewport - pan to their cursor position
+  useEffect(() => {
+    if (followingUserId) {
+      const followedUser = collaborationUsers.find(u => u.id === followingUserId);
+      if (followedUser?.cursor) {
+        // Smoothly pan to followed user's position
+        const targetPanX = -followedUser.cursor.x * (board.zoom || 1) + window.innerWidth / 2;
+        const targetPanY = -followedUser.cursor.y * (board.zoom || 1) + window.innerHeight / 2;
+        onUpdateBoard({ panX: targetPanX, panY: targetPanY });
+      }
+    }
+  }, [followingUserId, collaborationUsers, board.zoom, onUpdateBoard]);
   
   // Refs for handlers that will be defined later
   const addNodesRef = useRef<(nodes: VisualNode[], action: string) => void>(() => {});
@@ -6006,6 +6060,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           onDropMedia={handleDropMedia}
           onCursorMove={broadcastCursor}
           editingNodes={editingNodes}
+          showCursors={showCursorsToggle}
         />
 
         <AnimatePresence>
@@ -6132,6 +6187,35 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
         onResolveComment={handleResolveClientComment}
         isOwner={true}
       />
+      
+      {/* Participants Panel - Office 365 style collaboration */}
+      {showParticipantsPanel && (
+        <ParticipantsPanel
+          users={collaborationUsers}
+          currentUser={collabCurrentUser}
+          isConnected={isConnected}
+          editingNodes={editingNodes}
+          showCursors={showCursorsToggle}
+          onToggleCursors={() => setShowCursorsToggle(!showCursorsToggle)}
+          onFollowUser={(userId) => {
+            setFollowingUserId(userId);
+            // If following someone, pan to their cursor
+            if (userId) {
+              const user = collaborationUsers.find(u => u.id === userId);
+              if (user?.cursor) {
+                onUpdateBoard({
+                  panX: -user.cursor.x * (board.zoom || 1) + window.innerWidth / 2,
+                  panY: -user.cursor.y * (board.zoom || 1) + window.innerHeight / 2,
+                });
+              }
+            }
+          }}
+          followingUserId={followingUserId}
+          shareUrl={`${window.location.origin}/board/${board.id}`}
+          onInvite={() => setShowShareModal(true)}
+          recentActivity={recentActivity}
+        />
+      )}
       
       {/* AI Tools Panel */}
       <AnimatePresence>

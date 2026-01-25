@@ -13,18 +13,13 @@ import {
   EyeOff,
   Edit3,
   MousePointer2,
-  Circle,
   ChevronRight,
   ChevronLeft,
   UserPlus,
   Link2,
-  Copy,
   Check,
   Wifi,
   WifiOff,
-  MessageCircle,
-  Bell,
-  BellOff,
   Sparkles,
   Target,
 } from 'lucide-react';
@@ -97,7 +92,6 @@ const ParticipantRow = memo(({
           `}
           style={{ 
             backgroundColor: user.color,
-            ringColor: isCurrentUser ? user.color : undefined,
           }}
         >
           {initials}
@@ -257,7 +251,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = memo(({
   users,
   currentUser,
   isConnected,
-  connectionError,
   editingNodes,
   showCursors,
   onToggleCursors,
