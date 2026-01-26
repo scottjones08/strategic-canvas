@@ -1034,12 +1034,31 @@ export function saveTranscriptionConfig(config: Partial<TranscriptionConfig>): v
 
 /**
  * Load transcription config
+ * Checks localStorage first, then falls back to environment variable
  */
 export function loadTranscriptionConfig(): Partial<TranscriptionConfig> | null {
   try {
     const data = localStorage.getItem(CONFIG_STORAGE_KEY);
     if (data) {
-      return JSON.parse(data);
+      const config = JSON.parse(data);
+      // If no API key in localStorage, check env variable
+      if (!config.apiKey) {
+        const envKey = import.meta.env.VITE_ASSEMBLYAI_API_KEY;
+        if (envKey) {
+          config.apiKey = envKey;
+        }
+      }
+      return config;
+    }
+    // No localStorage config, check for env variable
+    const envKey = import.meta.env.VITE_ASSEMBLYAI_API_KEY;
+    if (envKey) {
+      return {
+        apiKey: envKey,
+        enableDiarization: true,
+        punctuate: true,
+        formatText: true,
+      };
     }
   } catch (e) {
     console.error('Failed to load config:', e);
@@ -1049,8 +1068,14 @@ export function loadTranscriptionConfig(): Partial<TranscriptionConfig> | null {
 
 /**
  * Check if AssemblyAI API key is configured
+ * Checks both localStorage and environment variable
  */
 export function isAssemblyAIConfigured(): boolean {
   const config = loadTranscriptionConfig();
-  return !!(config?.apiKey && config.apiKey.length > 10);
+  if (config?.apiKey && config.apiKey.length > 10) {
+    return true;
+  }
+  // Also check env variable directly
+  const envKey = import.meta.env.VITE_ASSEMBLYAI_API_KEY;
+  return !!(envKey && envKey.length > 10);
 }
