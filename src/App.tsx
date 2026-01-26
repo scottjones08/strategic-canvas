@@ -7095,11 +7095,46 @@ export default function App() {
 
   // Fetch clients from fan_consulting database on mount, fallback to localStorage
   useEffect(() => {
+    let isMounted = true;
+
+    // Helper to check if error is an abort error
+    const isAbortError = (error: unknown): boolean => {
+      if (!error) return false;
+      if (error instanceof Error) {
+        return error.name === 'AbortError' ||
+               (error.message?.includes('aborted') ?? false) ||
+               (error.message?.includes('signal') ?? false);
+      }
+      return false;
+    };
+
+    const loadClientsFromLocalStorage = () => {
+      const savedClients = localStorage.getItem('fan-canvas-clients');
+      if (savedClients) {
+        try {
+          const parsed = JSON.parse(savedClients);
+          if (isMounted) {
+            setClients(parsed.map((c: any) => ({
+              ...c,
+              createdAt: new Date(c.createdAt)
+            })));
+          }
+        } catch (e) {
+          console.error('Failed to parse saved clients:', e);
+        }
+      }
+    };
+
     const fetchClients = async () => {
-      // First, check if Supabase is configured
+      // First load from localStorage immediately for fast UI
+      loadClientsFromLocalStorage();
+
+      // Then try to fetch from Supabase
       if (isSupabaseConfigured()) {
         try {
           const orgs = await organizationsApi.getAll();
+          if (!isMounted) return;
+
           const mappedClients: Client[] = orgs.map(org => ({
             id: org.id,
             name: org.name,
@@ -7113,38 +7148,40 @@ export default function App() {
             createdAt: new Date(org.created_at),
             notes: ''
           }));
-          setClients(mappedClients);
-          setSupabaseConnected(true);
-          // Also save to localStorage as backup
-          localStorage.setItem('fan-canvas-clients', JSON.stringify(mappedClients));
+          if (isMounted) {
+            setClients(mappedClients);
+            setSupabaseConnected(true);
+            // Also save to localStorage as backup
+            localStorage.setItem('fan-canvas-clients', JSON.stringify(mappedClients));
+          }
         } catch (error) {
-          console.error('Failed to fetch clients from Supabase:', error);
-          // Fallback to localStorage
-          loadClientsFromLocalStorage();
+          // Silently handle abort errors
+          if (!isAbortError(error)) {
+            console.error('Failed to fetch clients from Supabase:', error);
+          }
+          // Already loaded from localStorage above
         }
       } else {
         console.log('Supabase not configured, using localStorage');
-        loadClientsFromLocalStorage();
       }
-      setIsLoadingClients(false);
+      if (isMounted) {
+        setIsLoadingClients(false);
+      }
     };
 
-    const loadClientsFromLocalStorage = () => {
-      const savedClients = localStorage.getItem('fan-canvas-clients');
-      if (savedClients) {
-        try {
-          const parsed = JSON.parse(savedClients);
-          setClients(parsed.map((c: any) => ({
-            ...c,
-            createdAt: new Date(c.createdAt)
-          })));
-        } catch (e) {
-          console.error('Failed to parse saved clients:', e);
-        }
+    // Set a timeout to ensure loading completes even if fetch hangs
+    const loadingTimeout = setTimeout(() => {
+      if (isMounted) {
+        setIsLoadingClients(false);
       }
-    };
+    }, 3000);
 
     fetchClients();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(loadingTimeout);
+    };
   }, []);
 
   const handleOpenBoard = (board: Board) => { setActiveBoard(board); setCurrentView('meeting'); };

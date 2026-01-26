@@ -346,15 +346,27 @@ export default function LoginPage() {
           )}
         </div>
 
-        {/* Skip login option */}
-        <div className="mt-4 pt-4 border-t border-white/10 text-center">
-          <button
-            onClick={() => navigate('/')}
-            className="text-sm text-white/40 hover:text-white/60 transition-colors"
-          >
-            Continue without signing in
-          </button>
-        </div>
+        {/* Skip login option - only show if coming from a shareable link or client view */}
+        {((location.state as any)?.returnTo || (location.state as any)?.from?.pathname?.startsWith('/client/')) && (
+          <div className="mt-4 pt-4 border-t border-white/10 text-center">
+            <button
+              onClick={() => {
+                const returnTo = (location.state as any)?.returnTo;
+                const fromPath = (location.state as any)?.from?.pathname;
+                if (returnTo) {
+                  navigate(returnTo, { replace: true });
+                } else if (fromPath?.startsWith('/client/')) {
+                  navigate(fromPath, { replace: true });
+                } else {
+                  navigate(-1);
+                }
+              }}
+              className="text-sm text-white/40 hover:text-white/60 transition-colors"
+            >
+              Continue without signing in
+            </button>
+          </div>
+        )}
       </motion.div>
     </div>
   );

@@ -74,6 +74,10 @@ export default function ClientView() {
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0, panX: 0, panY: 0 });
 
+  // Guest name - load from localStorage if previously saved
+  const savedGuestName = localStorage.getItem('fan-canvas-guest-name') || '';
+  const savedGuestEmail = localStorage.getItem('fan-canvas-guest-email') || '';
+
   // Comment state
   const [showCommentPanel, setShowCommentPanel] = useState(false);
   const [isAddingComment, setIsAddingComment] = useState(false);
@@ -194,6 +198,30 @@ export default function ClientView() {
     setIsPanning(false);
   };
 
+  // Touch handlers for mobile panning
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      // Single touch for panning (when not adding comment)
+      if (!isAddingComment) {
+        setIsPanning(true);
+        setPanStart({ x: e.touches[0].clientX, y: e.touches[0].clientY, panX, panY });
+      }
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isPanning && e.touches.length === 1) {
+      const dx = e.touches[0].clientX - panStart.x;
+      const dy = e.touches[0].clientY - panStart.y;
+      setPanX(panStart.panX + dx);
+      setPanY(panStart.panY + dy);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsPanning(false);
+  };
+
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (isPanning) return;
 
@@ -211,6 +239,12 @@ export default function ClientView() {
 
   const handleAddComment = () => {
     if (!newCommentPos || !newCommentContent.trim() || !newCommentName.trim() || !shareLink || !board) return;
+
+    // Save name and email to localStorage for future use
+    localStorage.setItem('fan-canvas-guest-name', newCommentName.trim());
+    if (newCommentEmail) {
+      localStorage.setItem('fan-canvas-guest-email', newCommentEmail);
+    }
 
     const comment = createClientComment(
       board.id,
@@ -270,12 +304,36 @@ export default function ClientView() {
     }
   };
 
+  // Get connector lines (arrows between nodes)
+  const connectorLines = board?.visualNodes
+    .filter((n: any) => n.type === 'connector' && n.connectorFrom && n.connectorTo)
+    .map((conn: any) => {
+      const fromNode = board?.visualNodes.find((n: any) => n.id === conn.connectorFrom);
+      const toNode = board?.visualNodes.find((n: any) => n.id === conn.connectorTo);
+      if (!fromNode || !toNode) return null;
+      return {
+        id: conn.id,
+        x1: fromNode.x + fromNode.width / 2,
+        y1: fromNode.y + fromNode.height / 2,
+        x2: toNode.x + toNode.width / 2,
+        y2: toNode.y + toNode.height / 2,
+        color: conn.color,
+        style: conn.connectorStyle
+      };
+    })
+    .filter(Boolean) || [];
+
   // Render helpers
   const renderNode = (node: any) => {
     const isFrame = node.type === 'frame';
     const isText = node.type === 'text';
     const isShape = node.type === 'shape';
     const isConnector = node.type === 'connector';
+
+    // Skip connectors that have from/to - they're rendered as SVG paths
+    if (isConnector && node.connectorFrom && node.connectorTo) {
+      return null;
+    }
 
     const getShapeStyles = () => {
       if (!isShape) return {};
@@ -287,6 +345,7 @@ export default function ClientView() {
       }
     };
 
+    // Standalone connector (not connected to nodes)
     if (isConnector) {
       return (
         <div
@@ -454,36 +513,46 @@ export default function ClientView() {
     );
   }
 
+  // Pre-fill comment form with saved guest info
+  useEffect(() => {
+    if (savedGuestName) {
+      setNewCommentName(savedGuestName);
+    }
+    if (savedGuestEmail) {
+      setNewCommentEmail(savedGuestEmail);
+    }
+  }, []);
+
   // Main view
   return (
     <div className="h-screen bg-gray-100 flex flex-col overflow-hidden">
-      {/* Header */}
-      <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-30">
-        <div className="flex items-center gap-3">
+      {/* Header - responsive */}
+      <header className="h-12 sm:h-14 bg-white border-b border-gray-200 flex items-center justify-between px-2 sm:px-4 z-30">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           {shareLink?.companyBranding?.logo ? (
             <img
               src={shareLink.companyBranding.logo}
               alt=""
-              className="w-8 h-8 object-contain"
+              className="w-6 h-6 sm:w-8 sm:h-8 object-contain flex-shrink-0"
             />
           ) : (
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Target className="w-4 h-4 text-white" />
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Target className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
             </div>
           )}
-          <div>
-            <h1 className="font-semibold text-gray-900 text-sm">{board?.name}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="font-semibold text-gray-900 text-xs sm:text-sm truncate">{board?.name}</h1>
             {shareLink?.companyBranding?.name && (
-              <p className="text-xs text-gray-500">
+              <p className="text-[10px] sm:text-xs text-gray-500 truncate hidden sm:block">
                 Shared by {shareLink.companyBranding.name}
               </p>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Permission badge */}
-          <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          {/* Permission badge - icon only on mobile */}
+          <span className={`p-1.5 sm:px-3 sm:py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
             shareLink?.permissions === 'comment'
               ? 'bg-blue-100 text-blue-700'
               : 'bg-gray-100 text-gray-600'
@@ -491,32 +560,32 @@ export default function ClientView() {
             {shareLink?.permissions === 'comment' ? (
               <>
                 <MessageCircle className="w-3 h-3" />
-                Can Comment
+                <span className="hidden sm:inline">Can Comment</span>
               </>
             ) : (
               <>
                 <Eye className="w-3 h-3" />
-                View Only
+                <span className="hidden sm:inline">View Only</span>
               </>
             )}
           </span>
 
-          {/* Zoom controls */}
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          {/* Zoom controls - simplified on mobile */}
+          <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-100 rounded-lg p-0.5 sm:p-1">
             <button
               onClick={() => setZoom((z) => Math.max(z * 0.8, 0.1))}
-              className="p-1.5 hover:bg-white rounded transition-colors"
+              className="p-1 sm:p-1.5 hover:bg-white active:bg-white rounded transition-colors"
             >
-              <ZoomOut className="w-4 h-4 text-gray-600" />
+              <ZoomOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
             </button>
-            <span className="text-xs font-medium text-gray-600 w-12 text-center">
+            <span className="text-[10px] sm:text-xs font-medium text-gray-600 w-8 sm:w-12 text-center">
               {Math.round(zoom * 100)}%
             </span>
             <button
               onClick={() => setZoom((z) => Math.min(z * 1.2, 5))}
-              className="p-1.5 hover:bg-white rounded transition-colors"
+              className="p-1 sm:p-1.5 hover:bg-white active:bg-white rounded transition-colors"
             >
-              <ZoomIn className="w-4 h-4 text-gray-600" />
+              <ZoomIn className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
             </button>
             <button
               onClick={() => {
@@ -524,9 +593,9 @@ export default function ClientView() {
                 setPanX(0);
                 setPanY(0);
               }}
-              className="p-1.5 hover:bg-white rounded transition-colors"
+              className="p-1 sm:p-1.5 hover:bg-white active:bg-white rounded transition-colors hidden sm:block"
             >
-              <Maximize2 className="w-4 h-4 text-gray-600" />
+              <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
             </button>
           </div>
 
@@ -534,21 +603,21 @@ export default function ClientView() {
           {shareLink?.permissions === 'comment' && (
             <button
               onClick={() => setShowCommentPanel(!showCommentPanel)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+              className={`flex items-center gap-1 sm:gap-2 p-1.5 sm:px-3 sm:py-2 rounded-lg transition-colors ${
                 showCommentPanel
                   ? 'bg-amber-100 text-amber-700'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              <MessageCircle className="w-4 h-4" />
-              <span className="text-sm font-medium">{comments.filter(c => !c.parentId).length}</span>
+              <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-xs sm:text-sm font-medium">{comments.filter(c => !c.parentId).length}</span>
             </button>
           )}
         </div>
       </header>
 
       {/* Canvas area */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden touch-none">
         {/* Canvas */}
         <div
           ref={canvasRef}
@@ -559,6 +628,9 @@ export default function ClientView() {
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           onClick={handleCanvasClick}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           {/* Grid background */}
           <div
@@ -569,6 +641,97 @@ export default function ClientView() {
               backgroundPosition: `${panX}px ${panY}px`,
             }}
           />
+
+          {/* SVG Layer for Connector Arrows */}
+          <svg
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
+              transformOrigin: 'top left',
+              overflow: 'visible'
+            }}
+          >
+            <defs>
+              {/* Arrow markers with different colors */}
+              <marker id="arrowhead-gray" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+                <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#6b7280" />
+              </marker>
+              <marker id="arrowhead-blue" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+                <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#3b82f6" />
+              </marker>
+              <marker id="arrowhead-green" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+                <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#22c55e" />
+              </marker>
+              <marker id="arrowhead-red" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+                <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#ef4444" />
+              </marker>
+              <marker id="arrowhead-purple" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+                <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#8b5cf6" />
+              </marker>
+              <marker id="arrowhead-orange" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+                <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#f97316" />
+              </marker>
+            </defs>
+            {/* Connector lines with arrows - curved bezier paths */}
+            {connectorLines.map((line: any) => {
+              // Calculate control points for smooth bezier curve
+              const dx = line.x2 - line.x1;
+              const dy = line.y2 - line.y1;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+
+              // Determine curve direction based on relative positions
+              const isHorizontal = Math.abs(dx) > Math.abs(dy);
+              const curveStrength = Math.min(distance * 0.4, 100);
+
+              let cx1, cy1, cx2, cy2;
+              if (isHorizontal) {
+                cx1 = line.x1 + curveStrength;
+                cy1 = line.y1;
+                cx2 = line.x2 - curveStrength;
+                cy2 = line.y2;
+              } else {
+                cx1 = line.x1;
+                cy1 = line.y1 + (dy > 0 ? curveStrength : -curveStrength);
+                cx2 = line.x2;
+                cy2 = line.y2 + (dy > 0 ? -curveStrength : curveStrength);
+              }
+
+              const pathD = `M ${line.x1} ${line.y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${line.x2} ${line.y2}`;
+
+              // Get arrow color marker
+              const getMarker = (color: string) => {
+                if (color?.includes('3b82f6') || color?.includes('blue')) return 'url(#arrowhead-blue)';
+                if (color?.includes('22c55e') || color?.includes('green')) return 'url(#arrowhead-green)';
+                if (color?.includes('ef4444') || color?.includes('red')) return 'url(#arrowhead-red)';
+                if (color?.includes('8b5cf6') || color?.includes('purple')) return 'url(#arrowhead-purple)';
+                if (color?.includes('f97316') || color?.includes('orange')) return 'url(#arrowhead-orange)';
+                return 'url(#arrowhead-gray)';
+              };
+
+              return (
+                <g key={line.id}>
+                  {/* Shadow path */}
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke="rgba(0,0,0,0.08)"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                  />
+                  {/* Main curved path */}
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke={line.color || '#6b7280'}
+                    strokeWidth="2"
+                    strokeDasharray={line.style === 'dashed' ? '8,4' : line.style === 'dotted' ? '2,4' : undefined}
+                    strokeLinecap="round"
+                    markerEnd={getMarker(line.color)}
+                  />
+                </g>
+              );
+            })}
+          </svg>
 
           {/* Content layer */}
           <div
@@ -601,33 +764,35 @@ export default function ClientView() {
           </div>
         </div>
 
-        {/* New comment input overlay */}
+        {/* New comment input overlay - responsive */}
         <AnimatePresence>
           {newCommentPos && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="absolute bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-80 z-50"
+              className="fixed sm:absolute bg-white rounded-xl shadow-2xl border border-gray-200 p-3 sm:p-4 w-[calc(100%-2rem)] sm:w-80 z-50 left-4 right-4 bottom-4 sm:left-auto sm:right-auto sm:bottom-auto"
               style={{
-                left: newCommentPos.x * zoom + panX + 20,
-                top: newCommentPos.y * zoom + panY,
+                ...(typeof window !== 'undefined' && window.innerWidth >= 640 ? {
+                  left: newCommentPos.x * zoom + panX + 20,
+                  top: newCommentPos.y * zoom + panY,
+                } : {})
               }}
             >
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-gray-900">Add Comment</h3>
+                <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Add Comment</h3>
                 <button
                   onClick={() => {
                     setNewCommentPos(null);
                     setIsAddingComment(false);
                   }}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1.5 hover:bg-gray-100 active:bg-gray-100 rounded"
                 >
                   <X className="w-4 h-4 text-gray-500" />
                 </button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -663,17 +828,18 @@ export default function ClientView() {
                       setNewCommentPos(null);
                       setIsAddingComment(false);
                     }}
-                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm font-medium"
+                    className="px-3 sm:px-4 py-2 text-gray-600 hover:bg-gray-100 active:bg-gray-100 rounded-lg text-sm font-medium"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleAddComment}
                     disabled={!newCommentContent.trim() || !newCommentName.trim()}
-                    className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 active:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Send className="w-4 h-4" />
-                    Post Comment
+                    <span className="hidden sm:inline">Post Comment</span>
+                    <span className="sm:hidden">Post</span>
                   </button>
                 </div>
               </div>
@@ -681,7 +847,7 @@ export default function ClientView() {
           )}
         </AnimatePresence>
 
-        {/* Floating add comment button */}
+        {/* Floating add comment button - responsive */}
         {shareLink?.permissions === 'comment' && !isAddingComment && (
           <motion.button
             initial={{ scale: 0 }}
@@ -689,27 +855,27 @@ export default function ClientView() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsAddingComment(true)}
-            className="fixed bottom-6 right-6 flex items-center gap-2 px-5 py-3 bg-amber-500 text-white rounded-full shadow-lg hover:bg-amber-600 transition-colors z-40"
+            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 flex items-center gap-2 p-3 sm:px-5 sm:py-3 bg-amber-500 text-white rounded-full shadow-lg hover:bg-amber-600 active:bg-amber-600 transition-colors z-40"
           >
             <MessageCircle className="w-5 h-5" />
-            <span className="font-medium">Add Comment</span>
+            <span className="font-medium hidden sm:inline">Add Comment</span>
           </motion.button>
         )}
 
-        {/* Comment mode indicator */}
+        {/* Comment mode indicator - responsive */}
         <AnimatePresence>
           {isAddingComment && !newCommentPos && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-3 bg-amber-500 text-white rounded-full shadow-lg z-40"
+              className="fixed bottom-4 left-4 right-4 sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-5 py-3 bg-amber-500 text-white rounded-full shadow-lg z-40"
             >
-              <MessageCircle className="w-5 h-5 animate-pulse" />
-              <span className="font-medium">Click anywhere to add a comment</span>
+              <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 animate-pulse flex-shrink-0" />
+              <span className="font-medium text-sm sm:text-base">Tap anywhere to add a comment</span>
               <button
                 onClick={() => setIsAddingComment(false)}
-                className="p-1 hover:bg-amber-600 rounded-full"
+                className="p-1 hover:bg-amber-600 active:bg-amber-600 rounded-full flex-shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
