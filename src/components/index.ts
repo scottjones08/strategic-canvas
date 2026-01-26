@@ -36,6 +36,10 @@ export type { ParticipantActivity } from './ParticipantsPanel';
 export { default as UnifiedLeftPanel } from './UnifiedLeftPanel';
 export type { ParticipantActivity as UnifiedPanelActivity } from './UnifiedLeftPanel';
 
+// Authentication components
+export { default as ProtectedRoute } from './ProtectedRoute';
+export { AuthProvider } from './AuthProvider';
+
 // Canvas components
 export { default as SmoothCanvas } from './SmoothCanvas';
 export type { SmoothCanvasRef, SmoothCanvasProps } from './SmoothCanvas';

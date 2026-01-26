@@ -5,6 +5,7 @@ import App from './App'
 import ClientView from './pages/ClientView'
 import LoginPage from './pages/LoginPage'
 import { AuthProvider } from './components/AuthProvider'
+import ProtectedRoute from './components/ProtectedRoute'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -12,9 +13,21 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Public auth routes */}
           <Route path="/login" element={<LoginPage />} />
+
+          {/* Client portal - public with token */}
           <Route path="/client/:token" element={<ClientView />} />
-          <Route path="/*" element={<App />} />
+
+          {/* Protected app routes */}
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <App />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

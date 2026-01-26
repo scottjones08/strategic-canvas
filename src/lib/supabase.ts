@@ -103,10 +103,59 @@ export function isSupabaseConfigured(): boolean {
 }
 
 // ============================================
+// CURRENT USER HELPERS
+// ============================================
+
+export const userApi = {
+  // Get current user's profile from users table
+  async getCurrentUser() {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  },
+
+  // Check if current user is Fan Works team member
+  async isFanWorksTeam(): Promise<boolean> {
+    const user = await this.getCurrentUser();
+    return user?.is_fan_works_team === true;
+  },
+
+  // Get current user's organization ID
+  async getOrganizationId(): Promise<string | null> {
+    const user = await this.getCurrentUser();
+    return user?.organization_id || null;
+  }
+};
+
+// ============================================
 // BOARDS API
 // ============================================
 
 export const boardsApi = {
+  // Get all boards for current user (filtered by RLS)
+  async getMyBoards(): Promise<CanvasBoard[]> {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    const { data, error } = await supabase
+      .from('canvas_boards')
+      .select('*')
+      .neq('status', 'template')
+      .order('last_activity', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
   // Get all boards for an organization
   async getByOrganization(organizationId: string): Promise<CanvasBoard[]> {
     if (!supabase) throw new Error('Supabase not configured');
@@ -276,6 +325,19 @@ export const boardsApi = {
 // ============================================
 
 export const notesApi = {
+  // Get all notes for current user (filtered by RLS)
+  async getMyNotes(): Promise<ProjectNote[]> {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    const { data, error } = await supabase
+      .from('project_notes')
+      .select('*')
+      .order('updated_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
   // Get all notes for an organization
   async getByOrganization(organizationId: string): Promise<ProjectNote[]> {
     if (!supabase) throw new Error('Supabase not configured');
