@@ -106,7 +106,7 @@ import {
   Share,
   UserPlus,
   Wifi,
-  WifiOff,
+  Monitor,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { createClient } from '@supabase/supabase-js';
@@ -3000,7 +3000,7 @@ const ShareModal = ({
         </div>
         
         {/* Connection Status */}
-        <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-4 ${isConnected ? 'bg-green-50' : 'bg-amber-50'}`}>
+        <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-4 ${isConnected ? 'bg-green-50' : 'bg-blue-50'}`}>
           {isConnected ? (
             <>
               <Wifi className="w-5 h-5 text-green-600" />
@@ -3008,8 +3008,8 @@ const ShareModal = ({
             </>
           ) : (
             <>
-              <WifiOff className="w-5 h-5 text-amber-600" />
-              <span className="text-sm font-medium text-amber-700">Offline - Changes saved locally</span>
+              <Monitor className="w-5 h-5 text-blue-600" />
+              <span className="text-sm font-medium text-blue-700">Local Mode - Changes saved to browser</span>
             </>
           )}
         </div>
@@ -6368,7 +6368,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             }
           }}
           followingUserId={followingUserId}
-          shareUrl={`${window.location.origin}/board/${board.id}`}
+          shareUrl={`${window.location.origin}?board=${board.id}&collaborate=true`}
           onInvite={() => setShowShareModal(true)}
           recentActivity={recentActivity}
           onEditUserName={() => setIsEditingUserName(true)}
