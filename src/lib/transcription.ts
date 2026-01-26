@@ -608,12 +608,19 @@ export function startRealtimeTranscription(
 
     stop: async () => {
       try {
-        // Stop media recorder
+        // Stop audio processing nodes
+        const audioNodes = (session as any)._audioNodes;
+        if (audioNodes) {
+          audioNodes.scriptNode?.disconnect();
+          audioNodes.source?.disconnect();
+        }
+
+        // Stop media recorder (if using legacy path)
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
           mediaRecorder.stop();
         }
 
-        // Close WebSocket
+        // Close WebSocket - send terminate for v3
         if (socket && socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify({ terminate_session: true }));
           socket.close();
@@ -665,27 +672,46 @@ export function startRealtimeTranscription(
     },
   };
 
-  // Helper function to start audio capture
+  // Helper function to start audio capture with raw PCM
   function startAudioCapture() {
-    if (!stream || !socket) return;
+    if (!stream || !socket || !audioContext) return;
 
-    // Use AudioWorklet for better performance if available
-    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
-      ? 'audio/webm;codecs=opus'
-      : 'audio/webm';
-
-    mediaRecorder = new MediaRecorder(stream, { mimeType });
-
-    mediaRecorder.ondataavailable = async (event) => {
-      if (event.data.size > 0 && socket?.readyState === WebSocket.OPEN) {
-        // Convert to base64 and send
-        const arrayBuffer = await event.data.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-        socket.send(JSON.stringify({ audio_data: base64 }));
+    // AssemblyAI Universal-Streaming v3 requires raw PCM audio (pcm_s16le)
+    // We use ScriptProcessorNode to capture raw audio samples and convert to PCM
+    const source = audioContext.createMediaStreamSource(stream);
+    const bufferSize = 4096;
+    const scriptNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
+    
+    scriptNode.onaudioprocess = (event) => {
+      if (socket?.readyState !== WebSocket.OPEN) return;
+      
+      const inputData = event.inputBuffer.getChannelData(0);
+      
+      // Convert float32 samples to int16 PCM
+      const pcmData = new Int16Array(inputData.length);
+      for (let i = 0; i < inputData.length; i++) {
+        // Clamp and convert to 16-bit signed integer
+        const s = Math.max(-1, Math.min(1, inputData[i]));
+        pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
       }
+      
+      // Convert to base64 for JSON transmission
+      const uint8Array = new Uint8Array(pcmData.buffer);
+      let binary = '';
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+      const base64 = btoa(binary);
+      
+      // Send as AssemblyAI v3 expects
+      socket.send(JSON.stringify({ audio_data: base64 }));
     };
-
-    mediaRecorder.start(250); // Send audio every 250ms
+    
+    source.connect(scriptNode);
+    scriptNode.connect(audioContext.destination);
+    
+    // Store for cleanup (using mediaRecorder variable for backwards compat)
+    (session as any)._audioNodes = { source, scriptNode };
   }
 
   return session;
