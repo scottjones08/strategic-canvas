@@ -106,6 +106,7 @@ import {
   StopCircleIcon,
   Share,
   Cloud,
+  Menu,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { supabase, organizationsApi, boardsApi, notesApi, isSupabaseConfigured } from './lib/supabase';
@@ -566,7 +567,9 @@ const Sidebar = ({
   onToggleCollapse,
   userName,
   isGuest = false,
-  userRole = 'Owner'
+  userRole = 'Owner',
+  isMobileOpen = false,
+  onMobileClose
 }: {
   currentView: ViewType;
   onViewChange: (view: ViewType) => void;
@@ -575,6 +578,8 @@ const Sidebar = ({
   userName: string;
   isGuest?: boolean;
   userRole?: string;
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
 }) => {
   const navItems = [
     { id: 'dashboard' as ViewType, label: 'Dashboard', icon: LayoutDashboard, description: 'All boards & progress' },
@@ -583,29 +588,59 @@ const Sidebar = ({
     { id: 'clients' as ViewType, label: 'Clients', icon: Building2, description: 'Client management' },
   ];
 
+  const handleNavClick = (view: ViewType) => {
+    onViewChange(view);
+    onMobileClose?.(); // Close sidebar on mobile after navigation
+  };
+
   return (
-    <motion.nav
-      initial={{ x: -20, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      className={`h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}
-    >
+    <>
+      {/* Mobile overlay */}
+      <AnimatePresence>
+        {isMobileOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="sm:hidden fixed inset-0 bg-black/50 z-40"
+            onClick={onMobileClose}
+          />
+        )}
+      </AnimatePresence>
+      
+      <motion.nav
+        initial={{ x: -20, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        className={`
+          h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300
+          fixed sm:relative z-50
+          ${isCollapsed ? 'sm:w-16' : 'sm:w-64'}
+          ${isMobileOpen ? 'translate-x-0 w-72' : '-translate-x-full sm:translate-x-0 w-72 sm:w-auto'}
+        `}
+      >
       <div className="p-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
             <Target className="w-5 h-5 text-white" />
           </div>
-          {!isCollapsed && (
+          {(!isCollapsed || isMobileOpen) && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 min-w-0">
               <h1 className="font-bold text-gray-900">Fan Canvas</h1>
               <p className="text-xs text-gray-500">Collaborative Whiteboard</p>
             </motion.div>
           )}
+          {/* Mobile close button */}
+          {isMobileOpen && (
+            <button onClick={onMobileClose} className="sm:hidden p-2 hover:bg-gray-100 rounded-lg">
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          )}
         </div>
       </div>
 
       <div className="flex-1 px-3 py-4 space-y-1">
-        <p className={`text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 ${isCollapsed ? 'text-center' : 'px-3'}`}>
-          {isCollapsed ? '•' : 'Navigation'}
+        <p className={`text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 ${isCollapsed && !isMobileOpen ? 'text-center' : 'px-3'}`}>
+          {isCollapsed && !isMobileOpen ? '•' : 'Navigation'}
         </p>
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -613,7 +648,7 @@ const Sidebar = ({
           return (
             <motion.button
               key={item.id}
-              onClick={() => onViewChange(item.id)}
+              onClick={() => handleNavClick(item.id)}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative ${
@@ -621,7 +656,7 @@ const Sidebar = ({
               }`}
             >
               <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
-              {!isCollapsed && (
+              {(!isCollapsed || isMobileOpen) && (
                 <div className="flex-1 text-left">
                   <p className="text-sm font-medium">{item.label}</p>
                   <p className={`text-xs ${isActive ? 'text-indigo-500' : 'text-gray-400'}`}>{item.description}</p>
@@ -636,28 +671,30 @@ const Sidebar = ({
       <div className="border-t border-gray-100 p-3 space-y-2">
         <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-all">
           <Settings className="w-5 h-5 flex-shrink-0" />
-          {!isCollapsed && <span className="text-sm">Settings</span>}
+          {(!isCollapsed || isMobileOpen) && <span className="text-sm">Settings</span>}
         </button>
-        <div className={`flex items-center gap-3 p-2 rounded-xl bg-gray-50 ${isCollapsed ? 'justify-center' : ''}`}>
+        <div className={`flex items-center gap-3 p-2 rounded-xl bg-gray-50 ${isCollapsed && !isMobileOpen ? 'justify-center' : ''}`}>
           <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
             {userName.charAt(0).toUpperCase()}
           </div>
-          {!isCollapsed && (
+          {(!isCollapsed || isMobileOpen) && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>
               <p className="text-xs text-gray-500">{isGuest ? userRole : 'Owner'}</p>
             </div>
           )}
         </div>
+        {/* Collapse button - desktop only */}
         <button
           onClick={onToggleCollapse}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all"
+          className="hidden sm:flex w-full items-center justify-center gap-2 px-3 py-2 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all"
         >
           {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
           {!isCollapsed && <span className="text-sm">Collapse</span>}
         </button>
       </div>
     </motion.nav>
+    </>
   );
 };
 
@@ -748,14 +785,16 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
   };
 
   return (
-    <div className="flex-1 overflow-auto bg-gray-50 p-8">
+    <div className="flex-1 overflow-auto bg-gray-50 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-          <p className="text-gray-600">Monitor all your strategic planning boards</p>
+        {/* Header - add left padding on mobile for menu button */}
+        <div className="mb-6 sm:mb-8 pl-12 sm:pl-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Dashboard</h1>
+          <p className="text-sm sm:text-base text-gray-600">Monitor all your strategic planning boards</p>
         </div>
 
-        <div className="grid grid-cols-4 gap-6 mb-8">
+        {/* Stats Grid - 2 cols on mobile, 4 on desktop */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
           {[
             { label: 'Total Boards', value: boards.length, icon: FolderKanban, color: 'indigo' },
             { label: 'Active Projects', value: activeBoards.length, icon: TrendingUp, color: 'green' },
@@ -767,26 +806,26 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: i * 0.1 }}
-              className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
+              className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100"
             >
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 bg-${stat.color}-100 rounded-xl flex items-center justify-center`}>
-                  <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-${stat.color}-100 rounded-lg sm:rounded-xl flex items-center justify-center`}>
+                  <stat.icon className={`w-5 h-5 sm:w-6 sm:h-6 text-${stat.color}-600`} />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                  <p className="text-sm text-gray-500">{stat.label}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{stat.value}</p>
+                  <p className="text-xs sm:text-sm text-gray-500">{stat.label}</p>
                 </div>
               </div>
             </motion.div>
           ))}
         </div>
 
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="flex gap-4 flex-wrap">
-            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowNewBoardModal(true)} className="flex items-center gap-3 px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium shadow-lg shadow-indigo-200">
-              <Plus className="w-5 h-5" /> New Board
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
+          <div className="flex gap-2 sm:gap-4 flex-wrap">
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowNewBoardModal(true)} className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 bg-indigo-600 text-white rounded-xl text-sm sm:text-base font-medium shadow-lg shadow-indigo-200">
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline">New</span> Board
             </motion.button>
             <motion.button 
               whileHover={{ scale: 1.02 }} 
@@ -805,12 +844,12 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
                 setIsSyncing(false);
               }}
               disabled={isSyncing}
-              className="flex items-center gap-3 px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-200 disabled:opacity-50"
+              className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 bg-emerald-600 text-white rounded-xl text-sm sm:text-base font-medium shadow-lg shadow-emerald-200 disabled:opacity-50"
             >
-              {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Cloud className="w-5 h-5" />}
-              {isSyncing ? 'Syncing...' : 'Sync to Cloud'}
+              {isSyncing ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Cloud className="w-4 h-4 sm:w-5 sm:h-5" />}
+              {isSyncing ? 'Syncing...' : <><span className="hidden sm:inline">Sync to</span> Cloud</>}
             </motion.button>
-            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => alert('Schedule meeting coming soon! For now, create a board and start a recording session.')} className="flex items-center gap-3 px-6 py-3 bg-white text-gray-700 rounded-xl font-medium border border-gray-200">
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => alert('Schedule meeting coming soon! For now, create a board and start a recording session.')} className="hidden sm:flex items-center gap-3 px-6 py-3 bg-white text-gray-700 rounded-xl font-medium border border-gray-200">
               <Calendar className="w-5 h-5" /> Schedule Meeting
             </motion.button>
           </div>
@@ -7495,6 +7534,43 @@ export default function App() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  
+  // Swipe to open sidebar on mobile
+  const touchStartX = useRef<number | null>(null);
+  
+  useEffect(() => {
+    const handleTouchStart = (e: TouchEvent) => {
+      // Only track swipes from left edge (first 30px)
+      if (e.touches[0].clientX < 30) {
+        touchStartX.current = e.touches[0].clientX;
+      }
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      if (touchStartX.current === null) return;
+      const diff = e.touches[0].clientX - touchStartX.current;
+      // If swiped right more than 50px, open sidebar
+      if (diff > 50 && !mobileSidebarOpen) {
+        setMobileSidebarOpen(true);
+        touchStartX.current = null;
+      }
+    };
+    
+    const handleTouchEnd = () => {
+      touchStartX.current = null;
+    };
+    
+    document.addEventListener('touchstart', handleTouchStart);
+    document.addEventListener('touchmove', handleTouchMove);
+    document.addEventListener('touchend', handleTouchEnd);
+    
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [mobileSidebarOpen]);
   const [boards, setBoards] = useState<Board[]>([]);
   const [activeBoard, setActiveBoard] = useState<Board | null>(null);
   const [notes, setNotes] = useState<ProjectNote[]>([]);
@@ -8362,6 +8438,14 @@ ${transcriptContent}`;
           </motion.div>
         </div>
       )}
+      {/* Mobile menu button */}
+      <button 
+        onClick={() => setMobileSidebarOpen(true)}
+        className="sm:hidden fixed top-4 left-4 z-30 p-2 bg-white rounded-xl shadow-lg border border-gray-200"
+      >
+        <Menu className="w-5 h-5 text-gray-600" />
+      </button>
+      
       <Sidebar 
         currentView={currentView} 
         onViewChange={handleViewChange} 
@@ -8370,6 +8454,8 @@ ${transcriptContent}`;
         userName={guestCollaboratorInfo?.name || 'Scott Jones'} 
         isGuest={!!guestCollaboratorInfo}
         userRole={guestCollaboratorInfo?.role || 'Owner'}
+        isMobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
       />
       {currentView === 'dashboard' && (
         <DashboardView
