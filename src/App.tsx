@@ -185,6 +185,11 @@ interface VisualNode {
   strokeWidth?: number;
   originalWidth?: number;
   originalHeight?: number;
+  // Text formatting
+  textAlign?: 'left' | 'center' | 'right';
+  verticalAlign?: 'top' | 'middle' | 'bottom';
+  fontWeight?: 'normal' | 'bold';
+  fontStyle?: 'normal' | 'italic';
   // Reactions
   reactions?: { emoji: string; userIds: string[] }[];
   // Table properties
@@ -1760,15 +1765,33 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
                 <span className="text-xs font-semibold text-gray-600 capitalize">{node.type}</span>
               </div>
             )}
-            <textarea
-              value={node.content}
-              onChange={(e) => onUpdate({ content: e.target.value })}
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => handleListKeyDown(e, node.content, (newContent) => onUpdate({ content: newContent }))}
-              className="w-full bg-transparent resize-none border-none outline-none text-gray-800 text-sm font-medium placeholder-gray-500"
-              placeholder="Type here..."
+            <div 
+              className={`w-full flex flex-col ${
+                node.verticalAlign === 'bottom' ? 'justify-end' : 
+                node.verticalAlign === 'top' ? 'justify-start' : 
+                'justify-center'
+              }`}
               style={{ height: node.type === 'sticky' ? '100%' : 'calc(100% - 30px)' }}
-            />
+            >
+              <textarea
+                value={node.content}
+                onChange={(e) => onUpdate({ content: e.target.value })}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => handleListKeyDown(e, node.content, (newContent) => onUpdate({ content: newContent }))}
+                className="w-full bg-transparent resize-none border-none outline-none text-gray-800 placeholder-gray-500"
+                placeholder="Type here..."
+                style={{ 
+                  fontSize: node.fontSize || 14,
+                  fontWeight: node.fontWeight || 'normal',
+                  fontStyle: node.fontStyle || 'normal',
+                  textAlign: node.textAlign || 'center',
+                  height: 'auto',
+                  minHeight: '1.5em',
+                  maxHeight: '100%'
+                }}
+                rows={Math.max(1, node.content.split('\n').length)}
+              />
+            </div>
           </>
         )}
       </div>
@@ -1792,8 +1815,85 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
           <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-lg border border-gray-200 flex items-center gap-1 p-1 z-30">
             {hasTextContent && (
               <>
-                <button onClick={toggleBold} className="p-1.5 hover:bg-gray-100 rounded" title="Bold"><Bold className="w-4 h-4 text-gray-500" /></button>
-                <button onClick={toggleItalic} className="p-1.5 hover:bg-gray-100 rounded" title="Italic"><Italic className="w-4 h-4 text-gray-500" /></button>
+                {/* Font size controls */}
+                <button 
+                  onClick={() => onUpdate({ fontSize: Math.max(10, (node.fontSize || 14) - 2) })} 
+                  className="p-1.5 hover:bg-gray-100 rounded" 
+                  title="Decrease font size"
+                >
+                  <span className="text-xs font-bold text-gray-500">A-</span>
+                </button>
+                <span className="text-xs text-gray-500 w-6 text-center">{node.fontSize || 14}</span>
+                <button 
+                  onClick={() => onUpdate({ fontSize: Math.min(48, (node.fontSize || 14) + 2) })} 
+                  className="p-1.5 hover:bg-gray-100 rounded" 
+                  title="Increase font size"
+                >
+                  <span className="text-sm font-bold text-gray-500">A+</span>
+                </button>
+                <div className="w-px h-5 bg-gray-200 mx-1" />
+                {/* Text formatting */}
+                <button 
+                  onClick={() => onUpdate({ fontWeight: node.fontWeight === 'bold' ? 'normal' : 'bold' })} 
+                  className={`p-1.5 hover:bg-gray-100 rounded ${node.fontWeight === 'bold' ? 'bg-gray-200' : ''}`} 
+                  title="Bold"
+                >
+                  <Bold className="w-4 h-4 text-gray-500" />
+                </button>
+                <button 
+                  onClick={() => onUpdate({ fontStyle: node.fontStyle === 'italic' ? 'normal' : 'italic' })} 
+                  className={`p-1.5 hover:bg-gray-100 rounded ${node.fontStyle === 'italic' ? 'bg-gray-200' : ''}`} 
+                  title="Italic"
+                >
+                  <Italic className="w-4 h-4 text-gray-500" />
+                </button>
+                <div className="w-px h-5 bg-gray-200 mx-1" />
+                {/* Text alignment */}
+                <button 
+                  onClick={() => onUpdate({ textAlign: 'left' })} 
+                  className={`p-1.5 hover:bg-gray-100 rounded ${node.textAlign === 'left' ? 'bg-gray-200' : ''}`} 
+                  title="Align left"
+                >
+                  <AlignLeft className="w-4 h-4 text-gray-500" />
+                </button>
+                <button 
+                  onClick={() => onUpdate({ textAlign: 'center' })} 
+                  className={`p-1.5 hover:bg-gray-100 rounded ${(!node.textAlign || node.textAlign === 'center') ? 'bg-gray-200' : ''}`} 
+                  title="Align center"
+                >
+                  <AlignCenter className="w-4 h-4 text-gray-500" />
+                </button>
+                <button 
+                  onClick={() => onUpdate({ textAlign: 'right' })} 
+                  className={`p-1.5 hover:bg-gray-100 rounded ${node.textAlign === 'right' ? 'bg-gray-200' : ''}`} 
+                  title="Align right"
+                >
+                  <AlignRight className="w-4 h-4 text-gray-500" />
+                </button>
+                <div className="w-px h-5 bg-gray-200 mx-1" />
+                {/* Vertical alignment */}
+                <button 
+                  onClick={() => onUpdate({ verticalAlign: 'top' })} 
+                  className={`p-1.5 hover:bg-gray-100 rounded ${node.verticalAlign === 'top' ? 'bg-gray-200' : ''}`} 
+                  title="Align top"
+                >
+                  <ChevronUp className="w-4 h-4 text-gray-500" />
+                </button>
+                <button 
+                  onClick={() => onUpdate({ verticalAlign: 'middle' })} 
+                  className={`p-1.5 hover:bg-gray-100 rounded ${(!node.verticalAlign || node.verticalAlign === 'middle') ? 'bg-gray-200' : ''}`} 
+                  title="Align middle"
+                >
+                  <Minus className="w-4 h-4 text-gray-500" />
+                </button>
+                <button 
+                  onClick={() => onUpdate({ verticalAlign: 'bottom' })} 
+                  className={`p-1.5 hover:bg-gray-100 rounded ${node.verticalAlign === 'bottom' ? 'bg-gray-200' : ''}`} 
+                  title="Align bottom"
+                >
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                </button>
+                <div className="w-px h-5 bg-gray-200 mx-1" />
                 <button onClick={addBulletPoint} className="p-1.5 hover:bg-gray-100 rounded" title="Bullet list"><List className="w-4 h-4 text-gray-500" /></button>
                 <button onClick={addNumberedPoint} className="p-1.5 hover:bg-gray-100 rounded" title="Numbered list"><ListOrdered className="w-4 h-4 text-gray-500" /></button>
                 <div className="w-px h-5 bg-gray-200 mx-1" />
