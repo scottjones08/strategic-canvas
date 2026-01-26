@@ -4700,6 +4700,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   // Get authenticated user (if logged in)
   const auth = useAuthOptional();
   const authUserName = auth?.user?.full_name;
+  const authLoading = auth?.loading ?? true; // Assume loading if no auth context
+  const isAuthenticated = auth?.isAuthenticated ?? false;
 
   // Check if user is a guest collaborator
   const isGuestCollaborator = (() => {
@@ -4728,19 +4730,18 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
         isGuest: true
       };
     }
-    // Regular user - prefer auth user name, then localStorage, then 'Guest'
+    // Regular user - prefer localStorage first (auth may not be loaded yet)
     const savedName = localStorage.getItem('fan-canvas-user-name');
     const savedColor = localStorage.getItem('fan-canvas-user-color');
-    const userName = authUserName || savedName || 'Guest';
     return {
       id: '1',
-      name: userName,
+      name: savedName || 'Guest',
       color: savedColor || `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
       isGuest: false
     };
   });
-  // Only show name prompt if not logged in AND no localStorage name AND not a guest collaborator
-  const [isEditingUserName, setIsEditingUserName] = useState(!authUserName && !localStorage.getItem('fan-canvas-user-name') && !isGuestCollaborator);
+  // Start with prompt hidden - we'll show it only after auth finishes loading and user is not authenticated
+  const [isEditingUserName, setIsEditingUserName] = useState(false);
   const [editingUserNameValue, setEditingUserNameValue] = useState(currentUser.name);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -4817,14 +4818,27 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     setIsEditingUserName(false);
   }, [currentUser.color]);
 
-  // If user logs in after component mounts, update name and dismiss prompt
+  // Handle auth state changes - update user name or show prompt
   useEffect(() => {
-    if (authUserName && !isGuestCollaborator) {
+    // Don't do anything while auth is still loading
+    if (authLoading) return;
+    
+    if (isGuestCollaborator) {
+      // Guest collaborators don't need the prompt
+      setIsEditingUserName(false);
+      return;
+    }
+    
+    if (isAuthenticated && authUserName) {
+      // User is logged in - use their name and hide prompt
       setCurrentUser(prev => ({ ...prev, name: authUserName }));
       setIsEditingUserName(false);
       setEditingUserNameValue(authUserName);
+    } else if (!localStorage.getItem('fan-canvas-user-name')) {
+      // Not logged in and no saved name - show the prompt
+      setIsEditingUserName(true);
     }
-  }, [authUserName, isGuestCollaborator]);
+  }, [authLoading, isAuthenticated, authUserName, isGuestCollaborator]);
   
   // Real-time collaboration using the new hook
   const {
