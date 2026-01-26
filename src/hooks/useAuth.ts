@@ -76,7 +76,6 @@ export function useAuthState() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const isMountedRef = useRef(true);
-  const initializingRef = useRef(false);
 
   const fetchUserProfile = useCallback(async (userId: string): Promise<User | null> => {
     if (!supabase || !isMountedRef.current) return null;
@@ -116,13 +115,19 @@ export function useAuthState() {
       return;
     }
 
-    // Prevent double initialization in StrictMode
-    if (initializingRef.current) return;
-    initializingRef.current = true;
+    // Timeout to ensure loading resolves even if there's an issue
+    const loadingTimeout = setTimeout(() => {
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+    }, 5000);
 
-    // Initial session check with timeout
+    // Initial session check
     const initSession = async () => {
-      if (!supabase) return;
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
 
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -130,7 +135,11 @@ export function useAuthState() {
         if (!isMountedRef.current) return;
 
         if (error) {
-          if (isAbortError(error)) return;
+          if (isAbortError(error)) {
+            // Still set loading to false on abort
+            if (isMountedRef.current) setLoading(false);
+            return;
+          }
           console.error('Session error:', error);
           setSession(null);
           setSupabaseUser(null);
@@ -153,7 +162,10 @@ export function useAuthState() {
           setLoading(false);
         }
       } catch (err) {
-        if (isAbortError(err)) return;
+        if (isAbortError(err)) {
+          if (isMountedRef.current) setLoading(false);
+          return;
+        }
         console.error('Session init error:', err);
         if (isMountedRef.current) {
           setLoading(false);
@@ -212,7 +224,7 @@ export function useAuthState() {
 
     return () => {
       isMountedRef.current = false;
-      initializingRef.current = false;
+      clearTimeout(loadingTimeout);
       subscription.unsubscribe();
     };
   }, [fetchUserProfile]);
