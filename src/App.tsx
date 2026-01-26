@@ -2452,8 +2452,9 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       const fromNode = board.visualNodes.find(n => n.id === connectingFrom);
       const toNode = board.visualNodes.find(n => n.id === nodeId);
       if (fromNode && toNode) {
+        const connectorId = generateId();
         const connectorNode: VisualNode = {
-          id: generateId(),
+          id: connectorId,
           type: 'connector',
           x: Math.min(fromNode.x, toNode.x),
           y: Math.min(fromNode.y, toNode.y),
@@ -2472,6 +2473,8 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
           connectorStyle: 'solid'
         };
         onUpdateWithHistory({ visualNodes: [...board.visualNodes, connectorNode] }, 'Connect elements');
+        // Auto-select the new connector to show the editor
+        onSelectNodes([connectorId]);
       }
       setConnectingFrom(null);
     }
@@ -2893,6 +2896,12 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
           <marker id="arrowhead-orange" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
             <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#f97316" />
           </marker>
+          <marker id="arrowhead-teal" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#14b8a6" />
+          </marker>
+          <marker id="arrowhead-pink" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#ec4899" />
+          </marker>
         </defs>
         {/* Connector lines with arrows - curved bezier paths */}
         {connectorLines.map((line: any) => {
@@ -2931,6 +2940,8 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
             if (color?.includes('ef4444') || color?.includes('red')) return 'url(#arrowhead-red)';
             if (color?.includes('8b5cf6') || color?.includes('purple')) return 'url(#arrowhead-purple)';
             if (color?.includes('f97316') || color?.includes('orange')) return 'url(#arrowhead-orange)';
+            if (color?.includes('14b8a6') || color?.includes('teal')) return 'url(#arrowhead-teal)';
+            if (color?.includes('ec4899') || color?.includes('pink')) return 'url(#arrowhead-pink)';
             return 'url(#arrowhead-gray)';
           };
 
@@ -3108,9 +3119,9 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
                   
                   {/* Connector toolbar */}
                   <div
-                    className="absolute bg-white rounded-lg shadow-lg border border-gray-200 p-1 flex items-center gap-1 pointer-events-auto"
+                    className="absolute bg-white rounded-lg shadow-lg border border-gray-200 p-1.5 flex items-center gap-1 pointer-events-auto"
                     style={{
-                      left: line.midX - 80,
+                      left: line.midX - 160,
                       top: line.midY + 20,
                     }}
                     onClick={(e) => e.stopPropagation()}
@@ -3138,12 +3149,27 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
                     >
                       <span className="text-xs font-mono text-gray-600">- -</span>
                     </button>
+                    <button
+                      onClick={() => onUpdateWithHistory({
+                        visualNodes: board.visualNodes.map(n => 
+                          n.id === line.id ? { ...n, connectorStyle: 'dotted' } : n
+                        )
+                      }, 'Dotted line')}
+                      className={`p-1.5 rounded ${connector?.connectorStyle === 'dotted' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                      title="Dotted"
+                    >
+                      <span className="text-xs font-mono text-gray-600">···</span>
+                    </button>
                     <div className="w-px h-5 bg-gray-200" />
                     {/* Colors */}
-                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#6b7280' } : n) }, 'Gray')} className="w-5 h-5 rounded bg-gray-500 hover:ring-2 ring-gray-300" />
-                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#3b82f6' } : n) }, 'Blue')} className="w-5 h-5 rounded bg-blue-500 hover:ring-2 ring-gray-300" />
-                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#22c55e' } : n) }, 'Green')} className="w-5 h-5 rounded bg-green-500 hover:ring-2 ring-gray-300" />
-                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#ef4444' } : n) }, 'Red')} className="w-5 h-5 rounded bg-red-500 hover:ring-2 ring-gray-300" />
+                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#6b7280' } : n) }, 'Gray')} className={`w-5 h-5 rounded bg-gray-500 hover:ring-2 ring-gray-300 ${connector?.color === '#6b7280' ? 'ring-2 ring-indigo-500' : ''}`} title="Gray" />
+                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#3b82f6' } : n) }, 'Blue')} className={`w-5 h-5 rounded bg-blue-500 hover:ring-2 ring-gray-300 ${connector?.color === '#3b82f6' ? 'ring-2 ring-indigo-500' : ''}`} title="Blue" />
+                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#22c55e' } : n) }, 'Green')} className={`w-5 h-5 rounded bg-green-500 hover:ring-2 ring-gray-300 ${connector?.color === '#22c55e' ? 'ring-2 ring-indigo-500' : ''}`} title="Green" />
+                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#ef4444' } : n) }, 'Red')} className={`w-5 h-5 rounded bg-red-500 hover:ring-2 ring-gray-300 ${connector?.color === '#ef4444' ? 'ring-2 ring-indigo-500' : ''}`} title="Red" />
+                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#8b5cf6' } : n) }, 'Purple')} className={`w-5 h-5 rounded bg-purple-500 hover:ring-2 ring-gray-300 ${connector?.color === '#8b5cf6' ? 'ring-2 ring-indigo-500' : ''}`} title="Purple" />
+                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#f97316' } : n) }, 'Orange')} className={`w-5 h-5 rounded bg-orange-500 hover:ring-2 ring-gray-300 ${connector?.color === '#f97316' ? 'ring-2 ring-indigo-500' : ''}`} title="Orange" />
+                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#14b8a6' } : n) }, 'Teal')} className={`w-5 h-5 rounded bg-teal-500 hover:ring-2 ring-gray-300 ${connector?.color === '#14b8a6' ? 'ring-2 ring-indigo-500' : ''}`} title="Teal" />
+                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#ec4899' } : n) }, 'Pink')} className={`w-5 h-5 rounded bg-pink-500 hover:ring-2 ring-gray-300 ${connector?.color === '#ec4899' ? 'ring-2 ring-indigo-500' : ''}`} title="Pink" />
                     <div className="w-px h-5 bg-gray-200" />
                     {/* Delete */}
                     <button
@@ -6566,7 +6592,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
             <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Text & Lines</p>
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => { const node: VisualNode = { id: generateId(), type: 'text', textStyle: 'heading', x: 300 + Math.random() * 100, y: 300 + Math.random() * 100, width: 300, height: 60, content: 'Heading', color: 'transparent', rotation: 0, locked: false, votes: 0, votedBy: [], createdBy: currentUser.id, comments: [], fontSize: 24 }; handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, node] }, 'Add text'); }} className="p-3 hover:bg-gray-100 rounded-xl group relative"><Type className="w-5 h-5 text-gray-700" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Text / Heading</div></motion.button>
-            <motion.button whileHover={{ scale: 1.1 }} onClick={() => { const node: VisualNode = { id: generateId(), type: 'connector', x: 300 + Math.random() * 100, y: 300 + Math.random() * 100, width: 200, height: 4, content: '', color: '#6b7280', rotation: 0, locked: false, votes: 0, votedBy: [], createdBy: currentUser.id, comments: [], connectorStyle: 'solid' }; handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, node] }, 'Add connector'); }} className="p-3 hover:bg-gray-100 rounded-xl group relative"><Minus className="w-5 h-5 text-gray-700" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Connector Line</div></motion.button>
+            <motion.button whileHover={{ scale: 1.1 }} onClick={() => { const nodeId = generateId(); const node: VisualNode = { id: nodeId, type: 'connector', x: 300 + Math.random() * 100, y: 300 + Math.random() * 100, width: 200, height: 4, content: '', color: '#6b7280', rotation: 0, locked: false, votes: 0, votedBy: [], createdBy: currentUser.id, comments: [], connectorStyle: 'solid' }; handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, node] }, 'Add connector'); setSelectedNodeIds([nodeId]); }} className="p-3 hover:bg-gray-100 rounded-xl group relative"><Minus className="w-5 h-5 text-gray-700" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Connector Line</div></motion.button>
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
             <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Media</p>
