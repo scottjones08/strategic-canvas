@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info',
 }
 
@@ -18,61 +18,25 @@ serve(async (req) => {
       throw new Error('ASSEMBLYAI_API_KEY not configured')
     }
 
-    // Universal-Streaming v3 uses /v2/streaming/token endpoint
-    // https://www.assemblyai.com/docs/speech-to-text/universal-streaming
-    const response = await fetch('https://api.assemblyai.com/v2/streaming/token', {
-      method: 'POST',
+    // Universal-Streaming v3 token endpoint
+    // https://www.assemblyai.com/docs/api-reference/streaming-api/generate-streaming-token
+    const response = await fetch('https://streaming.assemblyai.com/v3/token?expires_in_seconds=600', {
+      method: 'GET',
       headers: {
         'Authorization': apiKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ expires_in: 3600 })
+      }
     })
 
     if (!response.ok) {
-      // Try alternate endpoint for temporary token
-      const altResponse = await fetch('https://api.assemblyai.com/v2/realtime/token', {
-        method: 'POST',
-        headers: {
-          'Authorization': apiKey,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ expires_in: 3600 })
-      })
-
-      if (!altResponse.ok) {
-        const errorText = await altResponse.text()
-        // If token endpoints are deprecated, use the API key with server-side proxy approach
-        // Return info so frontend knows to use fallback
-        return new Response(JSON.stringify({
-          error: 'Token endpoint deprecated',
-          fallback: 'use_file_upload',
-          message: errorText
-        }), {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          }
-        })
-      }
-
-      const altData = await altResponse.json()
-      return new Response(JSON.stringify({
-        token: altData.token,
-        streaming_url: 'wss://streaming.assemblyai.com/v3/ws'
-      }), {
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders
-        }
-      })
+      const errorText = await response.text()
+      throw new Error(`AssemblyAI token error: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()
 
     return new Response(JSON.stringify({
       token: data.token,
+      expires_in_seconds: data.expires_in_seconds,
       streaming_url: 'wss://streaming.assemblyai.com/v3/ws'
     }), {
       headers: {
