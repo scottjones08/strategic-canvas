@@ -109,9 +109,10 @@ const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL + '/functions/v
 
 // Streaming auth response from edge function
 interface StreamingAuth {
-  token: string;
-  method: 'direct' | 'token';
-  streaming_url: string;
+  token?: string;
+  streaming_url?: string;
+  error?: string;
+  fallback?: string;
 }
 
 /**
@@ -487,16 +488,20 @@ export function startRealtimeTranscription(
           return;
         }
 
-        // Connect to AssemblyAI Universal-Streaming WebSocket
-        // New endpoint: wss://streaming.assemblyai.com with API key auth
-        let socketUrl: string;
-        if (streamingAuth.method === 'direct') {
-          // Universal-Streaming: pass API key directly
-          socketUrl = `${streamingAuth.streaming_url}?sample_rate=16000&encoding=pcm_s16le&token=${encodeURIComponent(streamingAuth.token)}`;
-        } else {
-          // Legacy: use temporary token
-          socketUrl = `${streamingAuth.streaming_url}?sample_rate=16000&token=${encodeURIComponent(streamingAuth.token)}`;
+        // Check if streaming is available or need to fallback
+        if (streamingAuth.fallback === 'use_file_upload') {
+          handleError(new Error('Real-time streaming not available. Please use file upload for transcription.'));
+          return;
         }
+
+        if (!streamingAuth.token || !streamingAuth.streaming_url) {
+          handleError(new Error('Failed to get streaming credentials'));
+          return;
+        }
+
+        // Connect to AssemblyAI Universal-Streaming v3 WebSocket
+        // URL format: wss://streaming.assemblyai.com/v3/ws?token=...&sample_rate=16000
+        const socketUrl = `${streamingAuth.streaming_url}?token=${encodeURIComponent(streamingAuth.token)}&sample_rate=16000&encoding=pcm_s16le&format_turns=true`;
         socket = new WebSocket(socketUrl);
 
         socket.onopen = () => {
@@ -511,30 +516,54 @@ export function startRealtimeTranscription(
           try {
             const message = JSON.parse(event.data);
             
-            // Handle Universal-Streaming format (turn-based)
-            if (message.transcript && message.end_of_turn) {
-              const segment: TranscriptSegment = {
-                id: `${sessionId}-${transcript.segments.length}`,
-                speaker: 'A',
-                speakerLabel: 'Speaker A',
-                text: message.transcript,
-                startTime: message.words?.[0]?.start || 0,
-                endTime: message.words?.[message.words.length - 1]?.end || 0,
-                confidence: message.words?.[0]?.confidence || 0.9,
-                words: message.words?.filter((w: any) => w.word_is_final).map((w: any) => ({
-                  text: w.text,
-                  startTime: w.start,
-                  endTime: w.end,
-                  confidence: w.confidence,
-                })),
-              };
-
-              transcript.segments.push(segment);
-              transcript.duration = Date.now() - startTime;
-              segmentCallbacks.forEach(cb => cb(segment));
+            // Handle v3 Begin event (session started)
+            if (message.type === 'Begin') {
+              console.log('Streaming session started:', message.id);
+              return;
             }
-            // Handle legacy format (FinalTranscript)
-            else if (message.message_type === 'FinalTranscript' && message.text) {
+
+            // Handle v3 Turn event (transcription)
+            if (message.type === 'Turn' && message.transcript) {
+              // Only process end_of_turn or formatted turns for cleaner output
+              if (message.end_of_turn || message.turn_is_formatted) {
+                const segment: TranscriptSegment = {
+                  id: `${sessionId}-${transcript.segments.length}`,
+                  speaker: 'A',
+                  speakerLabel: 'Speaker A',
+                  text: message.transcript,
+                  startTime: message.words?.[0]?.start || 0,
+                  endTime: message.words?.[message.words.length - 1]?.end || 0,
+                  confidence: message.words?.[0]?.confidence || 0.9,
+                  words: message.words?.filter((w: any) => w.word_is_final).map((w: any) => ({
+                    text: w.text,
+                    startTime: w.start,
+                    endTime: w.end,
+                    confidence: w.confidence,
+                  })),
+                };
+
+                transcript.segments.push(segment);
+                transcript.duration = Date.now() - startTime;
+                segmentCallbacks.forEach(cb => cb(segment));
+              }
+              return;
+            }
+
+            // Handle v3 Termination event
+            if (message.type === 'Termination') {
+              console.log('Streaming session terminated');
+              return;
+            }
+
+            // Handle error messages
+            if (message.error) {
+              console.error('AssemblyAI error:', message.error);
+              handleError(new Error(message.error));
+              return;
+            }
+
+            // Handle legacy format (FinalTranscript) for backwards compatibility
+            if (message.message_type === 'FinalTranscript' && message.text) {
               const segment: TranscriptSegment = {
                 id: `${sessionId}-${transcript.segments.length}`,
                 speaker: 'A',
