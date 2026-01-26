@@ -108,6 +108,31 @@ const ASSEMBLYAI_API_URL = 'https://api.assemblyai.com/v2';
 const ASSEMBLYAI_REALTIME_URL = 'wss://api.assemblyai.com/v2/realtime/ws';
 
 /**
+ * Get a temporary token for real-time streaming
+ * Required for WebSocket authentication
+ */
+export async function getRealtimeToken(apiKey: string): Promise<string> {
+  const response = await fetch(`${ASSEMBLYAI_API_URL}/realtime/token`, {
+    method: 'POST',
+    headers: {
+      'Authorization': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      expires_in: 3600, // 1 hour
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Failed to get realtime token' }));
+    throw new Error(error.error || `Failed to get realtime token: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.token;
+}
+
+/**
  * Upload audio file to AssemblyAI and get upload URL
  */
 export async function uploadAudioToAssemblyAI(
@@ -449,16 +474,21 @@ export function startRealtimeTranscription(
         // Create audio context for resampling
         audioContext = new AudioContext({ sampleRate: 16000 });
 
-        // Connect to AssemblyAI WebSocket
-        const socketUrl = `${ASSEMBLYAI_REALTIME_URL}?sample_rate=16000`;
+        // Get temporary token for real-time streaming
+        setStatus('connecting');
+        let realtimeToken: string;
+        try {
+          realtimeToken = await getRealtimeToken(config.apiKey);
+        } catch (tokenError: any) {
+          handleError(new Error(`Failed to authenticate: ${tokenError.message}`));
+          return;
+        }
+
+        // Connect to AssemblyAI WebSocket with token
+        const socketUrl = `${ASSEMBLYAI_REALTIME_URL}?sample_rate=16000&token=${encodeURIComponent(realtimeToken)}`;
         socket = new WebSocket(socketUrl);
 
         socket.onopen = () => {
-          // Send auth token
-          socket?.send(JSON.stringify({
-            token: config.apiKey,
-          }));
-          
           setStatus('connected');
           startTime = Date.now();
           
