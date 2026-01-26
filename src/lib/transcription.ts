@@ -418,15 +418,29 @@ function parseAssemblyAIResult(result: any, transcriptId: string): FullTranscrip
 }
 
 // ============================================
+// HYBRID TRANSCRIPTION SESSION
+// ============================================
+
+export interface HybridTranscriptionSession extends TranscriptionSession {
+  /** Get the recorded audio blob for reprocessing */
+  getRecordedAudio: () => Blob | null;
+  /** Reprocess the recorded audio with speaker diarization */
+  reprocessWithDiarization: (onProgress?: (status: string, message: string) => void) => Promise<FullTranscript>;
+  /** Whether reprocessing is available */
+  canReprocess: boolean;
+}
+
+// ============================================
 // REAL-TIME TRANSCRIPTION (AssemblyAI)
 // ============================================
 
 /**
  * Start a real-time transcription session using AssemblyAI
+ * Now with hybrid support: records audio for later reprocessing with speaker diarization
  */
 export function startRealtimeTranscription(
   config: TranscriptionConfig
-): TranscriptionSession {
+): HybridTranscriptionSession {
   const sessionId = generateId();
   const transcript: FullTranscript = {
     id: sessionId,
@@ -444,6 +458,11 @@ export function startRealtimeTranscription(
   let status: TranscriptionSession['status'] = 'connecting';
   let startTime = Date.now();
 
+  // For hybrid mode: record audio for later diarization reprocessing
+  let mediaRecorder: MediaRecorder | null = null;
+  let recordedChunks: Blob[] = [];
+  let recordedAudioBlob: Blob | null = null;
+
   const segmentCallbacks: ((segment: TranscriptSegment) => void)[] = [];
   const statusCallbacks: ((status: TranscriptionSession['status']) => void)[] = [];
   const errorCallbacks: ((error: Error) => void)[] = [];
@@ -458,10 +477,60 @@ export function startRealtimeTranscription(
     errorCallbacks.forEach(cb => cb(error));
   };
 
-  const session: TranscriptionSession = {
+  const session: HybridTranscriptionSession = {
     id: sessionId,
     status: 'connecting',
     transcript,
+    canReprocess: true,
+
+    getRecordedAudio: () => recordedAudioBlob,
+
+    reprocessWithDiarization: async (onProgress) => {
+      if (!recordedAudioBlob) {
+        throw new Error('No recorded audio available for reprocessing');
+      }
+
+      onProgress?.('uploading', 'Uploading audio for speaker identification...');
+      
+      try {
+        // Upload audio to AssemblyAI
+        const uploadUrl = await uploadAudioToAssemblyAI(recordedAudioBlob, config.apiKey);
+        
+        onProgress?.('processing', 'Analyzing speakers (this may take a minute)...');
+        
+        // Request transcription with speaker diarization
+        const jobId = await requestTranscription(uploadUrl, {
+          ...config,
+          enableDiarization: true,
+          speakersExpected: config.speakersExpected || 2,
+        });
+        
+        // Wait for completion
+        const result = await waitForTranscription(
+          jobId,
+          config.apiKey,
+          (status) => onProgress?.(status, `Processing: ${status}...`),
+          3000,
+          600000 // 10 minute timeout for diarization
+        );
+        
+        onProgress?.('completed', 'Speaker identification complete!');
+        
+        // Parse and return the diarized transcript
+        const diarizedTranscript = parseAssemblyAIResult(result, sessionId);
+        
+        // Update the session's transcript with the diarized version
+        transcript.segments = diarizedTranscript.segments;
+        transcript.speakers = diarizedTranscript.speakers;
+        transcript.status = 'completed';
+        transcript.rawResponse = result;
+        
+        return diarizedTranscript;
+      } catch (error: any) {
+        onProgress?.('error', error.message);
+        throw error;
+      }
+    },
 
     start: async () => {
       try {
@@ -507,6 +576,9 @@ export function startRealtimeTranscription(
         socket.onopen = () => {
           setStatus('connected');
           startTime = Date.now();
+          
+          // Start recording audio for later diarization (in parallel with streaming)
+          startAudioRecording();
           
           // Start recording and sending audio
           startAudioCapture();
@@ -629,6 +701,18 @@ export function startRealtimeTranscription(
           audioNodes.source?.disconnect();
         }
 
+        // Stop media recorder and create blob
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          await new Promise<void>((resolve) => {
+            mediaRecorder!.onstop = () => {
+              recordedAudioBlob = new Blob(recordedChunks, { type: 'audio/webm;codecs=opus' });
+              console.log('Recorded audio blob:', recordedAudioBlob.size, 'bytes');
+              resolve();
+            };
+            mediaRecorder!.stop();
+          });
+        }
+
         // Close WebSocket - send terminate for v3
         if (socket && socket.readyState === WebSocket.OPEN) {
           // AssemblyAI v3 terminate message
@@ -714,6 +798,45 @@ export function startRealtimeTranscription(
     
     // Store for cleanup (using mediaRecorder variable for backwards compat)
     (session as any)._audioNodes = { source, scriptNode };
+  }
+
+  // Helper function to record audio for later diarization
+  function startAudioRecording() {
+    if (!stream) return;
+
+    try {
+      // Create a new stream clone for recording (so we don't interfere with streaming)
+      const recordingStream = stream.clone();
+      
+      // Try to use webm with opus codec for good quality/size balance
+      const options = { mimeType: 'audio/webm;codecs=opus' };
+      
+      try {
+        mediaRecorder = new MediaRecorder(recordingStream, options);
+      } catch (e) {
+        // Fallback to default codec
+        mediaRecorder = new MediaRecorder(recordingStream);
+      }
+
+      recordedChunks = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordedChunks.push(event.data);
+        }
+      };
+
+      mediaRecorder.onerror = (event: any) => {
+        console.error('MediaRecorder error:', event.error);
+      };
+
+      // Record in chunks for better memory management
+      mediaRecorder.start(1000); // Collect data every second
+      console.log('Started recording audio for diarization reprocessing');
+    } catch (e) {
+      console.error('Failed to start audio recording:', e);
+      // Non-fatal - streaming still works, just won't have reprocessing
+    }
   }
 
   return session;
