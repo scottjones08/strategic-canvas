@@ -1093,6 +1093,8 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [isEditingText, setIsEditingText] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isFrame = node.type === 'frame';
 
   const handleResizeStart = (e: React.MouseEvent, direction: string) => {
@@ -1774,9 +1776,12 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
               style={{ height: node.type === 'sticky' ? '100%' : 'calc(100% - 30px)' }}
             >
               <textarea
+                ref={textareaRef}
                 value={node.content}
                 onChange={(e) => onUpdate({ content: e.target.value })}
                 onClick={(e) => e.stopPropagation()}
+                onFocus={() => setIsEditingText(true)}
+                onBlur={() => setTimeout(() => setIsEditingText(false), 200)}
                 onKeyDown={(e) => handleListKeyDown(e, node.content, (newContent) => onUpdate({ content: newContent }))}
                 className="w-full bg-transparent resize-none border-none outline-none text-gray-800 placeholder-gray-500"
                 placeholder="Type here..."
@@ -1791,6 +1796,86 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
                 }}
                 rows={Math.max(1, node.content.split('\n').length)}
               />
+              
+              {/* Floating text toolbar when editing */}
+              <AnimatePresence>
+                {isEditingText && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute -bottom-12 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-xl border border-gray-200 flex items-center gap-0.5 p-1 z-[200]"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    {/* Font size */}
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); onUpdate({ fontSize: Math.max(10, (node.fontSize || 14) - 2) }); }}
+                      className="p-1.5 hover:bg-gray-100 rounded text-xs font-bold text-gray-500" 
+                      title="Decrease font"
+                    >A-</button>
+                    <span className="text-[10px] text-gray-400 w-5 text-center">{node.fontSize || 14}</span>
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); onUpdate({ fontSize: Math.min(48, (node.fontSize || 14) + 2) }); }}
+                      className="p-1.5 hover:bg-gray-100 rounded text-sm font-bold text-gray-500" 
+                      title="Increase font"
+                    >A+</button>
+                    <div className="w-px h-4 bg-gray-200 mx-0.5" />
+                    {/* Bold / Italic */}
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); onUpdate({ fontWeight: node.fontWeight === 'bold' ? 'normal' : 'bold' }); }}
+                      className={`p-1.5 hover:bg-gray-100 rounded ${node.fontWeight === 'bold' ? 'bg-gray-200' : ''}`}
+                      title="Bold"
+                    ><Bold className="w-3.5 h-3.5 text-gray-500" /></button>
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); onUpdate({ fontStyle: node.fontStyle === 'italic' ? 'normal' : 'italic' }); }}
+                      className={`p-1.5 hover:bg-gray-100 rounded ${node.fontStyle === 'italic' ? 'bg-gray-200' : ''}`}
+                      title="Italic"
+                    ><Italic className="w-3.5 h-3.5 text-gray-500" /></button>
+                    <div className="w-px h-4 bg-gray-200 mx-0.5" />
+                    {/* Alignment */}
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); onUpdate({ textAlign: 'left' }); }}
+                      className={`p-1.5 hover:bg-gray-100 rounded ${node.textAlign === 'left' ? 'bg-gray-200' : ''}`}
+                      title="Left"
+                    ><AlignLeft className="w-3.5 h-3.5 text-gray-500" /></button>
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); onUpdate({ textAlign: 'center' }); }}
+                      className={`p-1.5 hover:bg-gray-100 rounded ${(!node.textAlign || node.textAlign === 'center') ? 'bg-gray-200' : ''}`}
+                      title="Center"
+                    ><AlignCenter className="w-3.5 h-3.5 text-gray-500" /></button>
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); onUpdate({ textAlign: 'right' }); }}
+                      className={`p-1.5 hover:bg-gray-100 rounded ${node.textAlign === 'right' ? 'bg-gray-200' : ''}`}
+                      title="Right"
+                    ><AlignRight className="w-3.5 h-3.5 text-gray-500" /></button>
+                    <div className="w-px h-4 bg-gray-200 mx-0.5" />
+                    {/* Vertical alignment */}
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); onUpdate({ verticalAlign: 'top' }); }}
+                      className={`p-1.5 hover:bg-gray-100 rounded ${node.verticalAlign === 'top' ? 'bg-gray-200' : ''}`}
+                      title="Top"
+                    ><ChevronUp className="w-3.5 h-3.5 text-gray-500" /></button>
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); onUpdate({ verticalAlign: 'middle' }); }}
+                      className={`p-1.5 hover:bg-gray-100 rounded ${(!node.verticalAlign || node.verticalAlign === 'middle') ? 'bg-gray-200' : ''}`}
+                      title="Middle"
+                    ><Minus className="w-3.5 h-3.5 text-gray-500" /></button>
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); onUpdate({ verticalAlign: 'bottom' }); }}
+                      className={`p-1.5 hover:bg-gray-100 rounded ${node.verticalAlign === 'bottom' ? 'bg-gray-200' : ''}`}
+                      title="Bottom"
+                    ><ChevronDown className="w-3.5 h-3.5 text-gray-500" /></button>
+                    <div className="w-px h-4 bg-gray-200 mx-0.5" />
+                    {/* Colors */}
+                    <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#fef3c7' }); }} className="w-5 h-5 rounded bg-yellow-100 hover:ring-2 ring-gray-300" title="Yellow" />
+                    <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#dbeafe' }); }} className="w-5 h-5 rounded bg-blue-100 hover:ring-2 ring-gray-300" title="Blue" />
+                    <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#dcfce7' }); }} className="w-5 h-5 rounded bg-green-100 hover:ring-2 ring-gray-300" title="Green" />
+                    <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#fce7f3' }); }} className="w-5 h-5 rounded bg-pink-100 hover:ring-2 ring-gray-300" title="Pink" />
+                    <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#f3e8ff' }); }} className="w-5 h-5 rounded bg-purple-100 hover:ring-2 ring-gray-300" title="Purple" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </>
         )}
