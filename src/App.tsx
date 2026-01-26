@@ -1268,7 +1268,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
   const isConnector = node.type === 'connector';
   const isComment = node.type === 'comment';
   void node.type; // _isMindmap check handled by type === 'mindmap' inline
-  const hasTextContent = !['youtube', 'image', 'bucket', 'shape', 'connector', 'comment'].includes(node.type);
+  const hasTextContent = !['youtube', 'image', 'bucket', 'connector', 'comment'].includes(node.type);
   const [commentExpanded, setCommentExpanded] = useState(false);
 
   // Text formatting functions
@@ -1482,12 +1482,65 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
               value={node.content}
               onChange={(e) => onUpdate({ content: e.target.value })}
               onClick={(e) => e.stopPropagation()}
-              className="w-full h-full bg-transparent resize-none border-none outline-none text-gray-700 text-sm font-medium text-center placeholder-gray-400"
+              onFocus={() => setIsEditingText(true)}
+              onBlur={() => setTimeout(() => setIsEditingText(false), 200)}
+              className="w-full h-full bg-transparent resize-none border-none outline-none text-gray-700 font-medium text-center placeholder-gray-400"
               placeholder="Click to add text"
-              style={{ textAlign: 'center', display: 'flex', alignItems: 'center' }}
+              style={{ 
+                textAlign: node.textAlign || 'center', 
+                fontSize: node.fontSize || 14,
+                fontWeight: node.fontWeight || 'normal',
+                fontStyle: node.fontStyle || 'normal'
+              }}
             />
           </div>
         )}
+        
+        {/* Floating text toolbar when editing shapes */}
+        <AnimatePresence>
+          {isShape && isEditingText && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="absolute -bottom-12 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-xl border border-gray-200 flex items-center gap-0.5 p-1 z-[200]"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              {/* Font size */}
+              <button 
+                onMouseDown={(e) => { e.preventDefault(); onUpdate({ fontSize: Math.max(10, (node.fontSize || 14) - 2) }); }}
+                className="p-1.5 hover:bg-gray-100 rounded text-xs font-bold text-gray-500" 
+                title="Decrease font"
+              >A-</button>
+              <span className="text-[10px] text-gray-400 w-5 text-center">{node.fontSize || 14}</span>
+              <button 
+                onMouseDown={(e) => { e.preventDefault(); onUpdate({ fontSize: Math.min(48, (node.fontSize || 14) + 2) }); }}
+                className="p-1.5 hover:bg-gray-100 rounded text-sm font-bold text-gray-500" 
+                title="Increase font"
+              >A+</button>
+              <div className="w-px h-4 bg-gray-200 mx-0.5" />
+              {/* Bold / Italic */}
+              <button 
+                onMouseDown={(e) => { e.preventDefault(); onUpdate({ fontWeight: node.fontWeight === 'bold' ? 'normal' : 'bold' }); }}
+                className={`p-1.5 hover:bg-gray-100 rounded ${node.fontWeight === 'bold' ? 'bg-gray-200' : ''}`}
+                title="Bold"
+              ><Bold className="w-3.5 h-3.5 text-gray-500" /></button>
+              <button 
+                onMouseDown={(e) => { e.preventDefault(); onUpdate({ fontStyle: node.fontStyle === 'italic' ? 'normal' : 'italic' }); }}
+                className={`p-1.5 hover:bg-gray-100 rounded ${node.fontStyle === 'italic' ? 'bg-gray-200' : ''}`}
+                title="Italic"
+              ><Italic className="w-3.5 h-3.5 text-gray-500" /></button>
+              <div className="w-px h-4 bg-gray-200 mx-0.5" />
+              {/* Colors */}
+              <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#fef3c7' }); }} className="w-5 h-5 rounded bg-yellow-100 hover:ring-2 ring-gray-300" title="Yellow" />
+              <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#dbeafe' }); }} className="w-5 h-5 rounded bg-blue-100 hover:ring-2 ring-gray-300" title="Blue" />
+              <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#dcfce7' }); }} className="w-5 h-5 rounded bg-green-100 hover:ring-2 ring-gray-300" title="Green" />
+              <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#fce7f3' }); }} className="w-5 h-5 rounded bg-pink-100 hover:ring-2 ring-gray-300" title="Pink" />
+              <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#f3e8ff' }); }} className="w-5 h-5 rounded bg-purple-100 hover:ring-2 ring-gray-300" title="Purple" />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {isText && (
           <textarea
@@ -5255,7 +5308,21 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [recordingStartTime, setRecordingStartTime] = useState<Date | null>(null);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
-  const [savedTranscripts, setSavedTranscripts] = useState<SavedTranscript[]>(board.transcripts || []);
+  // Load saved transcripts from localStorage first, then fall back to board.transcripts
+  const [savedTranscripts, setSavedTranscripts] = useState<SavedTranscript[]>(() => {
+    try {
+      const stored = localStorage.getItem(`board-transcripts-${board.id}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Error loading saved transcripts from localStorage:', e);
+    }
+    return board.transcripts || [];
+  });
   const [parsedItems, setParsedItems] = useState<ParsedItem[]>([]);
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [showMediaModal, setShowMediaModal] = useState<'youtube' | 'image' | 'qr' | null>(null);
