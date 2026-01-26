@@ -524,28 +524,42 @@ export function startRealtimeTranscription(
 
             // Handle v3 Turn event (transcription)
             if (message.type === 'Turn' && message.transcript) {
-              // Only process end_of_turn or formatted turns for cleaner output
-              if (message.end_of_turn || message.turn_is_formatted) {
-                const segment: TranscriptSegment = {
-                  id: `${sessionId}-${transcript.segments.length}`,
-                  speaker: 'A',
-                  speakerLabel: 'Speaker A',
-                  text: message.transcript,
-                  startTime: message.words?.[0]?.start || 0,
-                  endTime: message.words?.[message.words.length - 1]?.end || 0,
-                  confidence: message.words?.[0]?.confidence || 0.9,
-                  words: message.words?.filter((w: any) => w.word_is_final).map((w: any) => ({
-                    text: w.text,
-                    startTime: w.start,
-                    endTime: w.end,
-                    confidence: w.confidence,
-                  })),
-                };
+              console.log('Turn received:', message.transcript, 'end_of_turn:', message.end_of_turn);
+              
+              // Always create a segment for live display
+              const segment: TranscriptSegment = {
+                id: `${sessionId}-${Date.now()}`,
+                speaker: 'A',
+                speakerLabel: 'Speaker A',
+                text: message.transcript,
+                startTime: message.words?.[0]?.start || 0,
+                endTime: message.words?.[message.words.length - 1]?.end || 0,
+                confidence: message.words?.[0]?.confidence || 0.9,
+                words: message.words?.filter((w: any) => w.word_is_final).map((w: any) => ({
+                  text: w.text,
+                  startTime: w.start,
+                  endTime: w.end,
+                  confidence: w.confidence,
+                })),
+              };
 
+              // For end_of_turn, add as final segment; otherwise update last segment
+              if (message.end_of_turn || message.turn_is_formatted) {
                 transcript.segments.push(segment);
-                transcript.duration = Date.now() - startTime;
-                segmentCallbacks.forEach(cb => cb(segment));
+              } else if (transcript.segments.length > 0) {
+                // Update the last segment with interim text
+                const lastIdx = transcript.segments.length - 1;
+                if (!transcript.segments[lastIdx].text.endsWith('.') && !transcript.segments[lastIdx].text.endsWith('?')) {
+                  transcript.segments[lastIdx] = segment;
+                } else {
+                  transcript.segments.push(segment);
+                }
+              } else {
+                transcript.segments.push(segment);
               }
+              
+              transcript.duration = Date.now() - startTime;
+              segmentCallbacks.forEach(cb => cb(segment));
               return;
             }
 
@@ -617,7 +631,8 @@ export function startRealtimeTranscription(
 
         // Close WebSocket - send terminate for v3
         if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ terminate_session: true }));
+          // AssemblyAI v3 terminate message
+          socket.send(JSON.stringify({ type: 'Terminate' }));
           socket.close();
         }
 
@@ -681,7 +696,7 @@ export function startRealtimeTranscription(
       
       const inputData = event.inputBuffer.getChannelData(0);
       
-      // Convert float32 samples to int16 PCM
+      // Convert float32 samples to int16 PCM (little-endian)
       const pcmData = new Int16Array(inputData.length);
       for (let i = 0; i < inputData.length; i++) {
         // Clamp and convert to 16-bit signed integer
@@ -689,16 +704,9 @@ export function startRealtimeTranscription(
         pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
       }
       
-      // Convert to base64 for JSON transmission
-      const uint8Array = new Uint8Array(pcmData.buffer);
-      let binary = '';
-      for (let i = 0; i < uint8Array.length; i++) {
-        binary += String.fromCharCode(uint8Array[i]);
-      }
-      const base64 = btoa(binary);
-      
-      // Send as AssemblyAI v3 expects
-      socket.send(JSON.stringify({ audio_data: base64 }));
+      // AssemblyAI v3 expects raw binary bytes, not JSON
+      // Send the PCM buffer directly as binary
+      socket.send(pcmData.buffer);
     };
     
     source.connect(scriptNode);
