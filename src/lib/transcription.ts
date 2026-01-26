@@ -106,21 +106,18 @@ export function getSpeakerColor(speakerIndex: number): string {
 
 const ASSEMBLYAI_API_URL = 'https://api.assemblyai.com/v2';
 const ASSEMBLYAI_REALTIME_URL = 'wss://api.assemblyai.com/v2/realtime/ws';
+const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL + '/functions/v1';
 
 /**
  * Get a temporary token for real-time streaming
- * Required for WebSocket authentication
+ * Uses Supabase Edge Function to proxy the request (avoids CORS)
  */
-export async function getRealtimeToken(apiKey: string): Promise<string> {
-  const response = await fetch(`${ASSEMBLYAI_API_URL}/realtime/token`, {
+export async function getRealtimeToken(_apiKey?: string): Promise<string> {
+  const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/assemblyai-token`, {
     method: 'POST',
     headers: {
-      'Authorization': apiKey,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      expires_in: 3600, // 1 hour
-    }),
   });
 
   if (!response.ok) {
