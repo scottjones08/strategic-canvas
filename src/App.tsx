@@ -96,7 +96,6 @@ import {
   AlignCenter,
   AlignRight,
   AlignStartVertical,
-  AlignEndVertical,
   Strikethrough,
   Underline,
   Code,
@@ -105,11 +104,7 @@ import {
   Shuffle,
   MicIcon,
   StopCircleIcon,
-  Clipboard,
   Share,
-  UserPlus,
-  Wifi,
-  Monitor,
   Cloud,
 } from 'lucide-react';
 import QRCode from 'qrcode';
