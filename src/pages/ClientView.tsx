@@ -676,11 +676,13 @@ export default function ClientView() {
 
               let cx1, cy1, cx2, cy2;
               if (isHorizontal) {
-                cx1 = line.x1 + curveStrength;
+                // Horizontal flow - control points extend in the direction of travel
+                cx1 = line.x1 + (dx > 0 ? curveStrength : -curveStrength);
                 cy1 = line.y1;
-                cx2 = line.x2 - curveStrength;
+                cx2 = line.x2 + (dx > 0 ? -curveStrength : curveStrength);
                 cy2 = line.y2;
               } else {
+                // Vertical flow - control points extend in the direction of travel
                 cx1 = line.x1;
                 cy1 = line.y1 + (dy > 0 ? curveStrength : -curveStrength);
                 cx2 = line.x2;

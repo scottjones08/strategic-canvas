@@ -114,6 +114,7 @@ import TranscriptToWhiteboardModal, { VisualNodeInput } from './components/Trans
 import { FullTranscript } from './lib/transcription';
 import { CollaborationOverlay, UserPresenceList } from './components';
 import { useCollaboration } from './hooks/useCollaboration';
+import { useAuthOptional } from './hooks/useAuth';
 import UnifiedLeftPanel from './components/UnifiedLeftPanel';
 import type { ParticipantActivity } from './components/UnifiedLeftPanel';
 // Note: getUserColor and getUserInitials available from realtime-collaboration if needed
@@ -2591,13 +2592,15 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
 
           let cx1, cy1, cx2, cy2;
           if (isHorizontal) {
-            // Horizontal flow - curve vertically
-            cx1 = line.x1 + curveStrength;
+            // Horizontal flow - control points extend in the direction of travel
+            // cx1 moves away from start in the direction of dx
+            // cx2 moves back from end in the direction opposite to dx (so arrow points correctly)
+            cx1 = line.x1 + (dx > 0 ? curveStrength : -curveStrength);
             cy1 = line.y1;
-            cx2 = line.x2 - curveStrength;
+            cx2 = line.x2 + (dx > 0 ? -curveStrength : curveStrength);
             cy2 = line.y2;
           } else {
-            // Vertical flow - curve horizontally
+            // Vertical flow - control points extend in the direction of travel
             cx1 = line.x1;
             cy1 = line.y1 + (dy > 0 ? curveStrength : -curveStrength);
             cx2 = line.x2;
@@ -4694,6 +4697,10 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   onCreateAISummary?: (boardId: string, boardName: string, summary: string) => void;
   onCreateTranscriptNote?: (boardId: string, boardName: string, transcriptContent: string, startTime: Date, endTime: Date) => void;
 }) => {
+  // Get authenticated user (if logged in)
+  const auth = useAuthOptional();
+  const authUserName = auth?.user?.full_name;
+
   // Check if user is a guest collaborator
   const isGuestCollaborator = (() => {
     try {
@@ -4708,7 +4715,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     }
   })();
 
-  // User state - for guests, use their collaborator name; for owners, use saved name
+  // User state - for guests, use their collaborator name; for logged-in users, use auth name; fallback to localStorage
   const [currentUser, setCurrentUser] = useState(() => {
     // Check for guest collaborator first
     if (isGuestCollaborator) {
@@ -4721,17 +4728,19 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
         isGuest: true
       };
     }
-    // Regular user
+    // Regular user - prefer auth user name, then localStorage, then 'Guest'
     const savedName = localStorage.getItem('fan-canvas-user-name');
     const savedColor = localStorage.getItem('fan-canvas-user-color');
+    const userName = authUserName || savedName || 'Guest';
     return {
       id: '1',
-      name: savedName || 'Guest',
+      name: userName,
       color: savedColor || `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
       isGuest: false
     };
   });
-  const [isEditingUserName, setIsEditingUserName] = useState(!localStorage.getItem('fan-canvas-user-name') && !isGuestCollaborator);
+  // Only show name prompt if not logged in AND no localStorage name AND not a guest collaborator
+  const [isEditingUserName, setIsEditingUserName] = useState(!authUserName && !localStorage.getItem('fan-canvas-user-name') && !isGuestCollaborator);
   const [editingUserNameValue, setEditingUserNameValue] = useState(currentUser.name);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -4807,6 +4816,15 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     setCurrentUser(prev => ({ ...prev, name: trimmedName }));
     setIsEditingUserName(false);
   }, [currentUser.color]);
+
+  // If user logs in after component mounts, update name and dismiss prompt
+  useEffect(() => {
+    if (authUserName && !isGuestCollaborator) {
+      setCurrentUser(prev => ({ ...prev, name: authUserName }));
+      setIsEditingUserName(false);
+      setEditingUserNameValue(authUserName);
+    }
+  }, [authUserName, isGuestCollaborator]);
   
   // Real-time collaboration using the new hook
   const {
