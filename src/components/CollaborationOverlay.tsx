@@ -60,7 +60,7 @@ const LiveCursor = memo(({
         stiffness: 500,
         mass: 0.5
       }}
-      className="absolute top-0 left-0 pointer-events-none z-[9999]"
+      className="absolute top-0 left-0 pointer-events-none z-[50]"
       style={{ willChange: 'transform' }}
     >
       {/* Cursor arrow */}
@@ -119,7 +119,7 @@ export const CollaborationOverlay: React.FC<CollaborationOverlayProps> = memo(({
   return (
     <div 
       className="absolute inset-0 overflow-hidden pointer-events-none"
-      style={{ zIndex: 9999 }}
+      style={{ zIndex: 50 }}
     >
       <AnimatePresence mode="popLayout">
         {cursorEntries.map(([userId, cursor]) => (
