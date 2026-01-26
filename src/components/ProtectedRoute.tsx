@@ -76,8 +76,8 @@ export default function ProtectedRoute({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check if user account is deactivated
-  if (user && !user.is_active) {
+  // Check if user account is deactivated (only if is_active field exists and is explicitly false)
+  if (user && user.is_active === false) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
         <motion.div
