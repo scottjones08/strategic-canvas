@@ -16,6 +16,9 @@ import {
   Users,
   RefreshCw,
   Shield,
+  Edit3,
+  Wifi,
+  Building2,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import {
@@ -24,9 +27,10 @@ import {
   generateShareLink,
   loadShareLinks,
   saveShareLinks,
-  getShareLinksForBoard,
+  getShareLinksForBoardAsync,
   deactivateShareLink,
   getShareUrl,
+  saveShareLinkToSupabase,
 } from '../lib/client-portal';
 
 interface ShareBoardModalProps {
@@ -36,6 +40,8 @@ interface ShareBoardModalProps {
   boardName: string;
   companyName?: string;
   companyLogo?: string;
+  isConnected?: boolean;
+  connectedUsers?: { id: string; name: string; color: string }[];
 }
 
 export default function ShareBoardModal({
@@ -45,16 +51,19 @@ export default function ShareBoardModal({
   boardName,
   companyName = 'Fan Consulting',
   companyLogo,
+  isConnected = false,
+  connectedUsers = [],
 }: ShareBoardModalProps) {
   const [existingLinks, setExistingLinks] = useState<ShareLink[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   // Form state
   const [clientName, setClientName] = useState('');
-  const [permissions, setPermissions] = useState<'view' | 'comment'>('comment');
+  const [permissions, setPermissions] = useState<'view' | 'comment' | 'edit'>('comment');
   const [usePassword, setUsePassword] = useState(false);
   const [password, setPassword] = useState('');
   const [useExpiration, setUseExpiration] = useState(false);
@@ -69,34 +78,62 @@ export default function ShareBoardModal({
     }
   }, [isOpen, boardId]);
 
-  const loadLinks = () => {
-    const links = getShareLinksForBoard(boardId);
+  const loadLinks = async () => {
+    const links = await getShareLinksForBoardAsync(boardId);
     setExistingLinks(links.filter(l => l.isActive));
   };
 
-  const handleCreateLink = () => {
-    const options: ShareLinkOptions = {
-      clientName: clientName || undefined,
-      permissions,
-      password: usePassword && password ? password : undefined,
-      expiresInDays: useExpiration ? expirationDays : undefined,
-      companyBranding: useBranding
-        ? { name: companyName, logo: companyLogo }
-        : undefined,
-    };
+  const handleCreateLink = async () => {
+    if (isCreating) return;
+    setIsCreating(true);
 
-    const newLink = generateShareLink(boardId, options);
-    const allLinks = loadShareLinks();
-    allLinks.push(newLink);
-    saveShareLinks(allLinks);
+    try {
+      const options: ShareLinkOptions = {
+        clientName: clientName || undefined,
+        permissions,
+        password: usePassword && password ? password : undefined,
+        expiresInDays: useExpiration ? expirationDays : undefined,
+        companyBranding: useBranding
+          ? { name: companyName, logo: companyLogo }
+          : undefined,
+      };
 
-    // Reset form
-    setClientName('');
-    setPassword('');
-    setUsePassword(false);
-    setUseExpiration(false);
-    setShowCreateForm(false);
-    loadLinks();
+      const newLink = generateShareLink(boardId, options);
+
+      // Save to Supabase first
+      try {
+        await saveShareLinkToSupabase(newLink);
+      } catch (err) {
+        console.error('Error saving to Supabase:', err);
+      }
+
+      // Also save to localStorage as fallback
+      const allLinks = loadShareLinks();
+      allLinks.push(newLink);
+      saveShareLinks(allLinks);
+
+      // Immediately add to existing links so user can copy right away
+      setExistingLinks(prev => [...prev, newLink]);
+
+      // Reset form
+      setClientName('');
+      setPassword('');
+      setUsePassword(false);
+      setUseExpiration(false);
+      setShowCreateForm(false);
+      
+      // Also copy to clipboard automatically
+      const url = getShareUrl(newLink.token);
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopiedId(newLink.id);
+        setTimeout(() => setCopiedId(null), 3000);
+      } catch (err) {
+        console.error('Failed to auto-copy:', err);
+      }
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleCopyLink = async (link: ShareLink) => {
@@ -118,7 +155,7 @@ export default function ShareBoardModal({
   };
 
   const handleDeactivate = (linkId: string) => {
-    if (confirm('Are you sure you want to deactivate this share link? Clients will no longer be able to access the board.')) {
+    if (confirm('Are you sure you want to deactivate this share link?')) {
       deactivateShareLink(linkId);
       loadLinks();
     }
@@ -143,6 +180,24 @@ export default function ShareBoardModal({
     return `${daysLeft} days left`;
   };
 
+  const getPermissionLabel = (perm: string) => {
+    switch (perm) {
+      case 'view': return 'Viewing';
+      case 'comment': return 'Commenting';
+      case 'edit': return 'Full Collaboration';
+      default: return perm;
+    }
+  };
+
+  const getPermissionBadgeColor = (perm: string) => {
+    switch (perm) {
+      case 'view': return 'bg-gray-100 text-gray-600';
+      case 'comment': return 'bg-blue-100 text-blue-700';
+      case 'edit': return 'bg-green-100 text-green-700';
+      default: return 'bg-gray-100 text-gray-600';
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -159,13 +214,13 @@ export default function ShareBoardModal({
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden shadow-2xl flex flex-col"
+          className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Share with Clients</h2>
+              <h2 className="text-xl font-bold text-gray-900">Share Board</h2>
               <p className="text-sm text-gray-500">{boardName}</p>
             </div>
             <button
@@ -177,21 +232,39 @@ export default function ShareBoardModal({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Connection Status */}
+            <div className={`flex items-center gap-2 px-4 py-3 rounded-xl ${isConnected ? 'bg-green-50' : 'bg-blue-50'}`}>
+              {isConnected ? (
+                <>
+                  <Wifi className="w-5 h-5 text-green-600" />
+                  <span className="text-sm font-medium text-green-700">Connected - Real-time sync active</span>
+                  {connectedUsers.length > 0 && (
+                    <span className="ml-auto text-xs text-green-600">{connectedUsers.length + 1} online</span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Wifi className="w-5 h-5 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-700">Local Mode - Changes saved to browser</span>
+                </>
+              )}
+            </div>
+
             {/* Existing links */}
             {existingLinks.length > 0 && !showCreateForm && (
-              <div className="space-y-4 mb-6">
+              <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                   <Link className="w-4 h-4" />
-                  Active Share Links
+                  Active Share Links ({existingLinks.length})
                 </h3>
                 {existingLinks.map((link) => (
                   <div
                     key={link.id}
                     className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-gray-900">
                           {link.clientName || 'Anonymous Link'}
                         </span>
@@ -201,19 +274,19 @@ export default function ShareBoardModal({
                             Protected
                           </span>
                         )}
-                        <span
-                          className={`px-2 py-0.5 text-xs rounded-full ${
-                            link.permissions === 'comment'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {link.permissions === 'comment' ? 'Can comment' : 'View only'}
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${getPermissionBadgeColor(link.permissions)}`}>
+                          {getPermissionLabel(link.permissions)}
                         </span>
+                        {link.companyBranding && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
+                            <Building2 className="w-3 h-3" />
+                            Branded
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
                         Created {formatDate(link.createdAt)}
@@ -244,11 +317,7 @@ export default function ShareBoardModal({
                         }`}
                         title="Copy link"
                       >
-                        {copiedId === link.id ? (
-                          <Check className="w-4 h-4" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
+                        {copiedId === link.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                       </button>
                       <button
                         onClick={() => handleShowQR(link)}
@@ -287,52 +356,68 @@ export default function ShareBoardModal({
                 {/* Client name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Client Name (optional)
+                    Client/Recipient Name (optional)
                   </label>
                   <input
                     type="text"
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
-                    placeholder="e.g., Acme Corp"
+                    placeholder="e.g., Acme Corp, John Smith"
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
-                {/* Permissions */}
+                {/* Permissions - 3 options */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Permissions
+                    Access Level
                   </label>
-                  <div className="flex gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       onClick={() => setPermissions('view')}
-                      className={`flex-1 p-3 rounded-xl border-2 transition-all ${
+                      className={`p-3 rounded-xl border-2 transition-all ${
                         permissions === 'view'
                           ? 'border-indigo-500 bg-indigo-50'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
                       <Eye className={`w-5 h-5 mx-auto mb-1 ${permissions === 'view' ? 'text-indigo-600' : 'text-gray-400'}`} />
-                      <p className={`text-sm font-medium ${permissions === 'view' ? 'text-indigo-700' : 'text-gray-600'}`}>
-                        View Only
+                      <p className={`text-xs font-medium ${permissions === 'view' ? 'text-indigo-700' : 'text-gray-600'}`}>
+                        Viewing
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">Can see but not comment</p>
                     </button>
                     <button
                       onClick={() => setPermissions('comment')}
-                      className={`flex-1 p-3 rounded-xl border-2 transition-all ${
+                      className={`p-3 rounded-xl border-2 transition-all ${
                         permissions === 'comment'
                           ? 'border-indigo-500 bg-indigo-50'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
                       <MessageSquare className={`w-5 h-5 mx-auto mb-1 ${permissions === 'comment' ? 'text-indigo-600' : 'text-gray-400'}`} />
-                      <p className={`text-sm font-medium ${permissions === 'comment' ? 'text-indigo-700' : 'text-gray-600'}`}>
-                        Can Comment
+                      <p className={`text-xs font-medium ${permissions === 'comment' ? 'text-indigo-700' : 'text-gray-600'}`}>
+                        Commenting
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">Leave feedback on board</p>
+                    </button>
+                    <button
+                      onClick={() => setPermissions('edit')}
+                      className={`p-3 rounded-xl border-2 transition-all ${
+                        permissions === 'edit'
+                          ? 'border-indigo-500 bg-indigo-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <Edit3 className={`w-5 h-5 mx-auto mb-1 ${permissions === 'edit' ? 'text-indigo-600' : 'text-gray-400'}`} />
+                      <p className={`text-xs font-medium ${permissions === 'edit' ? 'text-indigo-700' : 'text-gray-600'}`}>
+                        Full Collab
+                      </p>
                     </button>
                   </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    {permissions === 'view' && 'Can view the board but cannot make changes or comments'}
+                    {permissions === 'comment' && 'Can view and leave comments/feedback on the board'}
+                    {permissions === 'edit' && 'Can view, comment, and edit the board in real-time'}
+                  </p>
                 </div>
 
                 {/* Password protection */}
@@ -400,10 +485,10 @@ export default function ShareBoardModal({
                 </div>
 
                 {/* Company branding */}
-                <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="p-4 bg-gray-50 rounded-xl space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-gray-500" />
+                      <Building2 className="w-4 h-4 text-gray-500" />
                       <span className="text-sm font-medium text-gray-700">Show Company Branding</span>
                     </div>
                     <button
@@ -419,14 +504,14 @@ export default function ShareBoardModal({
                     </button>
                   </div>
                   {useBranding && (
-                    <p className="text-xs text-gray-400 mt-2">
-                      Displays "{companyName}" header on the client view
+                    <p className="text-xs text-gray-400">
+                      Displays "<span className="font-medium">{companyName}</span>" header on the client view
                     </p>
                   )}
                 </div>
 
                 {/* Form actions */}
-                <div className="flex gap-3 pt-2">
+                <div className="flex gap-3 pt-2 border-t border-gray-100 mt-4">
                   <button
                     onClick={() => setShowCreateForm(false)}
                     className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
@@ -435,10 +520,11 @@ export default function ShareBoardModal({
                   </button>
                   <button
                     onClick={handleCreateLink}
-                    className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                    disabled={isCreating}
+                    className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <Link className="w-4 h-4" />
-                    Create Link
+                    {isCreating ? 'Creating...' : 'Create Link'}
                   </button>
                 </div>
               </div>
@@ -450,6 +536,43 @@ export default function ShareBoardModal({
                 <RefreshCw className="w-5 h-5" />
                 Create New Share Link
               </button>
+            )}
+
+            {/* Connected Users Section (if any) */}
+            {connectedUsers.length > 0 && (
+              <div className="pt-4 border-t border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-3">
+                  <Users className="w-4 h-4" />
+                  Currently Online ({connectedUsers.length + 1})
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-xl">
+                    <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white font-medium text-sm">
+                      Y
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">You</p>
+                      <p className="text-xs text-gray-500">Owner</p>
+                    </div>
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                  </div>
+                  {connectedUsers.map(user => (
+                    <div key={user.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                      <div 
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white font-medium text-sm"
+                        style={{ backgroundColor: user.color }}
+                      >
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                        <p className="text-xs text-gray-500">Collaborator</p>
+                      </div>
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </motion.div>
@@ -469,10 +592,10 @@ export default function ShareBoardModal({
             className="bg-white rounded-2xl p-6 text-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Scan to View Board</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Scan to Access Board</h3>
             <img src={qrCodeUrl} alt="QR Code" className="mx-auto rounded-lg shadow-lg" />
             <p className="text-sm text-gray-500 mt-4">
-              Clients can scan this QR code to access the board
+              Scan this QR code to access the board
             </p>
             <button
               onClick={() => setShowQrModal(false)}

@@ -1,5 +1,8 @@
 // Client Portal Types and Functions
 // Provides read-only board access with commenting for clients
+// Now uses Supabase for storage so share links work across browsers
+
+import { supabase, isSupabaseConfigured, boardsApi } from './supabase';
 
 export interface ShareLink {
   id: string;
@@ -9,7 +12,7 @@ export interface ShareLink {
   token: string;
   password?: string; // hashed
   expiresAt?: Date;
-  permissions: 'view' | 'comment';
+  permissions: 'view' | 'comment' | 'edit';
   createdAt: Date;
   views: number;
   lastViewedAt?: Date;
@@ -43,7 +46,7 @@ export interface ShareLinkOptions {
   clientName?: string;
   password?: string;
   expiresInDays?: number;
-  permissions: 'view' | 'comment';
+  permissions: 'view' | 'comment' | 'edit';
   companyBranding?: {
     name?: string;
     logo?: string;
@@ -72,10 +75,28 @@ export function hashPassword(password: string): string {
   return `sha256:${Math.abs(hash).toString(16)}`;
 }
 
+// Convert database row to ShareLink interface
+function dbRowToShareLink(row: any): ShareLink {
+  return {
+    id: row.id,
+    boardId: row.board_id,
+    clientName: row.client_name,
+    token: row.token,
+    password: row.password_hash,
+    expiresAt: row.expires_at ? new Date(row.expires_at) : undefined,
+    permissions: row.permission as 'view' | 'comment' | 'edit',
+    createdAt: new Date(row.created_at),
+    views: row.views || 0,
+    lastViewedAt: row.last_viewed_at ? new Date(row.last_viewed_at) : undefined,
+    isActive: row.is_active !== false,
+    companyBranding: row.company_branding || {},
+  };
+}
+
 // Generate a new share link for a board
 export function generateShareLink(boardId: string, options: ShareLinkOptions): ShareLink {
   const now = new Date();
-  const expiresAt = options.expiresInDays 
+  const expiresAt = options.expiresInDays
     ? new Date(now.getTime() + options.expiresInDays * 24 * 60 * 60 * 1000)
     : undefined;
 
@@ -150,9 +171,223 @@ export function createClientComment(
   };
 }
 
-// Storage keys
+// Storage keys for localStorage fallback
 const SHARE_LINKS_KEY = 'fan-canvas-share-links';
 const CLIENT_COMMENTS_KEY = 'fan-canvas-client-comments';
+
+// ============================================
+// SHARE LINKS - Supabase with localStorage fallback
+// ============================================
+
+// Save share link to Supabase
+export async function saveShareLinkToSupabase(link: ShareLink): Promise<boolean> {
+  console.log('saveShareLinkToSupabase called with:', { boardId: link.boardId, token: link.token });
+
+  if (!isSupabaseConfigured()) {
+    console.warn('Supabase not configured, saving to localStorage only');
+    return false;
+  }
+
+  const insertData = {
+    id: link.id,
+    board_id: link.boardId,
+    token: link.token,
+    permission: link.permissions,
+    client_name: link.clientName || null,
+    password_hash: link.password || null,
+    expires_at: link.expiresAt?.toISOString() || null,
+    views: link.views,
+    is_active: link.isActive,
+    company_branding: link.companyBranding || {},
+    created_at: link.createdAt.toISOString(),
+  };
+
+  console.log('Inserting share link to Supabase:', insertData);
+
+  try {
+    // Use direct fetch to avoid Supabase JS client hanging issues
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    const response = await fetch(`${supabaseUrl}/rest/v1/board_magic_links`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(insertData),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to save share link to Supabase:', response.status, errorText);
+      return false;
+    }
+
+    const data = await response.json();
+    console.log('SUCCESS: Share link saved to Supabase:', link.token, data);
+    return true;
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      console.error('Supabase request timed out after 10s');
+    } else {
+      console.error('Error saving share link to Supabase:', err);
+    }
+    return false;
+  }
+}
+
+// Get share link by token from Supabase
+export async function getShareLinkByTokenFromSupabase(token: string): Promise<ShareLink | null> {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  try {
+    // Use direct fetch to avoid Supabase JS client hanging issues
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/board_magic_links?token=eq.${token}&limit=1`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+        signal: controller.signal
+      }
+    );
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.error('Failed to fetch share link:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    if (!data || data.length === 0) {
+      return null;
+    }
+
+    return dbRowToShareLink(data[0]);
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      console.error('Supabase fetch timed out');
+    } else {
+      console.error('Error fetching share link from Supabase:', err);
+    }
+    return null;
+  }
+}
+
+// Get share links for a board from Supabase
+export async function getShareLinksForBoardFromSupabase(boardId: string): Promise<ShareLink[]> {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  try {
+    // Use direct fetch to avoid Supabase JS client hanging issues
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/board_magic_links?board_id=eq.${boardId}&order=created_at.desc`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+        signal: controller.signal
+      }
+    );
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.error('Failed to fetch share links:', response.status);
+      return [];
+    }
+
+    const data = await response.json();
+    return data.map(dbRowToShareLink);
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      console.error('Supabase fetch timed out');
+    } else {
+      console.error('Error fetching share links from Supabase:', err);
+    }
+    return [];
+  }
+}
+
+// Record a view in Supabase
+export async function recordViewInSupabase(linkId: string): Promise<void> {
+  if (!supabase || !isSupabaseConfigured()) return;
+
+  try {
+    // First get current views
+    const { data } = await supabase
+      .from('board_magic_links')
+      .select('views')
+      .eq('id', linkId)
+      .single();
+
+    const currentViews = data?.views || 0;
+
+    // Update views count
+    await supabase
+      .from('board_magic_links')
+      .update({
+        views: currentViews + 1,
+        last_viewed_at: new Date().toISOString(),
+      })
+      .eq('id', linkId);
+  } catch (err) {
+    console.error('Error recording view:', err);
+  }
+}
+
+// Deactivate share link in Supabase
+export async function deactivateShareLinkInSupabase(linkId: string): Promise<boolean> {
+  if (!supabase || !isSupabaseConfigured()) {
+    return false;
+  }
+
+  try {
+    const { error } = await supabase
+      .from('board_magic_links')
+      .update({ is_active: false })
+      .eq('id', linkId);
+
+    return !error;
+  } catch (err) {
+    console.error('Error deactivating share link:', err);
+    return false;
+  }
+}
+
+// ============================================
+// SHARE LINKS - localStorage fallback functions
+// ============================================
 
 // Load share links from localStorage
 export function loadShareLinks(): ShareLink[] {
@@ -181,10 +416,24 @@ export function saveShareLinks(links: ShareLink[]): void {
   }
 }
 
-// Get a share link by token
+// Get a share link by token (tries Supabase first, then localStorage)
 export function getShareLinkByToken(token: string): ShareLink | null {
+  // Synchronous version for backward compatibility - checks localStorage only
+  // Use getShareLinkByTokenAsync for full functionality
   const links = loadShareLinks();
   return links.find(l => l.token === token) || null;
+}
+
+// Async version that checks Supabase first
+export async function getShareLinkByTokenAsync(token: string): Promise<ShareLink | null> {
+  // Try Supabase first
+  const supabaseLink = await getShareLinkByTokenFromSupabase(token);
+  if (supabaseLink) {
+    return supabaseLink;
+  }
+
+  // Fall back to localStorage
+  return getShareLinkByToken(token);
 }
 
 // Get all share links for a board
@@ -193,12 +442,33 @@ export function getShareLinksForBoard(boardId: string): ShareLink[] {
   return links.filter(l => l.boardId === boardId);
 }
 
+// Async version that includes Supabase links
+export async function getShareLinksForBoardAsync(boardId: string): Promise<ShareLink[]> {
+  // Get from Supabase
+  const supabaseLinks = await getShareLinksForBoardFromSupabase(boardId);
+
+  // Get from localStorage
+  const localLinks = getShareLinksForBoard(boardId);
+
+  // Merge, preferring Supabase (dedupe by id)
+  const seenIds = new Set(supabaseLinks.map(l => l.id));
+  const mergedLinks = [...supabaseLinks];
+
+  for (const link of localLinks) {
+    if (!seenIds.has(link.id)) {
+      mergedLinks.push(link);
+    }
+  }
+
+  return mergedLinks;
+}
+
 // Update a share link (e.g., increment views)
 export function updateShareLink(linkId: string, updates: Partial<ShareLink>): ShareLink | null {
   const links = loadShareLinks();
   const index = links.findIndex(l => l.id === linkId);
   if (index === -1) return null;
-  
+
   links[index] = { ...links[index], ...updates };
   saveShareLinks(links);
   return links[index];
@@ -207,6 +477,8 @@ export function updateShareLink(linkId: string, updates: Partial<ShareLink>): Sh
 // Deactivate a share link
 export function deactivateShareLink(linkId: string): void {
   updateShareLink(linkId, { isActive: false });
+  // Also try to deactivate in Supabase
+  deactivateShareLinkInSupabase(linkId);
 }
 
 // Record a view
@@ -219,7 +491,13 @@ export function recordView(linkId: string): void {
       lastViewedAt: new Date(),
     });
   }
+  // Also record in Supabase
+  recordViewInSupabase(linkId);
 }
+
+// ============================================
+// CLIENT COMMENTS - localStorage for now
+// ============================================
 
 // Load client comments from localStorage
 export function loadClientComments(): ClientComment[] {
@@ -266,7 +544,7 @@ export function updateComment(commentId: string, updates: Partial<ClientComment>
   const comments = loadClientComments();
   const index = comments.findIndex(c => c.id === commentId);
   if (index === -1) return null;
-  
+
   comments[index] = { ...comments[index], ...updates, updatedAt: new Date() };
   saveClientComments(comments);
   return comments[index];
@@ -317,4 +595,41 @@ export function formatCommentDate(date: Date): string {
   if (hours < 24) return `${hours}h ago`;
   if (days < 7) return `${days}d ago`;
   return date.toLocaleDateString();
+}
+
+// ============================================
+// BOARD FETCHING FOR ANONYMOUS USERS
+// ============================================
+
+// Get board by ID from Supabase (for anonymous access via share link)
+export async function getBoardForShareLink(boardId: string): Promise<any | null> {
+  if (!supabase || !isSupabaseConfigured()) {
+    // Fall back to localStorage
+    try {
+      const saved = localStorage.getItem('fan-canvas-boards');
+      if (!saved) return null;
+      const boards = JSON.parse(saved);
+      return boards.find((b: any) => b.id === boardId) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    const board = await boardsApi.getById(boardId);
+    if (!board) return null;
+
+    // Convert to app format
+    return {
+      id: board.id,
+      name: board.name,
+      visualNodes: board.visual_nodes || [],
+      zoom: board.zoom || 1,
+      panX: board.pan_x || 0,
+      panY: board.pan_y || 0,
+    };
+  } catch (err) {
+    console.error('Error fetching board for share link:', err);
+    return null;
+  }
 }

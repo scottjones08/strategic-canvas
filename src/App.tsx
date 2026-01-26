@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Target,
@@ -94,6 +95,8 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  AlignStartVertical,
+  AlignEndVertical,
   Strikethrough,
   Underline,
   Code,
@@ -107,10 +110,10 @@ import {
   UserPlus,
   Wifi,
   Monitor,
+  Cloud,
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import { createClient } from '@supabase/supabase-js';
-import { organizationsApi, boardsApi, notesApi, isSupabaseConfigured } from './lib/supabase';
+import { supabase, organizationsApi, boardsApi, notesApi, isSupabaseConfigured } from './lib/supabase';
 // TranscriptionPanel is now integrated into UnifiedLeftPanel
 import TranscriptToWhiteboardModal, { VisualNodeInput } from './components/TranscriptToWhiteboardModal';
 import { FullTranscript } from './lib/transcription';
@@ -122,11 +125,9 @@ import type { ParticipantActivity } from './components/UnifiedLeftPanel';
 import ShareBoardModal from './components/ShareBoardModal';
 import ClientCommentsPanel from './components/ClientCommentsPanel';
 import { getCommentsForBoard, ClientComment, toggleCommentResolved } from './lib/client-portal';
-
-// Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+import FacilitatorTools from './components/FacilitatorTools';
+import AssetLibrary from './components/AssetLibrary';
+import type { AssetInsertPayload } from './components/AssetLibrary';
 
 // Types
 interface Board {
@@ -185,6 +186,8 @@ interface VisualNode {
   paths?: { points: { x: number; y: number }[]; color: string; width: number }[];
   strokeColor?: string;
   strokeWidth?: number;
+  originalWidth?: number;
+  originalHeight?: number;
   // Reactions
   reactions?: { emoji: string; userIds: string[] }[];
   // Table properties
@@ -328,34 +331,34 @@ const BOARD_TEMPLATES: BoardTemplate[] = [
   
   // === STRATEGY & PLANNING ===
   { id: 'swot', name: 'SWOT Analysis', icon: BarChart3, description: 'Strategic planning framework', category: 'strategy', nodes: [
-    { type: 'text', x: 400, y: 10, width: 200, height: 40, content: 'SWOT Analysis', fontSize: 32, color: 'transparent' },
-    { type: 'frame', x: 50, y: 70, width: 400, height: 350, content: '💪 STRENGTHS\n\nWhat do we do well?\nWhat unique resources do we have?', color: '#dcfce7' },
-    { type: 'frame', x: 470, y: 70, width: 400, height: 350, content: '⚠️ WEAKNESSES\n\nWhat could we improve?\nWhere do we lack resources?', color: '#fef3c7' },
-    { type: 'frame', x: 50, y: 440, width: 400, height: 350, content: '🚀 OPPORTUNITIES\n\nWhat trends can we leverage?\nWhat gaps can we fill?', color: '#dbeafe' },
-    { type: 'frame', x: 470, y: 440, width: 400, height: 350, content: '⛔ THREATS\n\nWhat obstacles do we face?\nWhat is the competition doing?', color: '#fce7f3' },
+    { type: 'text', x: 350, y: 50, width: 300, height: 60, content: 'SWOT Analysis', fontSize: 32, color: 'transparent' },
+    { type: 'frame', x: 50, y: 130, width: 400, height: 350, content: '💪 STRENGTHS\n\nWhat do we do well?\nWhat unique resources do we have?', color: '#dcfce7' },
+    { type: 'frame', x: 470, y: 130, width: 400, height: 350, content: '⚠️ WEAKNESSES\n\nWhat could we improve?\nWhere do we lack resources?', color: '#fef3c7' },
+    { type: 'frame', x: 50, y: 500, width: 400, height: 350, content: '🚀 OPPORTUNITIES\n\nWhat trends can we leverage?\nWhat gaps can we fill?', color: '#dbeafe' },
+    { type: 'frame', x: 470, y: 500, width: 400, height: 350, content: '⛔ THREATS\n\nWhat obstacles do we face?\nWhat is the competition doing?', color: '#fce7f3' },
   ]},
   
   { id: 'business-model', name: 'Business Model Canvas', icon: LayoutDashboard, description: 'Visualize your business model', category: 'strategy', nodes: [
-    { type: 'text', x: 350, y: 10, width: 300, height: 40, content: 'Business Model Canvas', fontSize: 28, color: 'transparent' },
-    { type: 'frame', x: 50, y: 70, width: 200, height: 250, content: '🤝 Key Partners\n\nWho are our key partners & suppliers?', color: '#e0e7ff' },
-    { type: 'frame', x: 260, y: 70, width: 200, height: 120, content: '⚙️ Key Activities\n\nWhat do we do?', color: '#dbeafe' },
-    { type: 'frame', x: 260, y: 200, width: 200, height: 120, content: '📦 Key Resources\n\nWhat do we need?', color: '#dbeafe' },
-    { type: 'frame', x: 470, y: 70, width: 200, height: 250, content: '💎 Value Propositions\n\nWhat value do we deliver?', color: '#fef3c7' },
-    { type: 'frame', x: 680, y: 70, width: 200, height: 120, content: '💬 Customer Relationships\n\nHow do we interact?', color: '#dcfce7' },
-    { type: 'frame', x: 680, y: 200, width: 200, height: 120, content: '📣 Channels\n\nHow do we reach them?', color: '#dcfce7' },
-    { type: 'frame', x: 890, y: 70, width: 200, height: 250, content: '👥 Customer Segments\n\nWho do we serve?', color: '#fce7f3' },
-    { type: 'frame', x: 50, y: 340, width: 440, height: 120, content: '💰 Cost Structure\n\nWhat are the major costs?', color: '#fee2e2' },
-    { type: 'frame', x: 500, y: 340, width: 440, height: 120, content: '💵 Revenue Streams\n\nHow do we earn money?', color: '#d1fae5' },
+    { type: 'text', x: 350, y: 50, width: 400, height: 60, content: 'Business Model Canvas', fontSize: 32, color: 'transparent' },
+    { type: 'frame', x: 50, y: 130, width: 200, height: 250, content: '🤝 Key Partners\n\nWho are our key partners & suppliers?', color: '#e0e7ff' },
+    { type: 'frame', x: 260, y: 130, width: 200, height: 120, content: '⚙️ Key Activities\n\nWhat do we do?', color: '#dbeafe' },
+    { type: 'frame', x: 260, y: 260, width: 200, height: 120, content: '📦 Key Resources\n\nWhat do we need?', color: '#dbeafe' },
+    { type: 'frame', x: 470, y: 130, width: 200, height: 250, content: '💎 Value Propositions\n\nWhat value do we deliver?', color: '#fef3c7' },
+    { type: 'frame', x: 680, y: 130, width: 200, height: 120, content: '💬 Customer Relationships\n\nHow do we interact?', color: '#dcfce7' },
+    { type: 'frame', x: 680, y: 260, width: 200, height: 120, content: '📣 Channels\n\nHow do we reach them?', color: '#dcfce7' },
+    { type: 'frame', x: 890, y: 130, width: 200, height: 250, content: '👥 Customer Segments\n\nWho do we serve?', color: '#fce7f3' },
+    { type: 'frame', x: 50, y: 400, width: 440, height: 120, content: '💰 Cost Structure\n\nWhat are the major costs?', color: '#fee2e2' },
+    { type: 'frame', x: 500, y: 400, width: 440, height: 120, content: '💵 Revenue Streams\n\nHow do we earn money?', color: '#d1fae5' },
   ]},
 
   { id: 'okr', name: 'OKR Planning', icon: Target, description: 'Objectives & Key Results', category: 'strategy', nodes: [
-    { type: 'text', x: 350, y: 10, width: 300, height: 40, content: 'OKR Planning', fontSize: 32, color: 'transparent' },
-    { type: 'frame', x: 50, y: 70, width: 900, height: 200, content: '🎯 OBJECTIVE 1\n\nDescribe your ambitious, qualitative goal', color: '#dbeafe' },
-    { type: 'sticky', x: 70, y: 150, width: 180, height: 100, content: 'Key Result 1.1\n\nMeasurable outcome', color: '#fef3c7' },
-    { type: 'sticky', x: 270, y: 150, width: 180, height: 100, content: 'Key Result 1.2\n\nMeasurable outcome', color: '#fef3c7' },
-    { type: 'sticky', x: 470, y: 150, width: 180, height: 100, content: 'Key Result 1.3\n\nMeasurable outcome', color: '#fef3c7' },
-    { type: 'frame', x: 50, y: 290, width: 900, height: 200, content: '🎯 OBJECTIVE 2\n\nDescribe your ambitious, qualitative goal', color: '#dcfce7' },
-    { type: 'frame', x: 50, y: 510, width: 900, height: 200, content: '🎯 OBJECTIVE 3\n\nDescribe your ambitious, qualitative goal', color: '#f3e8ff' },
+    { type: 'text', x: 350, y: 50, width: 300, height: 60, content: 'OKR Planning', fontSize: 32, color: 'transparent' },
+    { type: 'frame', x: 50, y: 130, width: 900, height: 200, content: '🎯 OBJECTIVE 1\n\nDescribe your ambitious, qualitative goal', color: '#dbeafe' },
+    { type: 'sticky', x: 70, y: 210, width: 180, height: 100, content: 'Key Result 1.1\n\nMeasurable outcome', color: '#fef3c7' },
+    { type: 'sticky', x: 270, y: 210, width: 180, height: 100, content: 'Key Result 1.2\n\nMeasurable outcome', color: '#fef3c7' },
+    { type: 'sticky', x: 470, y: 210, width: 180, height: 100, content: 'Key Result 1.3\n\nMeasurable outcome', color: '#fef3c7' },
+    { type: 'frame', x: 50, y: 350, width: 900, height: 200, content: '🎯 OBJECTIVE 2\n\nDescribe your ambitious, qualitative goal', color: '#dcfce7' },
+    { type: 'frame', x: 50, y: 570, width: 900, height: 200, content: '🎯 OBJECTIVE 3\n\nDescribe your ambitious, qualitative goal', color: '#f3e8ff' },
   ]},
 
   // === WORKFLOW & PROCESS ===
@@ -449,11 +452,11 @@ const BOARD_TEMPLATES: BoardTemplate[] = [
 
   // === AGILE & PROJECT MANAGEMENT ===
   { id: 'kanban', name: 'Kanban Board', icon: FolderKanban, description: 'Track work progress', category: 'agile', nodes: [
-    { type: 'text', x: 400, y: 10, width: 200, height: 40, content: 'Kanban Board', fontSize: 28, color: 'transparent' },
-    { type: 'frame', x: 50, y: 70, width: 280, height: 600, content: '📋 BACKLOG\n\nTasks waiting to start', color: '#f3f4f6' },
-    { type: 'frame', x: 350, y: 70, width: 280, height: 600, content: '📝 TO DO\n\nReady to work on', color: '#f3e8ff' },
-    { type: 'frame', x: 650, y: 70, width: 280, height: 600, content: '🔄 IN PROGRESS\n\nCurrently being worked on', color: '#dbeafe' },
-    { type: 'frame', x: 950, y: 70, width: 280, height: 600, content: '✅ DONE\n\nCompleted tasks', color: '#dcfce7' },
+    { type: 'text', x: 450, y: 50, width: 300, height: 60, content: 'Kanban Board', fontSize: 32, color: 'transparent' },
+    { type: 'frame', x: 50, y: 130, width: 280, height: 600, content: '📋 BACKLOG\n\nTasks waiting to start', color: '#f3f4f6' },
+    { type: 'frame', x: 350, y: 130, width: 280, height: 600, content: '📝 TO DO\n\nReady to work on', color: '#f3e8ff' },
+    { type: 'frame', x: 650, y: 130, width: 280, height: 600, content: '🔄 IN PROGRESS\n\nCurrently being worked on', color: '#dbeafe' },
+    { type: 'frame', x: 950, y: 130, width: 280, height: 600, content: '✅ DONE\n\nCompleted tasks', color: '#dcfce7' },
   ]},
 
   { id: 'sprint-planning', name: 'Sprint Planning', icon: Timer, description: 'Plan your sprint', category: 'agile', nodes: [
@@ -538,26 +541,26 @@ const BOARD_TEMPLATES: BoardTemplate[] = [
   ]},
 
   { id: 'roadmap', name: 'Product Roadmap', icon: TrendingUp, description: 'Plan product evolution', category: 'planning', nodes: [
-    { type: 'text', x: 400, y: 10, width: 250, height: 40, content: 'Product Roadmap', fontSize: 28, color: 'transparent' },
+    { type: 'text', x: 350, y: 50, width: 350, height: 60, content: 'Product Roadmap', fontSize: 32, color: 'transparent' },
     // Timeline headers
-    { type: 'frame', x: 200, y: 70, width: 250, height: 60, content: 'Q1 2024', color: '#dbeafe' },
-    { type: 'frame', x: 460, y: 70, width: 250, height: 60, content: 'Q2 2024', color: '#dcfce7' },
-    { type: 'frame', x: 720, y: 70, width: 250, height: 60, content: 'Q3 2024', color: '#fef3c7' },
-    { type: 'frame', x: 980, y: 70, width: 250, height: 60, content: 'Q4 2024', color: '#f3e8ff' },
+    { type: 'frame', x: 200, y: 130, width: 250, height: 60, content: 'Q1 2024', color: '#dbeafe' },
+    { type: 'frame', x: 460, y: 130, width: 250, height: 60, content: 'Q2 2024', color: '#dcfce7' },
+    { type: 'frame', x: 720, y: 130, width: 250, height: 60, content: 'Q3 2024', color: '#fef3c7' },
+    { type: 'frame', x: 980, y: 130, width: 250, height: 60, content: 'Q4 2024', color: '#f3e8ff' },
     // Theme rows
-    { type: 'text', x: 50, y: 150, width: 140, height: 30, content: '🚀 Features', fontSize: 14, color: 'transparent' },
-    { type: 'frame', x: 200, y: 140, width: 1030, height: 120, content: '', color: '#f9fafb' },
-    { type: 'text', x: 50, y: 280, width: 140, height: 30, content: '🔧 Tech Debt', fontSize: 14, color: 'transparent' },
-    { type: 'frame', x: 200, y: 270, width: 1030, height: 120, content: '', color: '#ffffff' },
-    { type: 'text', x: 50, y: 410, width: 140, height: 30, content: '📊 Analytics', fontSize: 14, color: 'transparent' },
-    { type: 'frame', x: 200, y: 400, width: 1030, height: 120, content: '', color: '#f9fafb' },
+    { type: 'text', x: 50, y: 210, width: 140, height: 30, content: '🚀 Features', fontSize: 14, color: 'transparent' },
+    { type: 'frame', x: 200, y: 200, width: 1030, height: 120, content: '', color: '#f9fafb' },
+    { type: 'text', x: 50, y: 340, width: 140, height: 30, content: '🔧 Tech Debt', fontSize: 14, color: 'transparent' },
+    { type: 'frame', x: 200, y: 330, width: 1030, height: 120, content: '', color: '#ffffff' },
+    { type: 'text', x: 50, y: 470, width: 140, height: 30, content: '📊 Analytics', fontSize: 14, color: 'transparent' },
+    { type: 'frame', x: 200, y: 460, width: 1030, height: 120, content: '', color: '#f9fafb' },
     // Sample items
-    { type: 'sticky', x: 220, y: 160, width: 180, height: 80, content: 'Feature A\nLaunch MVP', color: '#dbeafe' },
-    { type: 'sticky', x: 480, y: 160, width: 180, height: 80, content: 'Feature B\nUser feedback', color: '#dcfce7' },
+    { type: 'sticky', x: 220, y: 220, width: 180, height: 80, content: 'Feature A\nLaunch MVP', color: '#dbeafe' },
+    { type: 'sticky', x: 480, y: 220, width: 180, height: 80, content: 'Feature B\nUser feedback', color: '#dcfce7' },
   ]},
 ];
 
-const generateId = () => Math.random().toString(36).substring(2, 11);
+const generateId = () => crypto.randomUUID();
 
 // Sidebar Component
 const Sidebar = ({
@@ -565,13 +568,17 @@ const Sidebar = ({
   onViewChange,
   isCollapsed,
   onToggleCollapse,
-  userName
+  userName,
+  isGuest = false,
+  userRole = 'Owner'
 }: {
   currentView: ViewType;
   onViewChange: (view: ViewType) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   userName: string;
+  isGuest?: boolean;
+  userRole?: string;
 }) => {
   const navItems = [
     { id: 'dashboard' as ViewType, label: 'Dashboard', icon: LayoutDashboard, description: 'All boards & progress' },
@@ -642,7 +649,7 @@ const Sidebar = ({
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>
-              <p className="text-xs text-gray-500">Owner</p>
+              <p className="text-xs text-gray-500">{isGuest ? userRole : 'Owner'}</p>
             </div>
           )}
         </div>
@@ -659,13 +666,15 @@ const Sidebar = ({
 };
 
 // Dashboard View
-const DashboardView = ({ boards, onOpenBoard, onCreateBoard, clients, onAddClient, isLoadingClients }: {
+const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clients, onAddClient, isLoadingClients, onSyncToCloud }: {
   boards: Board[];
   onOpenBoard: (board: Board) => void;
-  onCreateBoard: (name: string, template: string, clientId: string) => void;
+  onCreateBoard: (name: string, template: string, clientId: string) => Promise<void>;
+  onDeleteBoard: (boardId: string) => void;
   clients: Client[];
   onAddClient: (client: Partial<Client>) => Promise<void>;
   isLoadingClients: boolean;
+  onSyncToCloud: () => Promise<number>;
 }) => {
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
@@ -676,17 +685,26 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, clients, onAddClien
   const [newClientWebsite, setNewClientWebsite] = useState('');
   const [newClientIndustry, setNewClientIndustry] = useState('');
   const [isCreatingClient, setIsCreatingClient] = useState(false);
+  const [isCreatingBoard, setIsCreatingBoard] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
   const activeBoards = boards.filter(b => b.status === 'active');
   const completedBoards = boards.filter(b => b.status === 'completed');
   const totalProgress = boards.length > 0 ? Math.round(boards.reduce((acc, b) => acc + (b.progress || 0), 0) / boards.length) : 0;
 
-  const handleCreateBoard = () => {
-    if (!newBoardName.trim() || !selectedClientId) return;
-    onCreateBoard(newBoardName, selectedTemplate, selectedClientId);
-    setNewBoardName('');
-    setSelectedTemplate('blank');
-    setSelectedClientId('');
-    setShowNewBoardModal(false);
+  const handleCreateBoard = async () => {
+    if (!newBoardName.trim() || !selectedClientId || isCreatingBoard) return;
+    setIsCreatingBoard(true);
+    try {
+      // Wait for board to be created in Supabase before closing modal
+      await onCreateBoard(newBoardName, selectedTemplate, selectedClientId);
+      setNewBoardName('');
+      setSelectedTemplate('blank');
+      setSelectedClientId('');
+      setShowNewBoardModal(false);
+    } finally {
+      setIsCreatingBoard(false);
+    }
   };
 
   const handleCreateNewClient = async () => {
@@ -770,19 +788,50 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, clients, onAddClien
 
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-wrap">
             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowNewBoardModal(true)} className="flex items-center gap-3 px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium shadow-lg shadow-indigo-200">
               <Plus className="w-5 h-5" /> New Board
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.02 }} 
+              whileTap={{ scale: 0.98 }} 
+              onClick={async () => {
+                setIsSyncing(true);
+                setSyncResult(null);
+                try {
+                  const count = await onSyncToCloud();
+                  setSyncResult(`✅ Synced ${count} boards to cloud`);
+                  setTimeout(() => setSyncResult(null), 3000);
+                } catch (err) {
+                  setSyncResult('❌ Sync failed');
+                  setTimeout(() => setSyncResult(null), 3000);
+                }
+                setIsSyncing(false);
+              }}
+              disabled={isSyncing}
+              className="flex items-center gap-3 px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-200 disabled:opacity-50"
+            >
+              {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Cloud className="w-5 h-5" />}
+              {isSyncing ? 'Syncing...' : 'Sync to Cloud'}
             </motion.button>
             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => alert('Schedule meeting coming soon! For now, create a board and start a recording session.')} className="flex items-center gap-3 px-6 py-3 bg-white text-gray-700 rounded-xl font-medium border border-gray-200">
               <Calendar className="w-5 h-5" /> Schedule Meeting
             </motion.button>
           </div>
+          {syncResult && (
+            <motion.p 
+              initial={{ opacity: 0, y: -10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              className="mt-3 text-sm font-medium text-gray-700"
+            >
+              {syncResult}
+            </motion.p>
+          )}
         </div>
 
         {showNewBoardModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowNewBoardModal(false)}>
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-2xl p-6 w-[550px] max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-2xl p-6 w-[550px] max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Create New Board</h2>
                 <button onClick={() => setShowNewBoardModal(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
@@ -875,8 +924,8 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, clients, onAddClien
                     ))}
                   </div>
                 </div>
-                <div className="flex gap-3 pt-2">
-                  <motion.button whileHover={{ scale: 1.02 }} onClick={handleCreateBoard} disabled={!newBoardName.trim() || !selectedClientId} className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed">Create Board</motion.button>
+                <div className="flex gap-3 pt-4 mt-2 border-t border-gray-100">
+                  <motion.button whileHover={{ scale: 1.02 }} onClick={handleCreateBoard} disabled={!newBoardName.trim() || !selectedClientId || isCreatingBoard} className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed">{isCreatingBoard ? 'Creating...' : 'Create Board'}</motion.button>
                   <motion.button whileHover={{ scale: 1.02 }} onClick={() => setShowNewBoardModal(false)} className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium">Cancel</motion.button>
                 </div>
               </div>
@@ -948,14 +997,30 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, clients, onAddClien
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => onOpenBoard(board)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-100"
-                      >
-                        Open <ArrowRight className="w-4 h-4" />
-                      </motion.button>
+                      <div className="flex items-center justify-end gap-2">
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => { e.stopPropagation(); onOpenBoard(board); }}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-100"
+                        >
+                          Open <ArrowRight className="w-4 h-4" />
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Are you sure you want to delete "${board.name}"? This cannot be undone.`)) {
+                              onDeleteBoard(board.id);
+                            }
+                          }}
+                          className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100"
+                          title="Delete board"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </motion.button>
+                      </div>
                     </td>
                   </motion.tr>
                 ))}
@@ -1024,6 +1089,73 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
   const typeIcons: Record<string, string> = { opportunity: '💡', risk: '⚠️', action: '✅', sticky: '📝', frame: '📋', youtube: '🎬', image: '🖼️', bucket: '📥', text: '📝', shape: '⬜', connector: '➡️', comment: '💬', mindmap: '🧠' };
+
+  // Handle Enter key for bullet/numbered list continuation
+  const handleListKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, currentContent: string, updateContent: (newContent: string) => void) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      const textarea = e.currentTarget;
+      const cursorPos = textarea.selectionStart;
+      const textBeforeCursor = currentContent.slice(0, cursorPos);
+      const textAfterCursor = currentContent.slice(cursorPos);
+
+      // Find the current line
+      const lastNewlineIndex = textBeforeCursor.lastIndexOf('\n');
+      const currentLine = textBeforeCursor.slice(lastNewlineIndex + 1);
+
+      // Check for bullet patterns: "- ", "• ", "* "
+      const bulletMatch = currentLine.match(/^(\s*)([-•*])\s/);
+      if (bulletMatch) {
+        // If current line is just the bullet with no content, remove it
+        if (currentLine.trim() === bulletMatch[2]) {
+          e.preventDefault();
+          const newContent = textBeforeCursor.slice(0, lastNewlineIndex + 1) + textAfterCursor;
+          updateContent(newContent);
+          // Set cursor position after state update
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = lastNewlineIndex + 1;
+          }, 0);
+          return;
+        }
+        e.preventDefault();
+        const indent = bulletMatch[1];
+        const bullet = bulletMatch[2];
+        const newContent = textBeforeCursor + '\n' + indent + bullet + ' ' + textAfterCursor;
+        updateContent(newContent);
+        // Set cursor position after the new bullet
+        const newCursorPos = cursorPos + 1 + indent.length + bullet.length + 1;
+        setTimeout(() => {
+          textarea.selectionStart = textarea.selectionEnd = newCursorPos;
+        }, 0);
+        return;
+      }
+
+      // Check for numbered list pattern: "1. ", "2. ", etc.
+      const numberMatch = currentLine.match(/^(\s*)(\d+)\.\s/);
+      if (numberMatch) {
+        // If current line is just the number with no content, remove it
+        if (currentLine.trim() === numberMatch[2] + '.') {
+          e.preventDefault();
+          const newContent = textBeforeCursor.slice(0, lastNewlineIndex + 1) + textAfterCursor;
+          updateContent(newContent);
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = lastNewlineIndex + 1;
+          }, 0);
+          return;
+        }
+        e.preventDefault();
+        const indent = numberMatch[1];
+        const nextNumber = parseInt(numberMatch[2]) + 1;
+        const newContent = textBeforeCursor + '\n' + indent + nextNumber + '. ' + textAfterCursor;
+        updateContent(newContent);
+        // Set cursor position after the new number
+        const newCursorPos = cursorPos + 1 + indent.length + String(nextNumber).length + 2;
+        setTimeout(() => {
+          textarea.selectionStart = textarea.selectionEnd = newCursorPos;
+        }, 0);
+        return;
+      }
+    }
+  };
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -1239,6 +1371,13 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
                 onUpdate({ content: title + '\n' + e.target.value });
               }}
               onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                const descContent = node.content.split('\n').slice(1).join('\n');
+                handleListKeyDown(e, descContent, (newContent) => {
+                  const title = node.content.split('\n')[0];
+                  onUpdate({ content: title + '\n' + newContent });
+                });
+              }}
               className="flex-1 text-xs text-gray-600 bg-transparent border-none outline-none resize-none w-full"
               placeholder="Add notes..."
             />
@@ -1315,6 +1454,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
             value={node.content}
             onChange={(e) => onUpdate({ content: e.target.value })}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => handleListKeyDown(e, node.content, (newContent) => onUpdate({ content: newContent }))}
             className="w-full h-full bg-transparent resize-none border-none outline-none text-gray-900 font-medium placeholder-gray-400"
             placeholder="Type here..."
             style={{ fontSize: node.fontSize || 24 }}
@@ -1345,23 +1485,30 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
         {node.type === 'drawing' && node.paths && (
           <svg
             className="w-full h-full"
-            viewBox={`0 0 ${node.width} ${node.height}`}
-            preserveAspectRatio="none"
+            viewBox={`0 0 ${node.originalWidth || node.width} ${node.originalHeight || node.height}`}
+            preserveAspectRatio="xMidYMid meet"
             style={{ overflow: 'visible' }}
           >
-            {node.paths.map((path, pathIndex) => (
-              <path
-                key={pathIndex}
-                d={path.points.reduce((acc: string, point: { x: number; y: number }, i: number) =>
-                  i === 0 ? `M ${point.x} ${point.y}` : `${acc} L ${point.x} ${point.y}`, ''
-                )}
-                stroke={path.color || '#3b82f6'}
-                strokeWidth={path.width || 3}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ))}
+            {node.paths.map((path, pathIndex) => {
+              // Scale stroke width based on resize ratio to maintain visual appearance
+              const scaleX = node.width / (node.originalWidth || node.width);
+              const scaleY = node.height / (node.originalHeight || node.height);
+              const avgScale = (scaleX + scaleY) / 2;
+              const scaledStrokeWidth = (path.width || 3) / avgScale;
+              return (
+                <path
+                  key={pathIndex}
+                  d={path.points.reduce((acc: string, point: { x: number; y: number }, i: number) =>
+                    i === 0 ? `M ${point.x} ${point.y}` : `${acc} L ${point.x} ${point.y}`, ''
+                  )}
+                  stroke={path.color || '#3b82f6'}
+                  strokeWidth={scaledStrokeWidth}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              );
+            })}
           </svg>
         )}
 
@@ -1579,6 +1726,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
               value={node.content}
               onChange={(e) => onUpdate({ content: e.target.value })}
               onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => handleListKeyDown(e, node.content, (newContent) => onUpdate({ content: newContent }))}
               className="w-full bg-transparent resize-none border-none outline-none text-gray-800 text-sm font-medium placeholder-gray-500"
               placeholder="Type here..."
               style={{ height: 'calc(100% - 30px)' }}
@@ -1805,7 +1953,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
 };
 
 // Infinite Canvas
-const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNodeIds, onSelectNodes, onCanvasDoubleClick, isDrawingMode, isPanMode, drawingColor, drawingWidth, onAddMindmapChild, onAISparkle, gridSnap, showMinimap, otherUsers, onDisablePanMode, onDropMedia, onCursorMove, editingNodes: _editingNodes, showCursors = true }: {
+const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNodeIds, onSelectNodes, onCanvasDoubleClick, isDrawingMode, isPanMode, drawingColor, drawingWidth, onAddMindmapChild, onAISparkle, gridSnap, showMinimap, otherUsers, onDisablePanMode, onDropMedia, onCursorMove, editingNodes: _editingNodes, showCursors = true, onSetPanMode, onSetSelectMode }: {
   board: Board;
   onUpdateBoard: (updates: Partial<Board>) => void;
   onUpdateWithHistory: (updates: Partial<Board>, action: string) => void;
@@ -1826,6 +1974,8 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   onCursorMove?: (cursor: { x: number; y: number } | null) => void;
   editingNodes?: Map<string, { userId: string; userName: string; color: string }>;
   showCursors?: boolean;
+  onSetPanMode?: () => void;
+  onSetSelectMode?: () => void;
 }) => {
   const [zoom, setZoom] = useState(board.zoom || 1);
   const [panX, setPanX] = useState(board.panX || 0);
@@ -1846,12 +1996,17 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     const entries: [string, { x: number; y: number; name: string; color: string }][] = [];
     if (otherUsers) {
       otherUsers.forEach(u => {
-        entries.push([u.id, {
-          x: u.cursor?.x ?? u.cursorX ?? 0,
-          y: u.cursor?.y ?? u.cursorY ?? 0,
-          name: u.name,
-          color: u.color
-        }]);
+        // Only include users who have an active cursor position
+        const cursorX = u.cursor?.x ?? u.cursorX;
+        const cursorY = u.cursor?.y ?? u.cursorY;
+        if (cursorX !== undefined && cursorY !== undefined && u.isOnline) {
+          entries.push([u.id, {
+            x: cursorX,
+            y: cursorY,
+            name: u.name,
+            color: u.color
+          }]);
+        }
       });
     }
     return new globalThis.Map(entries);
@@ -2126,14 +2281,19 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       return;
     }
     
-    // Lasso selection with shift+click (only in select mode)
-    if (e.shiftKey && e.button === 0 && !isDrawingMode && !isPanMode) {
-      e.preventDefault();
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (rect) {
-        setIsLassoing(true);
-        setLassoStart({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-        setLassoEnd({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    // Box selection with click+drag on empty canvas (or shift+click anywhere)
+    // Only start if clicking directly on canvas (not on a node)
+    if (e.button === 0 && !isDrawingMode && !isPanMode && !spacePressed) {
+      const target = e.target as HTMLElement;
+      const isClickOnCanvas = target === canvasRef.current || target.classList.contains('canvas-background');
+      if (e.shiftKey || isClickOnCanvas) {
+        e.preventDefault();
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (rect) {
+          setIsLassoing(true);
+          setLassoStart({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+          setLassoEnd({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        }
       }
     }
   }, [isDrawingMode, isPanMode, getCanvasPoint, spacePressed, panX, panY]);
@@ -2238,13 +2398,15 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     // Normalize points relative to bounding box
     const normalizedPoints = pathToUse.map(p => ({ x: p.x - minX, y: p.y - minY }));
 
+    const originalWidth = Math.max(maxX - minX, 10);
+    const originalHeight = Math.max(maxY - minY, 10);
     const drawingNode: VisualNode = {
       id: generateId(),
       type: 'drawing',
       x: minX,
       y: minY,
-      width: Math.max(maxX - minX, 10),
-      height: Math.max(maxY - minY, 10),
+      width: originalWidth,
+      height: originalHeight,
       content: '',
       color: drawingColor || '#3b82f6',
       rotation: 0,
@@ -2255,7 +2417,9 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       comments: [],
       paths: [{ points: normalizedPoints, color: drawingColor || '#3b82f6', width: drawingWidth || 3 }],
       strokeColor: drawingColor || '#3b82f6',
-      strokeWidth: drawingWidth || 3
+      strokeWidth: drawingWidth || 3,
+      originalWidth,
+      originalHeight
     };
 
     onUpdateWithHistory({ visualNodes: [...board.visualNodes, drawingNode] }, 'Draw');
@@ -2299,6 +2463,32 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     }
   }, [onDropMedia, panX, panY, zoom]);
 
+  // Helper function to find intersection point of line with rectangle edge
+  const getEdgeIntersection = (
+    centerX: number, centerY: number, // center of the rectangle
+    width: number, height: number, // size of the rectangle
+    targetX: number, targetY: number, // point we're drawing line to/from
+    padding: number = 8 // padding from edge for arrow visibility
+  ) => {
+    const dx = targetX - centerX;
+    const dy = targetY - centerY;
+    
+    if (dx === 0 && dy === 0) return { x: centerX, y: centerY };
+    
+    const halfW = width / 2 + padding;
+    const halfH = height / 2 + padding;
+    
+    // Calculate intersection with each edge and find the closest one
+    const scaleX = Math.abs(dx) > 0 ? halfW / Math.abs(dx) : Infinity;
+    const scaleY = Math.abs(dy) > 0 ? halfH / Math.abs(dy) : Infinity;
+    const scale = Math.min(scaleX, scaleY);
+    
+    return {
+      x: centerX + dx * scale,
+      y: centerY + dy * scale
+    };
+  };
+
   // Get connector lines
   const allConnectors = board.visualNodes.filter(n => n.type === 'connector');
   const connectorLines = allConnectors.filter(n => n.connectorFrom && n.connectorTo).map(conn => {
@@ -2308,12 +2498,23 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       console.log('Connector has invalid node refs:', conn.id, { from: conn.connectorFrom, to: conn.connectorTo });
       return null;
     }
+    
+    // Get center points
+    const fromCenterX = fromNode.x + fromNode.width / 2;
+    const fromCenterY = fromNode.y + fromNode.height / 2;
+    const toCenterX = toNode.x + toNode.width / 2;
+    const toCenterY = toNode.y + toNode.height / 2;
+    
+    // Calculate edge intersection points so arrows stop at the edge, not center
+    const startPoint = getEdgeIntersection(fromCenterX, fromCenterY, fromNode.width, fromNode.height, toCenterX, toCenterY);
+    const endPoint = getEdgeIntersection(toCenterX, toCenterY, toNode.width, toNode.height, fromCenterX, fromCenterY);
+    
     return {
       id: conn.id,
-      x1: fromNode.x + fromNode.width / 2,
-      y1: fromNode.y + fromNode.height / 2,
-      x2: toNode.x + toNode.width / 2,
-      y2: toNode.y + toNode.height / 2,
+      x1: startPoint.x,
+      y1: startPoint.y,
+      x2: endPoint.x,
+      y2: endPoint.y,
       color: conn.color,
       style: conn.connectorStyle
     };
@@ -2478,6 +2679,19 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
         )}
       </svg>
 
+      {/* Selection Rectangle (Marquee) */}
+      {isLassoing && lassoStart && lassoEnd && (
+        <div
+          className="absolute border-2 border-indigo-500 bg-indigo-500/10 pointer-events-none z-40"
+          style={{
+            left: Math.min(lassoStart.x, lassoEnd.x),
+            top: Math.min(lassoStart.y, lassoEnd.y),
+            width: Math.abs(lassoEnd.x - lassoStart.x),
+            height: Math.abs(lassoEnd.y - lassoStart.y),
+          }}
+        />
+      )}
+
       {/* Drop Zone Indicator */}
       {isDragOver && (
         <div className="absolute inset-0 flex items-center justify-center bg-indigo-500/10 pointer-events-none z-50">
@@ -2511,6 +2725,110 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
           <Minus className="w-4 h-4" />
           Click another element to connect • <button onClick={() => setConnectingFrom(null)} className="underline">Cancel</button>
         </div>
+      )}
+
+      {/* Multi-Selection Toolbar */}
+      {selectedNodeIds.length > 1 && !isLassoing && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="absolute top-4 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-xl border border-gray-200 px-2 py-1.5 flex items-center gap-1 z-50"
+        >
+          <span className="px-2 text-sm font-medium text-gray-600">{selectedNodeIds.length} selected</span>
+          <div className="w-px h-6 bg-gray-200" />
+          <button
+            onClick={() => {
+              // Group move - already handled by drag
+            }}
+            className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-gray-900 transition-colors"
+            title="Drag to move all"
+          >
+            <Move className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              // Duplicate selected nodes
+              const newNodes = board.visualNodes
+                .filter(n => selectedNodeIds.includes(n.id))
+                .map(n => ({
+                  ...n,
+                  id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  x: n.x + 20,
+                  y: n.y + 20
+                }));
+              onUpdateWithHistory({ visualNodes: [...board.visualNodes, ...newNodes] }, 'Duplicate elements');
+              onSelectNodes(newNodes.map(n => n.id));
+            }}
+            className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-gray-900 transition-colors"
+            title="Duplicate (Ctrl+D)"
+          >
+            <Copy className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              // Align left
+              const minX = Math.min(...board.visualNodes.filter(n => selectedNodeIds.includes(n.id)).map(n => n.x));
+              onUpdateWithHistory({
+                visualNodes: board.visualNodes.map(n => 
+                  selectedNodeIds.includes(n.id) ? { ...n, x: minX } : n
+                )
+              }, 'Align left');
+            }}
+            className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-gray-900 transition-colors"
+            title="Align left"
+          >
+            <AlignLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              // Align center horizontally
+              const nodes = board.visualNodes.filter(n => selectedNodeIds.includes(n.id));
+              const centerX = nodes.reduce((acc, n) => acc + n.x + n.width / 2, 0) / nodes.length;
+              onUpdateWithHistory({
+                visualNodes: board.visualNodes.map(n => 
+                  selectedNodeIds.includes(n.id) ? { ...n, x: centerX - n.width / 2 } : n
+                )
+              }, 'Align center');
+            }}
+            className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-gray-900 transition-colors"
+            title="Align center"
+          >
+            <AlignCenter className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              // Align top
+              const minY = Math.min(...board.visualNodes.filter(n => selectedNodeIds.includes(n.id)).map(n => n.y));
+              onUpdateWithHistory({
+                visualNodes: board.visualNodes.map(n => 
+                  selectedNodeIds.includes(n.id) ? { ...n, y: minY } : n
+                )
+              }, 'Align top');
+            }}
+            className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-gray-900 transition-colors"
+            title="Align top"
+          >
+            <AlignStartVertical className="w-4 h-4" />
+          </button>
+          <div className="w-px h-6 bg-gray-200" />
+          <button
+            onClick={() => {
+              onUpdateWithHistory({ visualNodes: board.visualNodes.filter(n => !selectedNodeIds.includes(n.id)) }, 'Delete elements');
+              onSelectNodes([]);
+            }}
+            className="p-2 hover:bg-red-100 rounded-lg text-red-500 hover:text-red-700 transition-colors"
+            title="Delete (Del)"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onSelectNodes([])}
+            className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+            title="Deselect all"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </motion.div>
       )}
 
       <motion.div className="absolute origin-top-left pointer-events-none" style={{ transform: `translate(${panX}px, ${panY}px) scale(${zoom})` }}>
@@ -2572,12 +2890,36 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
           ))}
         </AnimatePresence>
       </motion.div>
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-lg p-2 flex items-center gap-2 border border-gray-200 z-30">
-        <button onClick={() => setZoom(z => Math.max(z * 0.8, 0.1))} className="p-2 hover:bg-gray-100 rounded-lg" title="Zoom out (-)"><ZoomOut className="w-4 h-4 text-gray-600" /></button>
-        <span className="text-sm font-medium w-16 text-center text-gray-700">{Math.round(zoom * 100)}%</span>
-        <button onClick={() => setZoom(z => Math.min(z * 1.2, 5))} className="p-2 hover:bg-gray-100 rounded-lg" title="Zoom in (+)"><ZoomIn className="w-4 h-4 text-gray-600" /></button>
-        <div className="w-px h-6 bg-gray-200" />
-        <button onClick={() => { setZoom(1); setPanX(0); setPanY(0); }} className="p-2 hover:bg-gray-100 rounded-lg" title="Reset view (0)"><Maximize2 className="w-4 h-4 text-gray-600" /></button>
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-lg p-2 flex items-center gap-1 border border-gray-200 z-30">
+        {/* Select/Pan Tools */}
+        {onSetSelectMode && (
+          <button 
+            onClick={onSetSelectMode} 
+            className={`p-2 rounded-lg transition-colors ${!isPanMode && !isDrawingMode ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`} 
+            title="Select (V)"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+              <path d="M13 13l6 6" />
+            </svg>
+          </button>
+        )}
+        {onSetPanMode && (
+          <button 
+            onClick={onSetPanMode} 
+            className={`p-2 rounded-lg transition-colors ${isPanMode ? 'bg-gray-200 text-gray-700' : 'hover:bg-gray-100 text-gray-600'}`} 
+            title="Pan (H)"
+          >
+            <Move className="w-4 h-4" />
+          </button>
+        )}
+        {(onSetSelectMode || onSetPanMode) && <div className="w-px h-6 bg-gray-200 mx-1" />}
+        {/* Zoom Controls */}
+        <button onClick={() => setZoom(z => Math.max(z * 0.8, 0.1))} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600" title="Zoom out (-)"><ZoomOut className="w-4 h-4" /></button>
+        <span className="text-sm font-medium w-14 text-center text-gray-700">{Math.round(zoom * 100)}%</span>
+        <button onClick={() => setZoom(z => Math.min(z * 1.2, 5))} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600" title="Zoom in (+)"><ZoomIn className="w-4 h-4" /></button>
+        <div className="w-px h-6 bg-gray-200 mx-1" />
+        <button onClick={() => { setZoom(1); setPanX(0); setPanY(0); }} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600" title="Reset view (0)"><Maximize2 className="w-4 h-4" /></button>
         <button
           onClick={() => {
             const nodes = board.visualNodes.filter(n => !(n.type === 'connector' && n.connectorFrom && n.connectorTo));
@@ -2595,10 +2937,10 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
             setPanX(-minX * newZoom + (viewWidth - contentWidth * newZoom) / 2 + 50 * newZoom);
             setPanY(-minY * newZoom + (viewHeight - contentHeight * newZoom) / 2 + 50 * newZoom);
           }}
-          className="p-2 hover:bg-gray-100 rounded-lg"
+          className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
           title="Fit all content"
         >
-          <Minimize2 className="w-4 h-4 text-gray-600" />
+          <Minimize2 className="w-4 h-4" />
         </button>
       </div>
       {/* Keyboard shortcuts hint */}
@@ -2931,160 +3273,6 @@ const VersionHistoryPanel = ({
 
 // Note: UserCursor component replaced by CollaborationOverlay which provides
 // enhanced cursor rendering with smooth animations and name labels
-
-// Share/Collaboration Modal
-const ShareModal = ({
-  isOpen,
-  onClose,
-  boardId,
-  boardName,
-  isConnected,
-  connectedUsers
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  boardId: string;
-  boardName: string;
-  isConnected: boolean;
-  connectedUsers: UserPresence[];
-}) => {
-  const [copied, setCopied] = useState(false);
-  const [magicLink, setMagicLink] = useState('');
-  
-  useEffect(() => {
-    // Generate magic link with board ID - uses public /join route
-    const baseUrl = window.location.origin;
-    const link = `${baseUrl}/join?board=${boardId}`;
-    setMagicLink(link);
-  }, [boardId]);
-  
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(magicLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
-  
-  if (!isOpen) return null;
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="bg-white rounded-2xl shadow-2xl p-6 w-[480px] max-h-[80vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-              <Share className="w-5 h-5 text-indigo-600" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Share & Collaborate</h2>
-              <p className="text-sm text-gray-500">{boardName}</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5 text-gray-400" />
-          </button>
-        </div>
-        
-        {/* Connection Status */}
-        <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-4 ${isConnected ? 'bg-green-50' : 'bg-blue-50'}`}>
-          {isConnected ? (
-            <>
-              <Wifi className="w-5 h-5 text-green-600" />
-              <span className="text-sm font-medium text-green-700">Connected - Real-time sync active</span>
-            </>
-          ) : (
-            <>
-              <Monitor className="w-5 h-5 text-blue-600" />
-              <span className="text-sm font-medium text-blue-700">Local Mode - Changes saved to browser</span>
-            </>
-          )}
-        </div>
-        
-        {/* Magic Link */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            <UserPlus className="w-4 h-4 inline mr-1" />
-            Invite with Magic Link
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={magicLink}
-              readOnly
-              className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600 truncate"
-            />
-            <button
-              onClick={copyToClipboard}
-              className={`px-4 py-3 rounded-xl font-medium flex items-center gap-2 transition-all ${
-                copied ? 'bg-green-100 text-green-700' : 'bg-indigo-600 text-white hover:bg-indigo-700'
-              }`}
-            >
-              {copied ? <Check className="w-4 h-4" /> : <Clipboard className="w-4 h-4" />}
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
-          </div>
-          <p className="text-xs text-gray-400 mt-2">Anyone with this link can view and edit this board in real-time</p>
-        </div>
-        
-        {/* Connected Users */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            <Users className="w-4 h-4 inline mr-1" />
-            Currently Online ({connectedUsers.length + 1})
-          </label>
-          <div className="space-y-2">
-            {/* Current user */}
-            <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-xl">
-              <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white font-medium text-sm">
-                Y
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">You</p>
-                <p className="text-xs text-gray-500">Owner</p>
-              </div>
-              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-            </div>
-            
-            {/* Other users */}
-            {connectedUsers.map(user => (
-              <div key={user.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-medium text-sm"
-                  style={{ backgroundColor: user.color }}
-                >
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                  <p className="text-xs text-gray-500">Collaborator</p>
-                </div>
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-              </div>
-            ))}
-            
-            {connectedUsers.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-4">Share the link to invite collaborators</p>
-            )}
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-};
 
 // Voice to Sticky Component
 const VoiceToSticky = ({
@@ -4511,17 +4699,44 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   onCreateAISummary?: (boardId: string, boardName: string, summary: string) => void;
   onCreateTranscriptNote?: (boardId: string, boardName: string, transcriptContent: string, startTime: Date, endTime: Date) => void;
 }) => {
-  // User state with localStorage persistence
+  // Check if user is a guest collaborator
+  const isGuestCollaborator = (() => {
+    try {
+      const collabUser = localStorage.getItem('fan-canvas-collab-user');
+      if (!collabUser) return false;
+      const parsed = JSON.parse(collabUser);
+      const joinedAt = new Date(parsed.joinedAt);
+      const hoursSinceJoin = (Date.now() - joinedAt.getTime()) / (1000 * 60 * 60);
+      return hoursSinceJoin < 24 && !!parsed.name;
+    } catch {
+      return false;
+    }
+  })();
+
+  // User state - for guests, use their collaborator name; for owners, use saved name
   const [currentUser, setCurrentUser] = useState(() => {
+    // Check for guest collaborator first
+    if (isGuestCollaborator) {
+      const guestName = localStorage.getItem('fan-canvas-guest-name') || 'Guest';
+      const savedColor = localStorage.getItem('fan-canvas-user-color');
+      return {
+        id: `guest-${Math.random().toString(36).substr(2, 9)}`,
+        name: guestName,
+        color: savedColor || `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
+        isGuest: true
+      };
+    }
+    // Regular user
     const savedName = localStorage.getItem('fan-canvas-user-name');
     const savedColor = localStorage.getItem('fan-canvas-user-color');
     return {
       id: '1',
       name: savedName || 'Guest',
-      color: savedColor || `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
+      color: savedColor || `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
+      isGuest: false
     };
   });
-  const [isEditingUserName, setIsEditingUserName] = useState(!localStorage.getItem('fan-canvas-user-name'));
+  const [isEditingUserName, setIsEditingUserName] = useState(!localStorage.getItem('fan-canvas-user-name') && !isGuestCollaborator);
   const [editingUserNameValue, setEditingUserNameValue] = useState(currentUser.name);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -4572,7 +4787,6 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   const [slideOrder, setSlideOrder] = useState<string[]>([]);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [showClientShareModal, setShowClientShareModal] = useState(false);
   const [showClientCommentsPanel, setShowClientCommentsPanel] = useState(false);
   const [clientComments, setClientComments] = useState<ClientComment[]>([]);
   const [showParticipantsPanel, _setShowParticipantsPanel] = useState(true); // Panel always visible for now
@@ -4582,6 +4796,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   const [_selectedClientCommentId, setSelectedClientCommentId] = useState<string | null>(null);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [showAITools, setShowAITools] = useState(false);
+  const [showAssetLibrary, setShowAssetLibrary] = useState(false);
+  const [showFacilitatorTools, setShowFacilitatorTools] = useState(false);
   const [showTranscriptToWhiteboardModal, setShowTranscriptToWhiteboardModal] = useState(false);
   const [currentTranscriptForWhiteboard, setCurrentTranscriptForWhiteboard] = useState<FullTranscript | null>(null);
   
@@ -4607,7 +4823,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     editingNodes,
     startEditing: _startEditing, // Available for node editing integration
     stopEditing: _stopEditing, // Available for node editing integration
-    broadcastNodeChange: _broadcastNodeChange // Available for real-time sync
+    broadcastNodeChange
   } = useCollaboration({
     boardId: board.id,
     userId: sessionUserId,
@@ -5030,9 +5246,15 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   const handleUpdateBoardWithHistory = useCallback((updates: Partial<Board>, action: string = 'Update') => {
     if (updates.visualNodes) {
       addToHistory(updates.visualNodes, action);
+      // Broadcast to other collaborators for real-time sync
+      broadcastNodeChange({
+        type: 'update',
+        nodeId: 'all',
+        data: { nodes: updates.visualNodes }
+      });
     }
     onUpdateBoard(updates);
-  }, [onUpdateBoard, addToHistory]);
+  }, [onUpdateBoard, addToHistory, broadcastNodeChange]);
 
   // Update the ref so other handlers can use it
   useEffect(() => {
@@ -5552,6 +5774,24 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   const handleToggleActionComplete = useCallback((id: string) => { setActionItems(prev => prev.map(a => a.id === id ? { ...a, isComplete: !a.isComplete } : a)); }, []);
   const handleAssignUser = useCallback((id: string, assigneeId: string | undefined) => { setActionItems(prev => prev.map(a => a.id === id ? { ...a, assigneeId } : a)); }, []);
 
+  // Saved transcripts handlers
+  const handleSaveTranscript = useCallback((transcript: SavedTranscript) => {
+    const newTranscripts = [...savedTranscripts, transcript];
+    setSavedTranscripts(newTranscripts);
+    localStorage.setItem(`board-transcripts-${board.id}`, JSON.stringify(newTranscripts));
+  }, [savedTranscripts, board.id]);
+
+  const handleDeleteTranscript = useCallback((id: string) => {
+    const newTranscripts = savedTranscripts.filter(t => t.id !== id);
+    setSavedTranscripts(newTranscripts);
+    localStorage.setItem(`board-transcripts-${board.id}`, JSON.stringify(newTranscripts));
+  }, [savedTranscripts, board.id]);
+
+  const handleLoadTranscript = useCallback((transcript: SavedTranscript) => {
+    // The UnifiedLeftPanel handles displaying the loaded transcript
+    console.log('Loaded transcript:', transcript.id, 'duration:', transcript.duration);
+  }, []);
+
   return (
     <div className="flex-1 flex flex-col bg-gray-100 overflow-hidden">
       {/* User Name Modal - shown to new users */}
@@ -5711,7 +5951,6 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
               )}
             </motion.button>
           )}
-          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowClientShareModal(true)} className="px-3 py-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-xl text-sm font-medium flex items-center gap-2"><Users className="w-4 h-4" />Client Portal</motion.button>
           <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowShareModal(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-indigo-200"><Share2 className="w-4 h-4" />Share</motion.button>
         </div>
       </header>
@@ -5802,30 +6041,6 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowMediaModal('youtube')} className="p-3 hover:bg-gray-100 rounded-xl group relative"><Youtube className="w-5 h-5 text-red-500" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">YouTube Video</div></motion.button>
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowMediaModal('image')} className="p-3 hover:bg-gray-100 rounded-xl group relative"><Image className="w-5 h-5 text-indigo-500" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Embed Image</div></motion.button>
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowMediaModal('qr')} className="p-3 hover:bg-gray-100 rounded-xl group relative"><QrCode className="w-5 h-5 text-green-500" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">QR Photo Upload</div></motion.button>
-          </div>
-          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Tools</p>
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              onClick={() => { setIsPanMode(false); setIsDrawingMode(false); setShowDrawingPanel(false); }}
-              className={`p-3 rounded-xl group relative ${!isPanMode && !isDrawingMode ? 'bg-indigo-100 ring-2 ring-indigo-500' : 'hover:bg-gray-100'}`}
-              title="Select (V)"
-            >
-              <svg className={`w-5 h-5 ${!isPanMode && !isDrawingMode ? 'text-indigo-600' : 'text-gray-700'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
-                <path d="M13 13l6 6" />
-              </svg>
-              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Select (V)</div>
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              onClick={() => { setIsPanMode(!isPanMode); setIsDrawingMode(false); setShowDrawingPanel(false); }}
-              className={`p-3 rounded-xl group relative ${isPanMode ? 'bg-gray-200 ring-2 ring-gray-500' : 'hover:bg-gray-100'}`}
-              title="Pan (H)"
-            >
-              <Move className={`w-5 h-5 ${isPanMode ? 'text-gray-700' : 'text-gray-700'}`} />
-              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Pan / Hand (H)</div>
-            </motion.button>
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200 relative">
             <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Draw</p>
@@ -6098,6 +6313,29 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
               <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">AI Tools</div>
             </motion.button>
           </div>
+
+          {/* Assets & Facilitator */}
+          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Assets</p>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => setShowAssetLibrary(true)}
+              className="p-3 hover:bg-gray-100 rounded-xl group relative"
+              title="Asset Library"
+            >
+              <Image className="w-5 h-5 text-gray-700" />
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Images, GIFs & Icons</div>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => setShowFacilitatorTools(!showFacilitatorTools)}
+              className={`p-3 rounded-xl group relative ${showFacilitatorTools ? 'bg-indigo-100 ring-2 ring-indigo-500' : 'hover:bg-gray-100'}`}
+              title="Facilitator Tools"
+            >
+              <Users className="w-5 h-5 ${showFacilitatorTools ? 'text-indigo-600' : 'text-gray-700'}" />
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Facilitator Tools</div>
+            </motion.button>
+          </div>
           
           {/* Actions */}
           <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
@@ -6218,6 +6456,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           onCursorMove={broadcastCursor}
           editingNodes={editingNodes}
           showCursors={showCursorsToggle}
+          onSetPanMode={() => { setIsPanMode(true); setIsDrawingMode(false); setShowDrawingPanel(false); }}
+          onSetSelectMode={() => { setIsPanMode(false); setIsDrawingMode(false); setShowDrawingPanel(false); }}
         />
 
         <AnimatePresence>
@@ -6308,11 +6548,12 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           />
         )}
         {showShareModal && (
-          <ShareModal
+          <ShareBoardModal
             isOpen={showShareModal}
             onClose={() => setShowShareModal(false)}
             boardId={board.id}
             boardName={board.name}
+            companyName="Fan Consulting"
             isConnected={isConnected}
             connectedUsers={otherUsers}
           />
@@ -6324,16 +6565,57 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             onCreateSticky={handleVoiceToSticky}
           />
         )}
-        {showClientShareModal && (
-          <ShareBoardModal
-            isOpen={showClientShareModal}
-            onClose={() => setShowClientShareModal(false)}
-            boardId={board.id}
-            boardName={board.name}
-            companyName="Fan Consulting"
-          />
-        )}
       </AnimatePresence>
+
+      {/* Asset Library Modal */}
+      <AssetLibrary
+        isOpen={showAssetLibrary}
+        onClose={() => setShowAssetLibrary(false)}
+        onInsertAsset={(asset: AssetInsertPayload) => {
+          const newNode: VisualNode = {
+            id: `node-${Date.now()}`,
+            type: 'image',
+            x: window.innerWidth / 2 - (board.panX || 0),
+            y: window.innerHeight / 2 - (board.panY || 0),
+            width: asset.width || 200,
+            height: asset.height || 200,
+            content: asset.url,
+            color: '#ffffff',
+            locked: false,
+            rotation: 0,
+            votes: 0,
+            votedBy: [],
+            createdBy: sessionUserId,
+            comments: [],
+          };
+          onUpdateBoard({
+            visualNodes: [...board.visualNodes, newNode],
+          });
+          setShowAssetLibrary(false);
+        }}
+      />
+
+      {/* Facilitator Tools */}
+      {showFacilitatorTools && (
+        <FacilitatorTools
+          channel={null}
+          isConnected={isConnected}
+          isFacilitator={true}
+          viewport={{
+            zoom: board.zoom || 1,
+            panX: board.panX || 0,
+            panY: board.panY || 0,
+          }}
+          onViewportChange={(viewport) => {
+            onUpdateBoard({
+              panX: viewport.panX,
+              panY: viewport.panY,
+              zoom: viewport.zoom,
+            });
+          }}
+          participantCount={collaborationUsers.length}
+        />
+      )}
       
       {/* Client Comments Panel */}
       <ClientCommentsPanel
@@ -6386,6 +6668,11 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             setShowTranscriptToWhiteboardModal(true);
           }}
           autoSaveToNotes={true}
+          // Saved transcripts props
+          savedTranscripts={savedTranscripts}
+          onSaveTranscript={handleSaveTranscript}
+          onDeleteTranscript={handleDeleteTranscript}
+          onLoadTranscript={handleLoadTranscript}
           // Action items props
           actionItems={actionItems}
           onToggleActionComplete={handleToggleActionComplete}
@@ -7083,6 +7370,7 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange }: {
 
 // Main App
 export default function App() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [boards, setBoards] = useState<Board[]>([]);
@@ -7092,6 +7380,27 @@ export default function App() {
   const [isLoadingClients, setIsLoadingClients] = useState(true);
   const [supabaseConnected, setSupabaseConnected] = useState(false);
   const [supabaseTablesExist, setSupabaseTablesExist] = useState(true); // Assume true, set false on first error
+
+  // Check if current user is a guest collaborator
+  const guestCollaboratorInfo = useMemo(() => {
+    try {
+      const collabUser = localStorage.getItem('fan-canvas-collab-user');
+      if (!collabUser) return null;
+      const parsed = JSON.parse(collabUser);
+      const joinedAt = new Date(parsed.joinedAt);
+      const hoursSinceJoin = (Date.now() - joinedAt.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceJoin < 24 && parsed.name) {
+        return {
+          name: parsed.name,
+          isGuest: true,
+          role: 'Collaborator'
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, []);
 
   // Fetch clients from fan_consulting database on mount, fallback to localStorage
   useEffect(() => {
@@ -7231,7 +7540,7 @@ export default function App() {
     }
   };
 
-  // Load boards from localStorage on mount (only once)
+  // Load boards from localStorage on mount and sync to Supabase
   const boardsLoadedRef = useRef(false);
   useEffect(() => {
     if (boardsLoadedRef.current) return; // Only load once
@@ -7263,11 +7572,181 @@ export default function App() {
         // Save cleaned boards back to localStorage
         localStorage.setItem('fan-canvas-boards', JSON.stringify(cleanedBoards));
         console.log('Loaded boards from localStorage (cleaned orphan connectors)');
+
+        // Sync all boards to Supabase for sharing
+        if (isSupabaseConfigured()) {
+          console.log('Syncing', cleanedBoards.length, 'boards to Supabase...');
+          cleanedBoards.forEach(async (board: Board) => {
+            try {
+              // Try to create or update the board in Supabase
+              const existingBoard = await boardsApi.getById(board.id);
+              if (existingBoard) {
+                // Update existing board
+                await boardsApi.update(board.id, {
+                  name: board.name,
+                  visual_nodes: board.visualNodes,
+                  zoom: board.zoom || 1,
+                  pan_x: board.panX || 0,
+                  pan_y: board.panY || 0,
+                  last_activity: new Date().toISOString()
+                });
+                console.log('Updated board in Supabase:', board.name);
+              } else {
+                // Create new board in Supabase
+                await boardsApi.create({
+                  id: board.id,
+                  name: board.name,
+                  owner_id: board.ownerId || '1',
+                  organization_id: board.clientId || null,
+                  visual_nodes: board.visualNodes,
+                  zoom: board.zoom || 1,
+                  pan_x: board.panX || 0,
+                  pan_y: board.panY || 0,
+                  status: (board.status === 'completed' ? 'archived' : board.status || 'active') as 'active' | 'archived' | 'template',
+                  progress: board.progress || 0,
+                  last_activity: new Date().toISOString()
+                });
+                console.log('Synced board to Supabase:', board.name);
+              }
+            } catch (error: any) {
+              if (error?.code === 'PGRST205') {
+                console.warn('Supabase tables not set up. Run database/supabase_setup.sql');
+              } else if (error?.code !== '23505') { // Ignore duplicate key errors
+                console.error('Failed to sync board to Supabase:', board.name, error);
+              }
+            }
+          });
+        }
       } catch (e) {
         console.error('Failed to load saved boards:', e);
       }
     }
   }, []);
+
+  // Check for board URL parameter and auto-load that board
+  const boardParamHandledRef = useRef(false);
+  const [sharedBoardError, setSharedBoardError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (boardParamHandledRef.current) return;
+
+    const boardId = searchParams.get('board');
+    const collaborator = searchParams.get('collaborator');
+
+    if (!boardId) return;
+
+    // Wait for initial board load to complete
+    if (!boardsLoadedRef.current) {
+      return; // Effect will re-run when boards change
+    }
+
+    const loadBoard = async () => {
+      // Store collaborator name if provided
+      if (collaborator) {
+        localStorage.setItem('fan-canvas-guest-name', collaborator);
+        localStorage.setItem('fan-canvas-collab-user', JSON.stringify({
+          name: collaborator,
+          joinedAt: new Date().toISOString()
+        }));
+      }
+
+      // For collaborators, ALWAYS fetch from Supabase to get latest data
+      // This ensures shared boards show the same content
+      if (collaborator && isSupabaseConfigured()) {
+        try {
+          console.log('Collaborator joining - fetching latest from Supabase:', boardId);
+          const supabaseBoard = await boardsApi.getById(boardId);
+          if (supabaseBoard) {
+            const board: Board = {
+              id: supabaseBoard.id,
+              name: supabaseBoard.name,
+              ownerId: supabaseBoard.owner_id || '',
+              visualNodes: supabaseBoard.visual_nodes || [],
+              createdAt: new Date(supabaseBoard.created_at),
+              zoom: supabaseBoard.zoom || 1,
+              panX: supabaseBoard.pan_x || 0,
+              panY: supabaseBoard.pan_y || 0,
+              status: supabaseBoard.status as 'active' | 'completed' | 'archived' || 'active',
+              progress: supabaseBoard.progress || 0,
+              lastActivity: supabaseBoard.last_activity ? new Date(supabaseBoard.last_activity) : new Date(),
+              clientId: supabaseBoard.organization_id || undefined
+            };
+            console.log('Loaded shared board from Supabase for collaborator:', board.name, 'nodes:', board.visualNodes.length);
+            boardParamHandledRef.current = true;
+            // Add to local boards list so it persists during session
+            setBoards(prev => {
+              const exists = prev.find(b => b.id === board.id);
+              if (exists) {
+                return prev.map(b => b.id === board.id ? board : b);
+              }
+              return [...prev, board];
+            });
+            setActiveBoard(board);
+            setCurrentView('meeting');
+            setSearchParams({});
+            return;
+          }
+        } catch (err) {
+          console.error('Failed to fetch board from Supabase:', err);
+        }
+      }
+
+      // For non-collaborators, try to find the board locally first
+      const localBoard = boards.find(b => b.id === boardId);
+      if (localBoard) {
+        console.log('Auto-loading board from localStorage:', localBoard.name);
+        boardParamHandledRef.current = true;
+        setActiveBoard(localBoard);
+        setCurrentView('meeting');
+        setSearchParams({});
+        return;
+      }
+
+      // If not found locally, try to fetch from Supabase
+      if (isSupabaseConfigured()) {
+        try {
+          console.log('Board not found locally, fetching from Supabase:', boardId);
+          const supabaseBoard = await boardsApi.getById(boardId);
+          if (supabaseBoard) {
+            // Convert Supabase board to our Board format
+            const board: Board = {
+              id: supabaseBoard.id,
+              name: supabaseBoard.name,
+              ownerId: supabaseBoard.owner_id || '',
+              visualNodes: supabaseBoard.visual_nodes || [],
+              createdAt: new Date(supabaseBoard.created_at),
+              zoom: supabaseBoard.zoom || 1,
+              panX: supabaseBoard.pan_x || 0,
+              panY: supabaseBoard.pan_y || 0,
+              status: supabaseBoard.status as 'active' | 'completed' | 'archived' || 'active',
+              progress: supabaseBoard.progress || 0,
+              lastActivity: supabaseBoard.last_activity ? new Date(supabaseBoard.last_activity) : new Date(),
+              clientId: supabaseBoard.organization_id || undefined
+            };
+
+            console.log('Loaded shared board from Supabase:', board.name);
+            boardParamHandledRef.current = true;
+            // Add to local boards array
+            setBoards(prev => [...prev, board]);
+            setActiveBoard(board);
+            setCurrentView('meeting');
+            setSearchParams({});
+            return;
+          }
+        } catch (error) {
+          console.error('Failed to fetch board from Supabase:', error);
+        }
+      }
+
+      // Board not found anywhere - show error
+      console.warn('Board not found for ID:', boardId);
+      boardParamHandledRef.current = true;
+      setSharedBoardError(`Board "${boardId}" was not found. It may have been deleted or the link is invalid.`);
+      setSearchParams({});
+    };
+
+    loadBoard();
+  }, [boards, searchParams, setSearchParams]);
 
   // Load notes from localStorage on mount (only once)
   const notesLoadedRef = useRef(false);
@@ -7454,7 +7933,7 @@ ${transcriptContent}`;
     ));
   }, []);
 
-  const handleCreateBoard = (name: string, templateId: string, clientId: string) => {
+  const handleCreateBoard = async (name: string, templateId: string, clientId: string) => {
     const template = BOARD_TEMPLATES.find(t => t.id === templateId);
     const newBoard: Board = {
       id: generateId(),
@@ -7486,9 +7965,129 @@ ${transcriptContent}`;
       lastActivity: new Date(),
       participants: 1,
     };
-    setBoards(prev => [...prev, newBoard]);
+    // Save to Supabase FIRST if configured - this ensures share links work immediately
+    if (isSupabaseConfigured()) {
+      try {
+        console.log('Creating board in Supabase:', newBoard.name, newBoard.id);
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Supabase timeout after 10s')), 10000)
+        );
+        await Promise.race([
+          boardsApi.create({
+            id: newBoard.id,
+            name: newBoard.name,
+            owner_id: newBoard.ownerId || '1',
+            organization_id: clientId || null,
+            visual_nodes: newBoard.visualNodes,
+            zoom: newBoard.zoom || 1,
+            pan_x: newBoard.panX || 0,
+            pan_y: newBoard.panY || 0,
+            status: 'active',
+            progress: newBoard.progress || 0,
+            last_activity: new Date().toISOString()
+          }),
+          timeoutPromise
+        ]);
+        console.log('✅ SUCCESS: Board created in Supabase:', newBoard.name, newBoard.id);
+        setSupabaseTablesExist(true);
+      } catch (error: any) {
+        console.error('❌ FAILED to create board in Supabase:', error?.message || error?.code || error);
+        // Don't block - board will still be created locally
+        if (error?.code === 'PGRST205') {
+          console.warn('Supabase tables not set up. Run database/supabase_setup.sql');
+          setSupabaseTablesExist(false);
+        }
+      }
+    } else {
+      console.warn('⚠️ Supabase not configured - board only saved locally, share links will not work');
+    }
+
+    // Save to localStorage
+    setBoards(prev => {
+      const updated = [...prev, newBoard];
+      localStorage.setItem('fan-canvas-boards', JSON.stringify(updated));
+      return updated;
+    });
     setActiveBoard(newBoard);
     setCurrentView('meeting');
+  };
+
+  const handleDeleteBoard = async (boardId: string) => {
+    // If we're viewing this board, go back to dashboard
+    if (activeBoard?.id === boardId) {
+      setActiveBoard(null);
+      setCurrentView('dashboard');
+    }
+
+    // Remove from local state
+    setBoards(prev => {
+      const updated = prev.filter(b => b.id !== boardId);
+      // Save to localStorage
+      localStorage.setItem('fan-canvas-boards', JSON.stringify(updated));
+      return updated;
+    });
+
+    // Delete from Supabase if configured
+    if (isSupabaseConfigured() && supabaseTablesExist) {
+      try {
+        await boardsApi.delete(boardId);
+        console.log('Deleted board from Supabase:', boardId);
+      } catch (error: any) {
+        if (error?.code === 'PGRST205') {
+          console.warn('Supabase tables not set up');
+          setSupabaseTablesExist(false);
+        } else {
+          console.error('Failed to delete board from Supabase:', error);
+        }
+      }
+    }
+  };
+
+  // Sync all local boards to Supabase
+  const handleSyncToCloud = async (): Promise<number> => {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase not configured');
+    }
+
+    let synced = 0;
+    for (const board of boards) {
+      try {
+        // Check if exists
+        const existing = await boardsApi.getById(board.id);
+        if (existing) {
+          // Update
+          await boardsApi.update(board.id, {
+            name: board.name,
+            visual_nodes: board.visualNodes,
+            zoom: board.zoom || 1,
+            pan_x: board.panX || 0,
+            pan_y: board.panY || 0,
+            last_activity: new Date().toISOString()
+          });
+        } else {
+          // Create
+          await boardsApi.create({
+            id: board.id,
+            name: board.name,
+            owner_id: board.ownerId || '1',
+            organization_id: board.clientId || null,
+            visual_nodes: board.visualNodes,
+            zoom: board.zoom || 1,
+            pan_x: board.panX || 0,
+            pan_y: board.panY || 0,
+            status: 'active',
+            progress: board.progress || 0,
+            last_activity: new Date().toISOString()
+          });
+        }
+        synced++;
+        console.log('✅ Synced:', board.name);
+      } catch (err) {
+        console.error('❌ Failed to sync:', board.name, err);
+      }
+    }
+    return synced;
   };
 
   const handleViewChange = (view: ViewType) => {
@@ -7569,15 +8168,47 @@ ${transcriptContent}`;
 
   return (
     <div className="h-screen flex bg-gray-50 overflow-hidden">
-      <Sidebar currentView={currentView} onViewChange={handleViewChange} isCollapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} userName="Scott Jones" />
+      {/* Shared board error modal */}
+      {sharedBoardError && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4"
+          >
+            <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-red-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 text-center mb-2">Board Not Found</h2>
+            <p className="text-gray-600 text-center mb-6">{sharedBoardError}</p>
+            <button
+              onClick={() => setSharedBoardError(null)}
+              className="w-full px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+            >
+              Go to Dashboard
+            </button>
+          </motion.div>
+        </div>
+      )}
+      <Sidebar 
+        currentView={currentView} 
+        onViewChange={handleViewChange} 
+        isCollapsed={sidebarCollapsed} 
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} 
+        userName={guestCollaboratorInfo?.name || 'Scott Jones'} 
+        isGuest={!!guestCollaboratorInfo}
+        userRole={guestCollaboratorInfo?.role || 'Owner'}
+      />
       {currentView === 'dashboard' && (
         <DashboardView
           boards={boards}
           onOpenBoard={handleOpenBoard}
           onCreateBoard={handleCreateBoard}
+          onDeleteBoard={handleDeleteBoard}
           clients={clients}
           onAddClient={handleAddClient}
           isLoadingClients={isLoadingClients}
+          onSyncToCloud={handleSyncToCloud}
         />
       )}
       {currentView === 'meeting' && activeBoard && <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} onCreateTranscriptNote={handleCreateTranscriptNote} />}

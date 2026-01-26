@@ -58,6 +58,28 @@ import useTranscription from '../hooks/useTranscription';
 import { FullTranscript, formatTimestamp, formatDuration } from '../lib/transcription';
 import { MeetingSummary, generateMeetingSummary, SummaryFormat } from '../lib/meeting-summary';
 
+// TranscriptEntry for saved transcripts (legacy format from App.tsx)
+interface TranscriptEntry {
+  id: string;
+  speaker: string;
+  text: string;
+  timestamp: number;
+}
+
+// Legacy SavedTranscript format from App.tsx - kept for backward compatibility
+export interface SavedTranscript {
+  id: string;
+  entries: TranscriptEntry[];
+  startedAt: Date;
+  endedAt: Date;
+  duration: number;
+  // New optional fields for enhanced transcripts
+  title?: string;
+  transcript?: FullTranscript;
+  speakerCount?: number;
+  segmentCount?: number;
+}
+
 export interface ParticipantActivity {
   userId: string;
   type: 'joined' | 'left' | 'editing' | 'comment' | 'reaction';
@@ -113,6 +135,10 @@ interface UnifiedLeftPanelProps {
   onDraftEmail?: (transcript: FullTranscript) => void;
   autoSaveToNotes?: boolean;
   aiApiKey?: string;
+  savedTranscripts?: SavedTranscript[];
+  onSaveTranscript?: (transcript: SavedTranscript) => void;
+  onDeleteTranscript?: (id: string) => void;
+  onLoadTranscript?: (transcript: SavedTranscript) => void;
 
   // Action items props
   actionItems?: ActionItem[];
@@ -337,6 +363,10 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
   onDraftEmail,
   autoSaveToNotes = true,
   aiApiKey,
+  savedTranscripts = [],
+  onSaveTranscript,
+  onDeleteTranscript,
+  onLoadTranscript,
 
   // Action items
   actionItems = [],
@@ -404,6 +434,8 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [noteSaved, setNoteSaved] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [showSavedTranscripts, setShowSavedTranscripts] = useState(false);
+  const [viewingTranscript, setViewingTranscript] = useState<SavedTranscript | null>(null);
 
   const transcriptScrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -560,6 +592,54 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
     const text = exportAsText();
     await navigator.clipboard.writeText(text);
   }, [exportAsText]);
+
+  // Save current transcript to saved list
+  const handleSaveCurrentTranscript = useCallback(() => {
+    if (!transcript || transcript.segments.length === 0 || !onSaveTranscript) return;
+
+    // Convert to legacy format for backward compatibility
+    const entries: TranscriptEntry[] = transcript.segments.map(seg => ({
+      id: seg.id,
+      speaker: seg.speaker,
+      text: seg.text,
+      timestamp: Math.floor(seg.startTime / 1000), // Convert ms to seconds
+    }));
+
+    const savedTranscript: SavedTranscript = {
+      id: crypto.randomUUID(),
+      entries,
+      startedAt: new Date(Date.now() - duration * 1000),
+      endedAt: new Date(),
+      duration,
+      // Enhanced fields
+      title: `${boardName} - ${new Date().toLocaleString()}`,
+      transcript: { ...transcript },
+      speakerCount: transcript.speakers.length,
+      segmentCount: transcript.segments.length,
+    };
+
+    onSaveTranscript(savedTranscript);
+    clearTranscript();
+  }, [transcript, duration, boardName, onSaveTranscript, clearTranscript]);
+
+  // Load a saved transcript for viewing
+  const handleLoadSavedTranscript = useCallback((saved: SavedTranscript) => {
+    setViewingTranscript(saved);
+    setShowSavedTranscripts(false);
+    if (onLoadTranscript) {
+      onLoadTranscript(saved);
+    }
+  }, [onLoadTranscript]);
+
+  // Delete a saved transcript
+  const handleDeleteSavedTranscript = useCallback((id: string) => {
+    if (onDeleteTranscript) {
+      onDeleteTranscript(id);
+    }
+    if (viewingTranscript?.id === id) {
+      setViewingTranscript(null);
+    }
+  }, [onDeleteTranscript, viewingTranscript]);
 
   const totalParticipants = users.length + 1;
   const pendingActionsCount = actionItems.filter(a => !a.isComplete).length;
@@ -886,6 +966,179 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                 exit={{ opacity: 0, x: 20 }}
                 className="h-full flex flex-col"
               >
+                {/* Current/Saved toggle */}
+                <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                    <button
+                      onClick={() => { setShowSavedTranscripts(false); setViewingTranscript(null); }}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                        !showSavedTranscripts && !viewingTranscript
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Current
+                      {isRecording && <span className="ml-1 w-1.5 h-1.5 bg-red-500 rounded-full inline-block animate-pulse" />}
+                    </button>
+                    <button
+                      onClick={() => setShowSavedTranscripts(true)}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${
+                        showSavedTranscripts || viewingTranscript
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Saved
+                      {savedTranscripts.length > 0 && (
+                        <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px]">
+                          {savedTranscripts.length}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                  {/* Save current button */}
+                  {transcript && transcript.segments.length > 0 && !isRecording && !showSavedTranscripts && !viewingTranscript && onSaveTranscript && (
+                    <button
+                      onClick={handleSaveCurrentTranscript}
+                      className="flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium hover:bg-indigo-200 transition-colors"
+                    >
+                      <Save className="w-3 h-3" />
+                      Save
+                    </button>
+                  )}
+                </div>
+
+                {/* Saved transcripts list */}
+                {showSavedTranscripts && !viewingTranscript && (
+                  <div className="flex-1 overflow-y-auto p-3">
+                    {savedTranscripts.length === 0 ? (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center text-gray-400">
+                          <FileText className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                          <p className="font-medium">No saved transcripts</p>
+                          <p className="text-sm mt-1">Record a session and save it here</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {savedTranscripts.map((saved) => (
+                          <motion.div
+                            key={saved.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer group"
+                            onClick={() => handleLoadSavedTranscript(saved)}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-sm text-gray-900 truncate">
+                                  {saved.title || `Recording ${new Date(saved.startedAt).toLocaleDateString()}`}
+                                </h4>
+                                <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {formatDuration(saved.duration)}
+                                  </span>
+                                  {(saved.speakerCount || saved.transcript?.speakers?.length) && (
+                                    <span className="flex items-center gap-1">
+                                      <User className="w-3 h-3" />
+                                      {saved.speakerCount || saved.transcript?.speakers?.length || 1} speakers
+                                    </span>
+                                  )}
+                                  <span>{saved.segmentCount || saved.transcript?.segments?.length || saved.entries?.length || 0} segments</span>
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {new Date(saved.startedAt || saved.transcript?.createdAt || Date.now()).toLocaleString()}
+                                </p>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm('Delete this transcript?')) {
+                                    handleDeleteSavedTranscript(saved.id);
+                                  }
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Viewing a saved transcript */}
+                {viewingTranscript && (
+                  <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="px-3 py-2 bg-amber-50 border-b border-amber-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-amber-600" />
+                        <span className="text-sm font-medium text-amber-800 truncate max-w-[180px]">
+                          {viewingTranscript.title || `Recording ${new Date(viewingTranscript.startedAt).toLocaleDateString()}`}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setViewingTranscript(null)}
+                        className="p-1 hover:bg-amber-100 rounded"
+                      >
+                        <X className="w-4 h-4 text-amber-600" />
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                      {/* Handle new format (transcript object) */}
+                      {viewingTranscript.transcript?.segments?.map((segment) => {
+                        const speaker = viewingTranscript.transcript?.speakers?.find(s => s.id === segment.speaker);
+                        return (
+                          <div key={segment.id} className="flex gap-3 p-3 rounded-xl hover:bg-gray-50">
+                            <div
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0"
+                              style={{ backgroundColor: speaker?.color || '#6b7280' }}
+                            >
+                              {(speaker?.customName || speaker?.label || '?').charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium text-sm" style={{ color: speaker?.color }}>
+                                  {speaker?.customName || speaker?.label || 'Unknown'}
+                                </span>
+                                <span className="text-xs text-gray-400">
+                                  {formatTimestamp(segment.startTime)}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-700">{segment.text}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {/* Handle legacy format (entries array) */}
+                      {!viewingTranscript.transcript && viewingTranscript.entries?.map((entry) => (
+                        <div key={entry.id} className="flex gap-3 p-3 rounded-xl hover:bg-gray-50">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 bg-indigo-500">
+                            {entry.speaker?.charAt(0) || 'S'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-sm text-indigo-600">
+                                Speaker {entry.speaker || '1'}
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                {Math.floor(entry.timestamp / 60)}:{String(entry.timestamp % 60).padStart(2, '0')}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-700">{entry.text}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Current transcript view (only show when not viewing saved) */}
+                {!showSavedTranscripts && !viewingTranscript && (
+                  <>
                 {/* Speakers bar */}
                 {transcript && transcript.speakers.length > 0 && (
                   <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
@@ -1171,6 +1424,8 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                       </div>
                     </div>
                   </div>
+                )}
+                  </>
                 )}
               </motion.div>
             )}

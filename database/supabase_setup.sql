@@ -1,10 +1,20 @@
 -- Strategic Canvas Database Schema for Supabase
 -- Run this in your Supabase SQL Editor
+-- NOTE: If you have existing tables, you may need to drop them first or migrate data
 
--- CANVAS BOARDS
+-- Drop existing tables if they exist (CAUTION: This will delete existing data)
+-- Uncomment the following lines if you need to recreate tables:
+-- DROP TABLE IF EXISTS client_workspaces CASCADE;
+-- DROP TABLE IF EXISTS board_history CASCADE;
+-- DROP TABLE IF EXISTS board_magic_links CASCADE;
+-- DROP TABLE IF EXISTS note_board_links CASCADE;
+-- DROP TABLE IF EXISTS project_notes CASCADE;
+-- DROP TABLE IF EXISTS canvas_boards CASCADE;
+
+-- CANVAS BOARDS (using TEXT for id to support both UUIDs and short IDs)
 CREATE TABLE IF NOT EXISTS canvas_boards (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID,
+    id TEXT PRIMARY KEY,
+    organization_id TEXT,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     thumbnail_url TEXT,
@@ -14,8 +24,8 @@ CREATE TABLE IF NOT EXISTS canvas_boards (
     pan_y DECIMAL(10, 2) DEFAULT 0,
     status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'archived', 'template')),
     progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
-    template_id UUID REFERENCES canvas_boards(id) ON DELETE SET NULL,
-    owner_id UUID,
+    template_id TEXT REFERENCES canvas_boards(id) ON DELETE SET NULL,
+    owner_id TEXT,
     is_public BOOLEAN DEFAULT FALSE,
     allow_anonymous_view BOOLEAN DEFAULT FALSE,
     allow_anonymous_edit BOOLEAN DEFAULT FALSE,
@@ -29,17 +39,17 @@ CREATE INDEX IF NOT EXISTS idx_canvas_boards_status ON canvas_boards(status);
 
 -- PROJECT NOTES
 CREATE TABLE IF NOT EXISTS project_notes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID,
+    id TEXT PRIMARY KEY,
+    organization_id TEXT,
     title VARCHAR(255) NOT NULL,
     content TEXT,
     icon VARCHAR(10) DEFAULT '📄',
-    parent_id UUID REFERENCES project_notes(id) ON DELETE SET NULL,
+    parent_id TEXT REFERENCES project_notes(id) ON DELETE SET NULL,
     sort_order INTEGER DEFAULT 0,
     tags TEXT[] DEFAULT '{}',
     is_ai_generated BOOLEAN DEFAULT FALSE,
-    source_board_id UUID REFERENCES canvas_boards(id) ON DELETE SET NULL,
-    owner_id UUID,
+    source_board_id TEXT REFERENCES canvas_boards(id) ON DELETE SET NULL,
+    owner_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -49,35 +59,42 @@ CREATE INDEX IF NOT EXISTS idx_project_notes_tags ON project_notes USING GIN(tag
 
 -- NOTE-BOARD LINKS
 CREATE TABLE IF NOT EXISTS note_board_links (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    note_id UUID REFERENCES project_notes(id) ON DELETE CASCADE,
-    board_id UUID REFERENCES canvas_boards(id) ON DELETE CASCADE,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    note_id TEXT REFERENCES project_notes(id) ON DELETE CASCADE,
+    board_id TEXT REFERENCES canvas_boards(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(note_id, board_id)
 );
 
--- BOARD MAGIC LINKS
+-- BOARD MAGIC LINKS (Share Links for Client Access)
 CREATE TABLE IF NOT EXISTS board_magic_links (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    board_id UUID REFERENCES canvas_boards(id) ON DELETE CASCADE,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    board_id TEXT REFERENCES canvas_boards(id) ON DELETE CASCADE,
     token VARCHAR(64) UNIQUE NOT NULL,
-    permission VARCHAR(50) DEFAULT 'view' CHECK (permission IN ('view', 'edit')),
+    permission VARCHAR(50) DEFAULT 'view' CHECK (permission IN ('view', 'comment', 'edit')),
+    client_name TEXT,
+    password_hash TEXT,
     expires_at TIMESTAMP WITH TIME ZONE,
     max_uses INTEGER,
     use_count INTEGER DEFAULT 0,
-    created_by UUID,
+    views INTEGER DEFAULT 0,
+    last_viewed_at TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT TRUE,
+    company_branding JSONB DEFAULT '{}',
+    created_by TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_magic_links_token ON board_magic_links(token);
+CREATE INDEX IF NOT EXISTS idx_magic_links_board ON board_magic_links(board_id);
 
 -- BOARD HISTORY
 CREATE TABLE IF NOT EXISTS board_history (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    board_id UUID REFERENCES canvas_boards(id) ON DELETE CASCADE,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    board_id TEXT REFERENCES canvas_boards(id) ON DELETE CASCADE,
     visual_nodes JSONB NOT NULL,
     action VARCHAR(100) NOT NULL,
-    user_id UUID,
+    user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -85,9 +102,9 @@ CREATE INDEX IF NOT EXISTS idx_board_history_board ON board_history(board_id);
 
 -- CLIENT WORKSPACES
 CREATE TABLE IF NOT EXISTS client_workspaces (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID UNIQUE NOT NULL,
-    default_board_template_id UUID REFERENCES canvas_boards(id) ON DELETE SET NULL,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    organization_id TEXT UNIQUE NOT NULL,
+    default_board_template_id TEXT REFERENCES canvas_boards(id) ON DELETE SET NULL,
     brand_color VARCHAR(7) DEFAULT '#6366f1',
     logo_url TEXT,
     boards_enabled BOOLEAN DEFAULT TRUE,

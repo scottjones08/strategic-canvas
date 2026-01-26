@@ -43,3 +43,11 @@ export { AuthProvider } from './AuthProvider';
 // Canvas components
 export { default as SmoothCanvas } from './SmoothCanvas';
 export type { SmoothCanvasRef, SmoothCanvasProps } from './SmoothCanvas';
+
+// Facilitator Tools
+export { default as FacilitatorTools } from './FacilitatorTools';
+export type { FacilitatorToolsProps, TimerState, FacilitatorBroadcast } from './FacilitatorTools';
+
+// Asset Library
+export { default as AssetLibrary } from './AssetLibrary';
+export type { AssetLibraryProps, AssetInsertPayload } from './AssetLibrary';

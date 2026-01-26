@@ -17,32 +17,19 @@ import {
 import {
   ShareLink,
   ClientComment,
-  getShareLinkByToken,
+  getShareLinkByTokenAsync,
   validateShareLink,
   recordView,
   loadClientComments,
   createClientComment,
   toggleCommentResolved,
   addComment as addClientComment,
+  getBoardForShareLink,
 } from '../lib/client-portal';
 import ClientCommentPin from '../components/ClientCommentPin';
 import ClientCommentsPanel from '../components/ClientCommentsPanel';
 
-// Get boards from localStorage (same as main app)
-function loadBoards() {
-  try {
-    const saved = localStorage.getItem('fan-canvas-boards');
-    if (!saved) return [];
-    return JSON.parse(saved).map((b: any) => ({
-      ...b,
-      createdAt: new Date(b.createdAt),
-      lastActivity: b.lastActivity ? new Date(b.lastActivity) : new Date(),
-    }));
-  } catch (e) {
-    console.error('Failed to load boards:', e);
-    return [];
-  }
-}
+// Note: Board loading now uses getBoardForShareLink which fetches from Supabase
 
 interface Board {
   id: string;
@@ -83,8 +70,8 @@ export default function ClientView() {
   const [isAddingComment, setIsAddingComment] = useState(false);
   const [newCommentPos, setNewCommentPos] = useState<{ x: number; y: number } | null>(null);
   const [newCommentContent, setNewCommentContent] = useState('');
-  const [newCommentName, setNewCommentName] = useState('');
-  const [newCommentEmail, setNewCommentEmail] = useState('');
+  const [newCommentName, setNewCommentName] = useState(savedGuestName);
+  const [newCommentEmail, setNewCommentEmail] = useState(savedGuestEmail);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -92,42 +79,56 @@ export default function ClientView() {
 
   // Load share link and board
   useEffect(() => {
-    if (!token) {
-      setError('Invalid share link');
-      setLoading(false);
-      return;
+    async function loadShareLinkAndBoard() {
+      if (!token) {
+        setError('Invalid share link');
+        setLoading(false);
+        return;
+      }
+
+      // Fetch share link from Supabase (or localStorage fallback)
+      const link = await getShareLinkByTokenAsync(token);
+      if (!link) {
+        setError('Share link not found');
+        setLoading(false);
+        return;
+      }
+
+      // Check if password is required
+      if (link.password) {
+        setNeedsPassword(true);
+        setShareLink(link);
+        setLoading(false);
+        return;
+      }
+
+      // Validate link
+      const validation = validateShareLink(link);
+      if (!validation.valid) {
+        setError(validation.error || 'Invalid share link');
+        setLoading(false);
+        return;
+      }
+
+      // For 'edit' permission, redirect to full collaboration mode
+      if (link.permissions === 'edit') {
+        // Redirect to join page with board ID for full real-time collaboration
+        // Pass client name if available so it pre-fills the name field
+        const nameParam = link.clientName ? `&name=${encodeURIComponent(link.clientName)}` : '';
+        navigate(`/join?board=${link.boardId}&from=share${nameParam}`);
+        return;
+      }
+
+      // Load the board
+      await loadBoardData(link);
     }
 
-    const link = getShareLinkByToken(token);
-    if (!link) {
-      setError('Share link not found');
-      setLoading(false);
-      return;
-    }
+    loadShareLinkAndBoard();
+  }, [token, navigate]);
 
-    // Check if password is required
-    if (link.password) {
-      setNeedsPassword(true);
-      setShareLink(link);
-      setLoading(false);
-      return;
-    }
-
-    // Validate link
-    const validation = validateShareLink(link);
-    if (!validation.valid) {
-      setError(validation.error || 'Invalid share link');
-      setLoading(false);
-      return;
-    }
-
-    // Load the board
-    loadBoardData(link);
-  }, [token]);
-
-  const loadBoardData = (link: ShareLink) => {
-    const boards = loadBoards();
-    const targetBoard = boards.find((b: Board) => b.id === link.boardId);
+  const loadBoardData = async (link: ShareLink) => {
+    // Fetch board from Supabase (or localStorage fallback)
+    const targetBoard = await getBoardForShareLink(link.boardId);
 
     if (!targetBoard) {
       setError('Board not found');
@@ -151,7 +152,7 @@ export default function ClientView() {
     setLoading(false);
   };
 
-  const handlePasswordSubmit = () => {
+  const handlePasswordSubmit = async () => {
     if (!shareLink || !password) return;
 
     const validation = validateShareLink(shareLink, password);
@@ -162,7 +163,7 @@ export default function ClientView() {
 
     setNeedsPassword(false);
     setPasswordError('');
-    loadBoardData(shareLink);
+    await loadBoardData(shareLink);
   };
 
   // Canvas interactions
@@ -512,16 +513,6 @@ export default function ClientView() {
       </div>
     );
   }
-
-  // Pre-fill comment form with saved guest info
-  useEffect(() => {
-    if (savedGuestName) {
-      setNewCommentName(savedGuestName);
-    }
-    if (savedGuestEmail) {
-      setNewCommentEmail(savedGuestEmail);
-    }
-  }, []);
 
   // Main view
   return (

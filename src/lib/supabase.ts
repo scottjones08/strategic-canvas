@@ -175,14 +175,25 @@ export const boardsApi = {
   async getById(boardId: string): Promise<CanvasBoard | null> {
     if (!supabase) throw new Error('Supabase not configured');
     
-    const { data, error } = await supabase
-      .from('canvas_boards')
-      .select('*')
-      .eq('id', boardId)
-      .single();
+    // Use direct fetch to avoid Supabase JS client hanging issues
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
-    if (error && error.code !== 'PGRST116') throw error;
-    return data;
+    const response = await fetch(`${supabaseUrl}/rest/v1/canvas_boards?id=eq.${boardId}&limit=1`, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+      }
+    });
+    
+    if (!response.ok) {
+      console.error('boardsApi.getById: HTTP error', response.status);
+      return null;
+    }
+    
+    const data = await response.json();
+    return data && data[0] ? data[0] : null;
   },
 
   // Get board by magic link token
@@ -219,14 +230,34 @@ export const boardsApi = {
   async create(board: Partial<CanvasBoard>): Promise<CanvasBoard> {
     if (!supabase) throw new Error('Supabase not configured');
     
-    const { data, error } = await supabase
-      .from('canvas_boards')
-      .insert(board)
-      .select()
-      .single();
+    console.log('boardsApi.create: inserting board...', board.id);
     
-    if (error) throw error;
-    return data;
+    // Use fetch directly to avoid Supabase JS client realtime issues
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    const response = await fetch(`${supabaseUrl}/rest/v1/canvas_boards`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(board)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('boardsApi.create: HTTP error', response.status, errorText);
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('boardsApi.create: response received', { success: true, id: data[0]?.id });
+    
+    if (!data || !data[0]) throw new Error('No data returned from insert');
+    return data[0];
   },
 
   // Create board from template
@@ -250,15 +281,29 @@ export const boardsApi = {
   async update(boardId: string, updates: Partial<CanvasBoard>): Promise<CanvasBoard> {
     if (!supabase) throw new Error('Supabase not configured');
     
-    const { data, error } = await supabase
-      .from('canvas_boards')
-      .update(updates)
-      .eq('id', boardId)
-      .select()
-      .single();
+    // Use direct fetch to avoid Supabase JS client hanging issues
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
-    if (error) throw error;
-    return data;
+    const response = await fetch(`${supabaseUrl}/rest/v1/canvas_boards?id=eq.${boardId}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(updates)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    
+    const data = await response.json();
+    if (!data || !data[0]) throw new Error('No data returned from update');
+    return data[0];
   },
 
   // Update only visual nodes (optimized for frequent updates)

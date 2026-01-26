@@ -8,7 +8,8 @@
  * - Conflict resolution
  */
 
-import { createClient, RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
+import { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
+import { supabase as sharedSupabase } from './supabase';
 
 // User presence data
 export interface UserPresence {
@@ -136,13 +137,8 @@ export class CollaborationManager {
     this.userName = userName;
     this.userColor = userColor || getUserColor(userId);
 
-    // Initialize Supabase client
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    
-    if (supabaseUrl && supabaseKey) {
-      this.supabase = createClient(supabaseUrl, supabaseKey);
-    }
+    // Use shared Supabase client
+    this.supabase = sharedSupabase;
   }
 
   /**
