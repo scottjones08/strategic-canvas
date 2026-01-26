@@ -108,7 +108,7 @@ import {
   Cloud,
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import { organizationsApi, boardsApi, notesApi, isSupabaseConfigured } from './lib/supabase';
+import { supabase, organizationsApi, boardsApi, notesApi, isSupabaseConfigured } from './lib/supabase';
 // TranscriptionPanel is now integrated into UnifiedLeftPanel
 import TranscriptToWhiteboardModal, { VisualNodeInput } from './components/TranscriptToWhiteboardModal';
 import { FullTranscript } from './lib/transcription';
@@ -4856,7 +4856,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     userId: sessionUserId,
     userName: currentUser.name,
     userColor: currentUser.color,
-    enabled: false, // Disabled until Supabase Realtime is configured
+    enabled: !!supabase,
     onNodeChange: (change) => {
       // Another user updated the board
       if (change.type === 'update' || change.type === 'add' || change.type === 'delete') {

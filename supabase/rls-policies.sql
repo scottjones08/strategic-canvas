@@ -477,3 +477,35 @@ GRANT SELECT, INSERT ON canvas_activity_logs TO authenticated;
 -- Grant anonymous access for client portal (via token)
 GRANT SELECT ON canvas_client_access TO anon;
 GRANT SELECT ON canvas_boards TO anon;
+
+-- =============================================
+-- Realtime Authorization for Collaborative Editing
+-- =============================================
+
+-- Allow all authenticated users to receive broadcasts
+-- This enables collaborative editing features
+CREATE POLICY "authenticated can receive broadcasts"
+ON "realtime"."messages"
+FOR SELECT
+TO authenticated
+USING (true);
+
+-- Allow all authenticated users to send broadcasts
+CREATE POLICY "authenticated can send broadcasts"
+ON "realtime"."messages"
+FOR INSERT
+TO authenticated
+WITH CHECK (true);
+
+-- Also allow anon users for public boards (optional)
+CREATE POLICY "anon can receive broadcasts"
+ON "realtime"."messages"
+FOR SELECT
+TO anon
+USING (true);
+
+CREATE POLICY "anon can send broadcasts"
+ON "realtime"."messages"
+FOR INSERT
+TO anon
+WITH CHECK (true);
