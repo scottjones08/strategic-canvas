@@ -2993,9 +2993,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
             return 'url(#arrowhead-gray)';
           };
 
-          // Calculate label position at midpoint of bezier curve
-          const labelX = line.midX;
-          const labelY = line.midY - 10;
+          // Label position is calculated in the overlay div below
 
           return (
             <g key={line.id}>
@@ -3017,31 +3015,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
                 strokeLinecap="round"
                 markerEnd={getMarker(line.color)}
               />
-              {/* Label on connector */}
-              {line.label && (
-                <g>
-                  <rect
-                    x={labelX - 30}
-                    y={labelY - 10}
-                    width="60"
-                    height="20"
-                    fill="white"
-                    rx="4"
-                    stroke={line.color || '#6b7280'}
-                    strokeWidth="1"
-                  />
-                  <text
-                    x={labelX}
-                    y={labelY + 4}
-                    textAnchor="middle"
-                    fontSize="12"
-                    fill={line.color || '#6b7280'}
-                    fontWeight="500"
-                  >
-                    {line.label}
-                  </text>
-                </g>
-              )}
+              {/* Label is rendered in the overlay div below for interactivity */}
             </g>
           );
         })}
