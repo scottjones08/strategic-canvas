@@ -18,6 +18,8 @@ serve(async (req) => {
       throw new Error('ASSEMBLYAI_API_KEY not configured')
     }
 
+    // Universal-Streaming uses temporary auth tokens
+    // https://www.assemblyai.com/docs/speech-to-text/universal-streaming
     const response = await fetch('https://api.assemblyai.com/v2/realtime/token', {
       method: 'POST',
       headers: {
@@ -27,14 +29,29 @@ serve(async (req) => {
       body: JSON.stringify({ expires_in: 3600 })
     })
 
+    // If old endpoint fails, return the API key directly for new streaming endpoint
+    // The new Universal-Streaming endpoint accepts the API key directly in the URL
     if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`AssemblyAI error: ${response.status} - ${error}`)
+      // Return a token response that includes the API key for direct use
+      return new Response(JSON.stringify({ 
+        token: apiKey,
+        method: 'direct',
+        streaming_url: 'wss://streaming.assemblyai.com'
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
+      })
     }
 
     const data = await response.json()
 
-    return new Response(JSON.stringify(data), {
+    return new Response(JSON.stringify({
+      ...data,
+      method: 'token',
+      streaming_url: 'wss://api.assemblyai.com/v2/realtime/ws'
+    }), {
       headers: {
         'Content-Type': 'application/json',
         ...corsHeaders

@@ -105,14 +105,21 @@ export function getSpeakerColor(speakerIndex: number): string {
 // ============================================
 
 const ASSEMBLYAI_API_URL = 'https://api.assemblyai.com/v2';
-const ASSEMBLYAI_REALTIME_URL = 'wss://api.assemblyai.com/v2/realtime/ws';
 const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL + '/functions/v1';
 
+// Streaming auth response from edge function
+interface StreamingAuth {
+  token: string;
+  method: 'direct' | 'token';
+  streaming_url: string;
+}
+
 /**
- * Get a temporary token for real-time streaming
+ * Get authentication for real-time streaming
  * Uses Supabase Edge Function to proxy the request (avoids CORS)
+ * Returns token and correct WebSocket URL for Universal-Streaming
  */
-export async function getRealtimeToken(_apiKey?: string): Promise<string> {
+export async function getRealtimeToken(_apiKey?: string): Promise<StreamingAuth> {
   const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/assemblyai-token`, {
     method: 'POST',
     headers: {
@@ -125,8 +132,7 @@ export async function getRealtimeToken(_apiKey?: string): Promise<string> {
     throw new Error(error.error || `Failed to get realtime token: ${response.status}`);
   }
 
-  const data = await response.json();
-  return data.token;
+  return response.json();
 }
 
 /**
@@ -471,18 +477,26 @@ export function startRealtimeTranscription(
         // Create audio context for resampling
         audioContext = new AudioContext({ sampleRate: 16000 });
 
-        // Get temporary token for real-time streaming
+        // Get authentication for real-time streaming
         setStatus('connecting');
-        let realtimeToken: string;
+        let streamingAuth: StreamingAuth;
         try {
-          realtimeToken = await getRealtimeToken(config.apiKey);
+          streamingAuth = await getRealtimeToken(config.apiKey);
         } catch (tokenError: any) {
           handleError(new Error(`Failed to authenticate: ${tokenError.message}`));
           return;
         }
 
-        // Connect to AssemblyAI WebSocket with token
-        const socketUrl = `${ASSEMBLYAI_REALTIME_URL}?sample_rate=16000&token=${encodeURIComponent(realtimeToken)}`;
+        // Connect to AssemblyAI Universal-Streaming WebSocket
+        // New endpoint: wss://streaming.assemblyai.com with API key auth
+        let socketUrl: string;
+        if (streamingAuth.method === 'direct') {
+          // Universal-Streaming: pass API key directly
+          socketUrl = `${streamingAuth.streaming_url}?sample_rate=16000&encoding=pcm_s16le&token=${encodeURIComponent(streamingAuth.token)}`;
+        } else {
+          // Legacy: use temporary token
+          socketUrl = `${streamingAuth.streaming_url}?sample_rate=16000&token=${encodeURIComponent(streamingAuth.token)}`;
+        }
         socket = new WebSocket(socketUrl);
 
         socket.onopen = () => {
@@ -497,7 +511,30 @@ export function startRealtimeTranscription(
           try {
             const message = JSON.parse(event.data);
             
-            if (message.message_type === 'FinalTranscript' && message.text) {
+            // Handle Universal-Streaming format (turn-based)
+            if (message.transcript && message.end_of_turn) {
+              const segment: TranscriptSegment = {
+                id: `${sessionId}-${transcript.segments.length}`,
+                speaker: 'A',
+                speakerLabel: 'Speaker A',
+                text: message.transcript,
+                startTime: message.words?.[0]?.start || 0,
+                endTime: message.words?.[message.words.length - 1]?.end || 0,
+                confidence: message.words?.[0]?.confidence || 0.9,
+                words: message.words?.filter((w: any) => w.word_is_final).map((w: any) => ({
+                  text: w.text,
+                  startTime: w.start,
+                  endTime: w.end,
+                  confidence: w.confidence,
+                })),
+              };
+
+              transcript.segments.push(segment);
+              transcript.duration = Date.now() - startTime;
+              segmentCallbacks.forEach(cb => cb(segment));
+            }
+            // Handle legacy format (FinalTranscript)
+            else if (message.message_type === 'FinalTranscript' && message.text) {
               const segment: TranscriptSegment = {
                 id: `${sessionId}-${transcript.segments.length}`,
                 speaker: 'A',
