@@ -2952,9 +2952,9 @@ const ShareModal = ({
   const [magicLink, setMagicLink] = useState('');
   
   useEffect(() => {
-    // Generate magic link with board ID
+    // Generate magic link with board ID - uses public /join route
     const baseUrl = window.location.origin;
-    const link = `${baseUrl}?board=${boardId}&collaborate=true`;
+    const link = `${baseUrl}/join?board=${boardId}`;
     setMagicLink(link);
   }, [boardId]);
   
@@ -6368,7 +6368,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             }
           }}
           followingUserId={followingUserId}
-          shareUrl={`${window.location.origin}?board=${board.id}&collaborate=true`}
+          shareUrl={`${window.location.origin}/join?board=${board.id}`}
           onInvite={() => setShowShareModal(true)}
           recentActivity={recentActivity}
           onEditUserName={() => setIsEditingUserName(true)}
