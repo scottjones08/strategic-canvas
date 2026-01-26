@@ -312,46 +312,53 @@ export default function TranscriptionPanel({
       <motion.div
         initial={{ y: 400, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="absolute inset-x-4 bottom-4 z-50"
+        className="absolute inset-x-2 sm:inset-x-4 bottom-2 sm:bottom-4 z-50"
       >
         <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+          {/* Mobile Collapse Bar */}
+          <button
+            onClick={() => setExpandedView(false)}
+            className="sm:hidden w-full py-3 bg-gray-100 border-b border-gray-200 flex items-center justify-center gap-2 active:bg-gray-200 touch-manipulation"
+          >
+            <ChevronDown className="w-5 h-5 text-gray-500" />
+            <span className="text-sm font-medium text-gray-600">Tap to collapse</span>
+          </button>
+
           {/* Recording Header - Red and prominent */}
-          <div className="p-4 bg-gradient-to-r from-red-500 to-red-600 text-white">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                    <Mic className="w-6 h-6 animate-pulse" />
+          <div className="p-3 sm:p-4 bg-gradient-to-r from-red-500 to-red-600 text-white">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+                <div className="relative flex-shrink-0">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-full flex items-center justify-center">
+                    <Mic className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
                   </div>
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
+                  <div className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-white rounded-full flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full animate-ping" />
                   </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-lg">🔴 LIVE RECORDING</h3>
-                  <div className="flex items-center gap-3 text-red-100">
-                    <span className="font-mono text-xl">{formatDuration(duration)}</span>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-sm sm:text-lg">🔴 LIVE</h3>
+                  <div className="flex items-center gap-2 sm:gap-3 text-red-100 text-xs sm:text-base">
+                    <span className="font-mono text-base sm:text-xl">{formatDuration(duration)}</span>
                     {transcript && (
                       <>
-                        <span>•</span>
-                        <span>{transcript.segments.length} segments</span>
-                        <span>•</span>
-                        <span>{transcript.speakers.length} speakers</span>
+                        <span className="hidden sm:inline">•</span>
+                        <span className="hidden sm:inline">{transcript.segments.length} segments</span>
                       </>
                     )}
                   </div>
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                 {/* Pause/Resume */}
                 <button
                   onClick={isPaused ? resumeRecording : pauseRecording}
-                  className={`p-3 rounded-xl transition-colors ${
+                  className={`p-2 sm:p-3 rounded-xl transition-colors ${
                     isPaused ? 'bg-green-500 hover:bg-green-600' : 'bg-white/20 hover:bg-white/30'
                   }`}
                 >
-                  {isPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
+                  {isPaused ? <Play className="w-4 h-4 sm:w-5 sm:h-5" /> : <Pause className="w-4 h-4 sm:w-5 sm:h-5" />}
                 </button>
                 
                 {/* Stop */}
@@ -360,16 +367,17 @@ export default function TranscriptionPanel({
                     await stopRecording();
                     setExpandedView(false);
                   }}
-                  className="px-6 py-3 bg-white text-red-600 rounded-xl font-semibold hover:bg-red-50 transition-colors flex items-center gap-2"
+                  className="px-3 sm:px-6 py-2 sm:py-3 bg-white text-red-600 rounded-xl font-semibold hover:bg-red-50 transition-colors flex items-center gap-1 sm:gap-2 text-sm sm:text-base"
                 >
-                  <StopCircle className="w-5 h-5" />
-                  Stop Recording
+                  <StopCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">Stop Recording</span>
+                  <span className="sm:hidden">Stop</span>
                 </button>
                 
-                {/* Collapse */}
+                {/* Collapse - desktop only */}
                 <button
                   onClick={() => setExpandedView(false)}
-                  className="p-3 bg-white/20 rounded-xl hover:bg-white/30 transition-colors"
+                  className="hidden sm:block p-3 bg-white/20 rounded-xl hover:bg-white/30 transition-colors"
                 >
                   <Minimize2 className="w-5 h-5" />
                 </button>
@@ -464,15 +472,24 @@ export default function TranscriptionPanel({
       initial={{ x: 400, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 400, opacity: 0 }}
-      className="absolute right-4 top-4 w-[400px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden z-[100] flex flex-col border border-gray-200/80"
+      className="absolute right-2 top-2 sm:right-4 sm:top-4 w-[calc(100vw-16px)] sm:w-[400px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden z-[100] flex flex-col border border-gray-200/80"
       style={{ maxHeight: 'calc(100vh - 120px)' }}
     >
+      {/* Mobile Collapse Bar - Very prominent on mobile */}
+      <button
+        onClick={onToggleMinimize}
+        className="sm:hidden w-full py-3 bg-gray-100 border-b border-gray-200 flex items-center justify-center gap-2 active:bg-gray-200 touch-manipulation"
+      >
+        <ChevronDown className="w-5 h-5 text-gray-500 rotate-180" />
+        <span className="text-sm font-medium text-gray-600">Tap to collapse</span>
+      </button>
+
       {/* Header */}
       <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <FileText className="w-5 h-5" />
-            <h3 className="font-semibold">Professional Transcript</h3>
+            <h3 className="font-semibold text-sm sm:text-base">Professional Transcript</h3>
             {!isConfigured && (
               <span className="px-2 py-0.5 bg-amber-400 text-amber-900 text-xs rounded-full font-medium">
                 Basic Mode
@@ -489,7 +506,7 @@ export default function TranscriptionPanel({
             </button>
             <button
               onClick={onToggleMinimize}
-              className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+              className="hidden sm:block p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
             >
               <Minimize2 className="w-4 h-4" />
             </button>
