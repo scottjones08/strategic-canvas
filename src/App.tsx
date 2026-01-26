@@ -1753,10 +1753,13 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
 
         {!isFrame && node.type !== 'youtube' && node.type !== 'image' && node.type !== 'bucket' && !isShape && !isText && !isConnector && !isComment && (
           <>
-            <div className="flex items-center gap-1 mb-2">
-              <span>{typeIcons[node.type] || '📝'}</span>
-              <span className="text-xs font-semibold text-gray-600 capitalize">{node.type}</span>
-            </div>
+            {/* Only show type label for non-sticky notes */}
+            {node.type !== 'sticky' && (
+              <div className="flex items-center gap-1 mb-2">
+                <span>{typeIcons[node.type] || '📝'}</span>
+                <span className="text-xs font-semibold text-gray-600 capitalize">{node.type}</span>
+              </div>
+            )}
             <textarea
               value={node.content}
               onChange={(e) => onUpdate({ content: e.target.value })}
@@ -1764,7 +1767,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
               onKeyDown={(e) => handleListKeyDown(e, node.content, (newContent) => onUpdate({ content: newContent }))}
               className="w-full bg-transparent resize-none border-none outline-none text-gray-800 text-sm font-medium placeholder-gray-500"
               placeholder="Type here..."
-              style={{ height: 'calc(100% - 30px)' }}
+              style={{ height: node.type === 'sticky' ? '100%' : 'calc(100% - 30px)' }}
             />
           </>
         )}
