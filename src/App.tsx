@@ -2019,6 +2019,9 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   // Alignment guides
   const [alignmentGuides, setAlignmentGuides] = useState<{ type: 'vertical' | 'horizontal'; position: number }[]>([]);
   
+  // Touch gesture state for mobile
+  const touchStartRef = useRef<{ x: number; y: number; panX: number; panY: number; touches: number; distance?: number } | null>(null);
+  
   // Snap to grid helper (used by alignment guides)
   // @ts-expect-error - Will be used when connecting to node drag
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -2426,6 +2429,76 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     setCurrentPath([]);
   }, [isPanning, isDrawing, currentPath, drawingColor, drawingWidth, board.visualNodes, onUpdateWithHistory, isLassoing, lassoStart, lassoEnd, panX, panY, zoom, onSelectNodes, clearAlignmentGuides]);
 
+  // Touch handlers for mobile pan and pinch-to-zoom
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      // Single finger - pan
+      touchStartRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        panX,
+        panY,
+        touches: 1
+      };
+    } else if (e.touches.length === 2) {
+      // Two fingers - pinch to zoom
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      touchStartRef.current = {
+        x: midX,
+        y: midY,
+        panX,
+        panY,
+        touches: 2,
+        distance
+      };
+    }
+  }, [panX, panY]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    e.preventDefault(); // Prevent browser scroll/zoom
+    
+    if (e.touches.length === 1 && touchStartRef.current.touches === 1) {
+      // Single finger pan
+      const dx = e.touches[0].clientX - touchStartRef.current.x;
+      const dy = e.touches[0].clientY - touchStartRef.current.y;
+      setPanX(touchStartRef.current.panX + dx);
+      setPanY(touchStartRef.current.panY + dy);
+    } else if (e.touches.length === 2 && touchStartRef.current.touches === 2 && touchStartRef.current.distance) {
+      // Pinch to zoom
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const scale = distance / touchStartRef.current.distance;
+      const newZoom = Math.min(Math.max(zoom * scale, 0.1), 5);
+      
+      // Zoom toward pinch center
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        const canvasX = midX - rect.left;
+        const canvasY = midY - rect.top;
+        const worldX = (canvasX - panX) / zoom;
+        const worldY = (canvasY - panY) / zoom;
+        setPanX(canvasX - worldX * newZoom);
+        setPanY(canvasY - worldY * newZoom);
+      }
+      setZoom(newZoom);
+      
+      // Update reference for smooth continuous pinch
+      touchStartRef.current.distance = distance;
+    }
+  }, [zoom, panX, panY]);
+
+  const handleTouchEnd = useCallback(() => {
+    touchStartRef.current = null;
+  }, []);
+
   // Drag and drop handlers for media files
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -2542,6 +2615,10 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       onDrop={handleDrop}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       {/* Grid Background - show dots or lines based on gridSnap */}
       <div 
@@ -2888,12 +2965,12 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
           ))}
         </AnimatePresence>
       </motion.div>
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-lg p-2 flex items-center gap-1 border border-gray-200 z-30">
-        {/* Select/Pan Tools */}
+      <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 bg-white/95 sm:bg-white backdrop-blur-sm sm:backdrop-blur-none rounded-xl shadow-lg p-1.5 sm:p-2 flex items-center gap-1 border border-gray-200 z-30">
+        {/* Select/Pan Tools - desktop only */}
         {onSetSelectMode && (
           <button 
             onClick={onSetSelectMode} 
-            className={`p-2 rounded-lg transition-colors ${!isPanMode && !isDrawingMode ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`} 
+            className={`hidden sm:block p-2 rounded-lg transition-colors ${!isPanMode && !isDrawingMode ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`} 
             title="Select (V)"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2905,19 +2982,19 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
         {onSetPanMode && (
           <button 
             onClick={onSetPanMode} 
-            className={`p-2 rounded-lg transition-colors ${isPanMode ? 'bg-gray-200 text-gray-700' : 'hover:bg-gray-100 text-gray-600'}`} 
+            className={`hidden sm:block p-2 rounded-lg transition-colors ${isPanMode ? 'bg-gray-200 text-gray-700' : 'hover:bg-gray-100 text-gray-600'}`} 
             title="Pan (H)"
           >
             <Move className="w-4 h-4" />
           </button>
         )}
-        {(onSetSelectMode || onSetPanMode) && <div className="w-px h-6 bg-gray-200 mx-1" />}
+        {(onSetSelectMode || onSetPanMode) && <div className="hidden sm:block w-px h-6 bg-gray-200 mx-1" />}
         {/* Zoom Controls */}
-        <button onClick={() => setZoom(z => Math.max(z * 0.8, 0.1))} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600" title="Zoom out (-)"><ZoomOut className="w-4 h-4" /></button>
-        <span className="text-sm font-medium w-14 text-center text-gray-700">{Math.round(zoom * 100)}%</span>
-        <button onClick={() => setZoom(z => Math.min(z * 1.2, 5))} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600" title="Zoom in (+)"><ZoomIn className="w-4 h-4" /></button>
-        <div className="w-px h-6 bg-gray-200 mx-1" />
-        <button onClick={() => { setZoom(1); setPanX(0); setPanY(0); }} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600" title="Reset view (0)"><Maximize2 className="w-4 h-4" /></button>
+        <button onClick={() => setZoom(z => Math.max(z * 0.8, 0.1))} className="p-2 active:bg-gray-100 sm:hover:bg-gray-100 rounded-lg text-gray-600" title="Zoom out (-)"><ZoomOut className="w-4 h-4" /></button>
+        <span className="text-xs sm:text-sm font-medium w-10 sm:w-14 text-center text-gray-700">{Math.round(zoom * 100)}%</span>
+        <button onClick={() => setZoom(z => Math.min(z * 1.2, 5))} className="p-2 active:bg-gray-100 sm:hover:bg-gray-100 rounded-lg text-gray-600" title="Zoom in (+)"><ZoomIn className="w-4 h-4" /></button>
+        <div className="w-px h-5 sm:h-6 bg-gray-200 mx-0.5 sm:mx-1" />
+        <button onClick={() => { setZoom(1); setPanX(0); setPanY(0); }} className="p-2 active:bg-gray-100 sm:hover:bg-gray-100 rounded-lg text-gray-600" title="Reset view (0)"><Maximize2 className="w-4 h-4" /></button>
         <button
           onClick={() => {
             const nodes = board.visualNodes.filter(n => !(n.type === 'connector' && n.connectorFrom && n.connectorTo));
@@ -2935,14 +3012,14 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
             setPanX(-minX * newZoom + (viewWidth - contentWidth * newZoom) / 2 + 50 * newZoom);
             setPanY(-minY * newZoom + (viewHeight - contentHeight * newZoom) / 2 + 50 * newZoom);
           }}
-          className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
+          className="hidden sm:block p-2 hover:bg-gray-100 rounded-lg text-gray-600"
           title="Fit all content"
         >
           <Minimize2 className="w-4 h-4" />
         </button>
       </div>
-      {/* Keyboard shortcuts hint */}
-      <div className="absolute bottom-4 left-4 text-xs text-gray-400 z-30 space-y-0.5">
+      {/* Keyboard shortcuts hint - desktop only */}
+      <div className="hidden sm:block absolute bottom-4 left-4 text-xs text-gray-400 z-30 space-y-0.5">
         <div><span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">V</span> select • <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">H</span> pan tool • <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">B</span> draw</div>
         <div><span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">Space</span>+drag or <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">↑↓←→</span> pan • <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">Shift</span>+arrows faster</div>
       </div>
@@ -5984,23 +6061,22 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
       </header>
 
       <div className="flex-1 flex relative overflow-hidden" onClick={() => { activePicker && setActivePicker(null); showMobileToolbar && setShowMobileToolbar(false); }}>
-        {/* Mobile FAB to open toolbar */}
+        {/* Mobile FAB to open toolbar - positioned inside canvas */}
         <motion.button
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           onClick={(e) => { e.stopPropagation(); setShowMobileToolbar(!showMobileToolbar); }}
-          className="sm:hidden fixed left-4 bottom-20 z-[110] w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg shadow-indigo-300 flex items-center justify-center"
+          className="sm:hidden absolute left-3 bottom-3 z-[110] w-12 h-12 bg-indigo-600 text-white rounded-full shadow-lg shadow-indigo-300 flex items-center justify-center touch-manipulation"
         >
-          {showMobileToolbar ? <X className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
+          {showMobileToolbar ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
         </motion.button>
 
         {/* Toolbar - hidden on mobile unless showMobileToolbar, always visible on desktop */}
         <motion.div 
           initial={{ y: 20, opacity: 0 }} 
           animate={{ y: 0, opacity: 1 }} 
-          className={`absolute left-2 sm:left-4 bottom-24 sm:bottom-auto sm:top-4 flex flex-col gap-2 z-[100] max-h-[60vh] sm:max-h-[calc(100vh-180px)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent pr-1 ${showMobileToolbar ? 'flex' : 'hidden sm:flex'}`} 
+          className={`absolute left-2 sm:left-4 bottom-16 sm:bottom-auto sm:top-4 flex flex-col gap-2 z-[100] max-h-[50vh] sm:max-h-[calc(100vh-180px)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent pr-1 ${showMobileToolbar ? 'flex' : 'hidden sm:flex'}`} 
           onClick={(e) => e.stopPropagation()}
         >
           <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200 relative">
