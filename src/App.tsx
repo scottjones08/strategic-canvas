@@ -7535,87 +7535,137 @@ export default function App() {
     }
   };
 
-  // Load boards from localStorage on mount and sync to Supabase
+  // Load boards from Supabase (primary) and localStorage (fallback) on mount
   const boardsLoadedRef = useRef(false);
   useEffect(() => {
     if (boardsLoadedRef.current) return; // Only load once
     boardsLoadedRef.current = true;
 
-    const savedBoards = localStorage.getItem('fan-canvas-boards');
-    if (savedBoards) {
-      try {
-        const parsed = JSON.parse(savedBoards);
-        // Clean up orphan connectors (connectors referencing non-existent nodes)
-        const cleanedBoards = parsed.map((b: any) => {
-          const nodeIds = new Set(b.visualNodes?.map((n: any) => n.id) || []);
-          const cleanedNodes = b.visualNodes?.filter((n: any) => {
-            // Keep non-connectors
-            if (n.type !== 'connector') return true;
-            // Keep connectors without from/to (standalone lines)
-            if (!n.connectorFrom && !n.connectorTo) return true;
-            // Only keep connectors where both referenced nodes exist
-            return nodeIds.has(n.connectorFrom) && nodeIds.has(n.connectorTo);
-          }) || [];
-          return {
-            ...b,
-            visualNodes: cleanedNodes,
-            createdAt: new Date(b.createdAt),
-            lastActivity: b.lastActivity ? new Date(b.lastActivity) : new Date()
-          };
-        });
-        setBoards(cleanedBoards);
-        // Save cleaned boards back to localStorage
-        localStorage.setItem('fan-canvas-boards', JSON.stringify(cleanedBoards));
-        console.log('Loaded boards from localStorage (cleaned orphan connectors)');
-
-        // Sync all boards to Supabase for sharing
-        if (isSupabaseConfigured()) {
-          console.log('Syncing', cleanedBoards.length, 'boards to Supabase...');
-          cleanedBoards.forEach(async (board: Board) => {
-            try {
-              // Try to create or update the board in Supabase
-              const existingBoard = await boardsApi.getById(board.id);
-              if (existingBoard) {
-                // Update existing board
-                await boardsApi.update(board.id, {
-                  name: board.name,
-                  visual_nodes: board.visualNodes,
-                  zoom: board.zoom || 1,
-                  pan_x: board.panX || 0,
-                  pan_y: board.panY || 0,
-                  last_activity: new Date().toISOString()
-                });
-                console.log('Updated board in Supabase:', board.name);
-              } else {
-                // Create new board in Supabase
-                await boardsApi.create({
-                  id: board.id,
-                  name: board.name,
-                  owner_id: board.ownerId || '1',
-                  organization_id: board.clientId || null,
-                  visual_nodes: board.visualNodes,
-                  zoom: board.zoom || 1,
-                  pan_x: board.panX || 0,
-                  pan_y: board.panY || 0,
-                  status: (board.status === 'completed' ? 'archived' : board.status || 'active') as 'active' | 'archived' | 'template',
-                  progress: board.progress || 0,
-                  last_activity: new Date().toISOString()
-                });
-                console.log('Synced board to Supabase:', board.name);
-              }
-            } catch (error: any) {
-              if (error?.code === 'PGRST205') {
-                console.warn('Supabase tables not set up. Run database/supabase_setup.sql');
-              } else if (error?.code !== '23505') { // Ignore duplicate key errors
-                console.error('Failed to sync board to Supabase:', board.name, error);
-              }
+    const loadBoards = async () => {
+      // Try to load from Supabase first
+      if (isSupabaseConfigured()) {
+        try {
+          console.log('Loading boards from Supabase...');
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+          
+          const response = await fetch(`${supabaseUrl}/rest/v1/canvas_boards?order=last_activity.desc`, {
+            method: 'GET',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
             }
           });
+          
+          if (response.ok) {
+            const supabaseBoards = await response.json();
+            if (supabaseBoards && supabaseBoards.length > 0) {
+              const convertedBoards = supabaseBoards.map((b: any) => ({
+                id: b.id,
+                name: b.name,
+                ownerId: b.owner_id || '',
+                clientId: b.organization_id || undefined,
+                visualNodes: b.visual_nodes || [],
+                createdAt: new Date(b.created_at),
+                zoom: b.zoom || 1,
+                panX: b.pan_x || 0,
+                panY: b.pan_y || 0,
+                status: b.status || 'active',
+                progress: b.progress || 0,
+                lastActivity: b.last_activity ? new Date(b.last_activity) : new Date(),
+                participants: 1
+              }));
+              setBoards(convertedBoards);
+              // Also save to localStorage as cache
+              localStorage.setItem('fan-canvas-boards', JSON.stringify(convertedBoards));
+              console.log('Loaded', convertedBoards.length, 'boards from Supabase');
+              return;
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load boards from Supabase:', err);
         }
-      } catch (e) {
-        console.error('Failed to load saved boards:', e);
       }
-    }
+
+      // Fallback to localStorage
+      const savedBoards = localStorage.getItem('fan-canvas-boards');
+      if (savedBoards) {
+        try {
+          const parsed = JSON.parse(savedBoards);
+          // Clean up orphan connectors (connectors referencing non-existent nodes)
+          const cleanedBoards = parsed.map((b: any) => {
+            const nodeIds = new Set(b.visualNodes?.map((n: any) => n.id) || []);
+            const cleanedNodes = b.visualNodes?.filter((n: any) => {
+              // Keep non-connectors
+              if (n.type !== 'connector') return true;
+              // Keep connectors without from/to (standalone lines)
+              if (!n.connectorFrom && !n.connectorTo) return true;
+              // Only keep connectors where both referenced nodes exist
+              return nodeIds.has(n.connectorFrom) && nodeIds.has(n.connectorTo);
+            }) || [];
+            return {
+              ...b,
+              visualNodes: cleanedNodes,
+              createdAt: new Date(b.createdAt),
+              lastActivity: b.lastActivity ? new Date(b.lastActivity) : new Date()
+            };
+          });
+          setBoards(cleanedBoards);
+          // Save cleaned boards back to localStorage
+          localStorage.setItem('fan-canvas-boards', JSON.stringify(cleanedBoards));
+          console.log('Loaded boards from localStorage (cleaned orphan connectors)');
+
+          // Sync localStorage boards to Supabase for sharing
+          if (isSupabaseConfigured()) {
+            console.log('Syncing', cleanedBoards.length, 'boards to Supabase...');
+            cleanedBoards.forEach(async (board: Board) => {
+              try {
+                // Try to create or update the board in Supabase
+                const existingBoard = await boardsApi.getById(board.id);
+                if (existingBoard) {
+                  // Update existing board
+                  await boardsApi.update(board.id, {
+                    name: board.name,
+                    visual_nodes: board.visualNodes,
+                    zoom: board.zoom || 1,
+                    pan_x: board.panX || 0,
+                    pan_y: board.panY || 0,
+                    last_activity: new Date().toISOString()
+                  });
+                  console.log('Updated board in Supabase:', board.name);
+                } else {
+                  // Create new board in Supabase
+                  await boardsApi.create({
+                    id: board.id,
+                    name: board.name,
+                    owner_id: board.ownerId || '1',
+                    organization_id: board.clientId || null,
+                    visual_nodes: board.visualNodes,
+                    zoom: board.zoom || 1,
+                    pan_x: board.panX || 0,
+                    pan_y: board.panY || 0,
+                    status: (board.status === 'completed' ? 'archived' : board.status || 'active') as 'active' | 'archived' | 'template',
+                    progress: board.progress || 0,
+                    last_activity: new Date().toISOString()
+                  });
+                  console.log('Synced board to Supabase:', board.name);
+                }
+              } catch (error: any) {
+                if (error?.code === 'PGRST205') {
+                  console.warn('Supabase tables not set up. Run database/supabase_setup.sql');
+                } else if (error?.code !== '23505') { // Ignore duplicate key errors
+                  console.error('Failed to sync board to Supabase:', board.name, error);
+                }
+              }
+            });
+          }
+        } catch (e) {
+          console.error('Failed to load saved boards:', e);
+        }
+      }
+    };
+
+    loadBoards();
   }, []);
 
   // Check for board URL parameter and auto-load that board
