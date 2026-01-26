@@ -2,9 +2,10 @@
  * ProtectedRoute Component
  * Wraps routes that require authentication
  * Matches fan_consulting's auth guard pattern
+ * Also allows guest collaborators with valid session
  */
 
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { motion } from 'framer-motion';
 import { Loader2, ShieldX, AlertTriangle } from 'lucide-react';
@@ -16,6 +17,22 @@ interface ProtectedRouteProps {
   allowedRoles?: ('admin' | 'member' | 'viewer')[];
 }
 
+// Check if user has a valid guest collaborator session
+function hasGuestCollaboratorSession(): boolean {
+  try {
+    const collabUser = localStorage.getItem('fan-canvas-collab-user');
+    if (!collabUser) return false;
+    const parsed = JSON.parse(collabUser);
+    // Check if session is less than 24 hours old
+    const joinedAt = new Date(parsed.joinedAt);
+    const now = new Date();
+    const hoursSinceJoin = (now.getTime() - joinedAt.getTime()) / (1000 * 60 * 60);
+    return hoursSinceJoin < 24 && !!parsed.name;
+  } catch {
+    return false;
+  }
+}
+
 export default function ProtectedRoute({
   children,
   requireFanWorksTeam = false,
@@ -24,9 +41,15 @@ export default function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { user, session, loading, isFanWorksTeam, isAdmin } = useAuth();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
 
-  // Show loading state while checking auth
-  if (loading) {
+  // Check for guest collaborator access
+  const collaboratorName = searchParams.get('collaborator');
+  const boardId = searchParams.get('board');
+  const isGuestCollaborator = (collaboratorName && boardId) || hasGuestCollaboratorSession();
+
+  // Show loading state while checking auth (but not for guest collaborators)
+  if (loading && !isGuestCollaborator) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <motion.div
@@ -41,6 +64,11 @@ export default function ProtectedRoute({
         </motion.div>
       </div>
     );
+  }
+
+  // Allow guest collaborators through (they have limited access via URL params)
+  if (isGuestCollaborator) {
+    return <>{children}</>;
   }
 
   // No session - redirect to login
