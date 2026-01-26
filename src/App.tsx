@@ -4775,6 +4775,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   const [showTimer, setShowTimer] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showMobileToolbar, setShowMobileToolbar] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(board.name);
   const timerRef = useRef<NodeJS.Timeout>();
@@ -5861,10 +5862,10 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
         )}
       </AnimatePresence>
 
-      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <motion.button whileHover={{ scale: 1.05 }} onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronLeft className="w-5 h-5 text-gray-600" /></motion.button>
-          <div>
+      <header className="bg-white border-b border-gray-200 px-2 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <motion.button whileHover={{ scale: 1.05 }} onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg flex-shrink-0"><ChevronLeft className="w-5 h-5 text-gray-600" /></motion.button>
+          <div className="min-w-0">
             {isEditingName ? (
               <input
                 ref={nameInputRef}
@@ -5890,84 +5891,83 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
                     setIsEditingName(false);
                   }
                 }}
-                className="font-bold text-gray-900 bg-white border border-indigo-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[200px]"
+                className="font-bold text-gray-900 bg-white border border-indigo-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full max-w-[200px]"
                 autoFocus
               />
             ) : (
               <h1
-                className="font-bold text-gray-900 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded-lg transition-colors flex items-center gap-2 group"
+                className="font-bold text-gray-900 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded-lg transition-colors flex items-center gap-2 group text-sm sm:text-base truncate"
                 onClick={() => {
                   setIsEditingName(true);
                   setEditedName(board.name);
                 }}
                 title="Click to rename"
               >
-                {board.name}
-                <Pencil className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="truncate">{board.name}</span>
+                <Pencil className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
               </h1>
             )}
-            <span className="text-sm text-gray-500">Whiteboard</span>
+            <span className="text-xs sm:text-sm text-gray-500 hidden sm:block">Whiteboard</span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className={`flex items-center gap-3 px-4 py-2 rounded-full ${isRecording ? 'bg-red-500' : 'bg-gray-200'}`}>
-            <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: isRecording ? 1 : 0, repeat: isRecording ? Infinity : 0 }} className={`w-3 h-3 rounded-full ${isRecording ? 'bg-white' : 'bg-gray-400'}`} />
-            {isRecording && <span className="text-white font-mono font-medium">{Math.floor(recordingDuration / 60).toString().padStart(2, '0')}:{(recordingDuration % 60).toString().padStart(2, '0')}</span>}
+        <div className="flex items-center gap-1 sm:gap-3">
+          {/* Recording indicator - always visible */}
+          <div className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full ${isRecording ? 'bg-red-500' : 'bg-gray-200'}`}>
+            <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: isRecording ? 1 : 0, repeat: isRecording ? Infinity : 0 }} className={`w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full ${isRecording ? 'bg-white' : 'bg-gray-400'}`} />
+            {isRecording && <span className="text-white font-mono font-medium text-xs sm:text-sm">{Math.floor(recordingDuration / 60).toString().padStart(2, '0')}:{(recordingDuration % 60).toString().padStart(2, '0')}</span>}
           </div>
-          {/* Real-time User Presence */}
-          <UserPresenceList
-            users={collaborationUsers}
-            currentUser={collabCurrentUser}
-            isConnected={isConnected}
-            editingNodes={editingNodes}
-            onFollowUser={(userId) => {
-              // TODO: Pan to user's cursor position
-              console.log('Follow user:', userId);
-            }}
-          />
-          <div className="w-px h-8 bg-gray-200" />
+          {/* Real-time User Presence - hidden on mobile */}
+          <div className="hidden sm:block">
+            <UserPresenceList
+              users={collaborationUsers}
+              currentUser={collabCurrentUser}
+              isConnected={isConnected}
+              editingNodes={editingNodes}
+              onFollowUser={(userId) => {
+                // TODO: Pan to user's cursor position
+                console.log('Follow user:', userId);
+              }}
+            />
+          </div>
+          <div className="hidden sm:block w-px h-8 bg-gray-200" />
+          {/* Undo/Redo - always visible */}
           <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
-            <motion.button whileHover={{ scale: 1.05 }} onClick={handleUndo} disabled={historyIndex <= 0} className={`p-2 rounded-lg ${historyIndex <= 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white'}`} title="Undo"><Undo2 className="w-4 h-4 text-gray-600" /></motion.button>
-            <motion.button whileHover={{ scale: 1.05 }} onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={`p-2 rounded-lg ${historyIndex >= history.length - 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white'}`} title="Redo"><Redo2 className="w-4 h-4 text-gray-600" /></motion.button>
-            <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowHistoryPanel(!showHistoryPanel)} className={`p-2 rounded-lg ${showHistoryPanel ? 'bg-white' : 'hover:bg-white'}`} title="History"><History className="w-4 h-4 text-gray-600" /></motion.button>
+            <motion.button whileHover={{ scale: 1.05 }} onClick={handleUndo} disabled={historyIndex <= 0} className={`p-1.5 sm:p-2 rounded-lg ${historyIndex <= 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white'}`} title="Undo"><Undo2 className="w-4 h-4 text-gray-600" /></motion.button>
+            <motion.button whileHover={{ scale: 1.05 }} onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={`p-1.5 sm:p-2 rounded-lg ${historyIndex >= history.length - 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white'}`} title="Redo"><Redo2 className="w-4 h-4 text-gray-600" /></motion.button>
+            <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowHistoryPanel(!showHistoryPanel)} className={`hidden sm:block p-2 rounded-lg ${showHistoryPanel ? 'bg-white' : 'hover:bg-white'}`} title="History"><History className="w-4 h-4 text-gray-600" /></motion.button>
           </div>
-          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowSearch(!showSearch)} className={`p-2 rounded-xl ${showSearch ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} title="Search board"><Search className="w-4 h-4" /></motion.button>
-          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowTimer(!showTimer)} className={`p-2 rounded-xl ${showTimer ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} title="Timer"><Timer className="w-4 h-4" /></motion.button>
-          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowTemplateModal(true)} className="px-3 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium flex items-center gap-2 hover:bg-gray-200"><Layout className="w-4 h-4" />Templates</motion.button>
+          {/* Desktop-only buttons */}
+          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowSearch(!showSearch)} className={`hidden sm:block p-2 rounded-xl ${showSearch ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} title="Search board"><Search className="w-4 h-4" /></motion.button>
+          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowTimer(!showTimer)} className={`hidden sm:block p-2 rounded-xl ${showTimer ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} title="Timer"><Timer className="w-4 h-4" /></motion.button>
+          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowTemplateModal(true)} className="hidden sm:flex px-3 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium items-center gap-2 hover:bg-gray-200"><Layout className="w-4 h-4" />Templates</motion.button>
+          {/* Save button - always visible but compact on mobile */}
           <motion.button 
             whileHover={{ scale: 1.05 }} 
             onClick={handleSave} 
             disabled={isGeneratingSummary}
-            className={`px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${
+            className={`p-2 sm:px-3 sm:py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${
               isGeneratingSummary ? 'bg-purple-100 text-purple-700' :
               saved ? 'bg-green-100 text-green-700' : 
               'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             {isGeneratingSummary ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Generating AI Summary...</span>
-              </>
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : saved ? (
-              <>
-                <Check className="w-4 h-4" />
-                <span>Saved + AI Notes!</span>
-              </>
+              <Check className="w-4 h-4" />
             ) : (
-              <>
-                <Save className="w-4 h-4" />
-                <span>Save</span>
-              </>
+              <Save className="w-4 h-4" />
             )}
+            <span className="hidden sm:inline">{isGeneratingSummary ? 'Generating...' : saved ? 'Saved!' : 'Save'}</span>
           </motion.button>
-          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowAIPanel(!showAIPanel)} className={`px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${showAIPanel ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'}`}><Brain className="w-4 h-4" />AI Assistant</motion.button>
-          {/* Client Comments Button */}
+          {/* AI button - icon only on mobile */}
+          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowAIPanel(!showAIPanel)} className={`p-2 sm:px-3 sm:py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${showAIPanel ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'}`}><Brain className="w-4 h-4" /><span className="hidden sm:inline">AI Assistant</span></motion.button>
+          {/* Client Comments Button - hidden on mobile */}
           {clientComments.length > 0 && (
             <motion.button 
               whileHover={{ scale: 1.05 }} 
               onClick={() => setShowClientCommentsPanel(!showClientCommentsPanel)} 
-              className={`px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2 relative ${showClientCommentsPanel ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
+              className={`hidden sm:flex px-3 py-2 rounded-xl text-sm font-medium items-center gap-2 relative ${showClientCommentsPanel ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
             >
               <MessageCircle className="w-4 h-4" />
               Client Comments
@@ -5978,12 +5978,31 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
               )}
             </motion.button>
           )}
-          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowShareModal(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-indigo-200"><Share2 className="w-4 h-4" />Share</motion.button>
+          {/* Share button - icon only on mobile */}
+          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowShareModal(true)} className="p-2 sm:px-4 sm:py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-indigo-200"><Share2 className="w-4 h-4" /><span className="hidden sm:inline">Share</span></motion.button>
         </div>
       </header>
 
-      <div className="flex-1 flex relative overflow-hidden" onClick={() => activePicker && setActivePicker(null)}>
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="absolute left-4 top-4 flex flex-col gap-2 z-[100] max-h-[calc(100vh-180px)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent pr-1" onClick={(e) => e.stopPropagation()}>
+      <div className="flex-1 flex relative overflow-hidden" onClick={() => { activePicker && setActivePicker(null); showMobileToolbar && setShowMobileToolbar(false); }}>
+        {/* Mobile FAB to open toolbar */}
+        <motion.button
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={(e) => { e.stopPropagation(); setShowMobileToolbar(!showMobileToolbar); }}
+          className="sm:hidden fixed left-4 bottom-20 z-[110] w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg shadow-indigo-300 flex items-center justify-center"
+        >
+          {showMobileToolbar ? <X className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
+        </motion.button>
+
+        {/* Toolbar - hidden on mobile unless showMobileToolbar, always visible on desktop */}
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }} 
+          animate={{ y: 0, opacity: 1 }} 
+          className={`absolute left-2 sm:left-4 bottom-24 sm:bottom-auto sm:top-4 flex flex-col gap-2 z-[100] max-h-[60vh] sm:max-h-[calc(100vh-180px)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent pr-1 ${showMobileToolbar ? 'flex' : 'hidden sm:flex'}`} 
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200 relative">
             <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Notes</p>
             {[{ id: 'sticky', icon: FileText, label: 'Sticky Note', hasPicker: true }, { id: 'frame', icon: Layout, label: 'Frame' }, { id: 'opportunity', icon: Lightbulb, label: 'Opportunity', hasPicker: true }, { id: 'risk', icon: AlertCircle, label: 'Risk', hasPicker: true }, { id: 'action', icon: CheckSquare, label: 'Action', hasPicker: true }].map(tool => (

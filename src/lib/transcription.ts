@@ -438,7 +438,7 @@ export function startRealtimeTranscription(
   };
 
   let socket: WebSocket | null = null;
-  let mediaRecorder: MediaRecorder | null = null;
+  // Note: We use ScriptProcessorNode for raw PCM capture instead of MediaRecorder
   let audioContext: AudioContext | null = null;
   let stream: MediaStream | null = null;
   let status: TranscriptionSession['status'] = 'connecting';
@@ -615,11 +615,6 @@ export function startRealtimeTranscription(
           audioNodes.source?.disconnect();
         }
 
-        // Stop media recorder (if using legacy path)
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-          mediaRecorder.stop();
-        }
-
         // Close WebSocket - send terminate for v3
         if (socket && socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify({ terminate_session: true }));
@@ -648,15 +643,14 @@ export function startRealtimeTranscription(
     },
 
     pause: () => {
-      if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.pause();
-      }
+      // ScriptProcessorNode doesn't support pause, but we can mute by not sending
+      // For now, pause is a no-op for real-time streaming
+      console.log('Pause not supported in real-time streaming mode');
     },
 
     resume: () => {
-      if (mediaRecorder && mediaRecorder.state === 'paused') {
-        mediaRecorder.resume();
-      }
+      // Resume is a no-op for real-time streaming
+      console.log('Resume not supported in real-time streaming mode');
     },
 
     onSegment: (callback) => {
