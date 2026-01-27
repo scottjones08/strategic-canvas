@@ -11,13 +11,22 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Users, Share2, MoreHorizontal, Maximize2, Map, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Users, Share2, MoreHorizontal, Maximize2, Map as MapIcon, Eye, EyeOff, Wifi, WifiOff } from 'lucide-react';
 import type { Board, VisualNode } from '../types/board';
 import type { ConnectorPath, Waypoint } from '../lib/connector-engine';
 import { EnterpriseCanvas, EnterpriseCanvasRef } from './EnterpriseCanvas';
 import { EnterpriseToolbar, ToolType, ShapeType } from './EnterpriseToolbar';
 import { FloatingPropertyPanel } from './FloatingPropertyPanel';
+import { CollaborationOverlay } from './CollaborationOverlay';
+import { UserPresenceList } from './UserPresenceList';
+import ShareBoardModal from './ShareBoardModal';
 import { createConnectorPath, nodeToConnectorPath } from '../lib/connector-engine';
+import { 
+  UserPresence, 
+  getUserColor, 
+  CollaborationManager,
+  CollaborationCallbacks
+} from '../lib/realtime-collaboration';
 
 // Extended node with connector path
 interface ExtendedVisualNode extends VisualNode {
@@ -32,6 +41,7 @@ interface EnterpriseMeetingViewProps {
   userColor: string;
   participantCount?: number;
   onOpenShare?: () => void;
+  userId?: string;
 }
 
 // Generate unique ID
@@ -44,10 +54,12 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   userName,
   userColor,
   participantCount = 1,
-  onOpenShare
+  onOpenShare,
+  userId = `user-${Date.now()}`
 }) => {
   // Refs
   const canvasRef = useRef<EnterpriseCanvasRef>(null);
+  const collaborationRef = useRef<CollaborationManager | null>(null);
   
   // State
   const [activeTool, setActiveTool] = useState<ToolType>('select');
@@ -57,6 +69,15 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   const [showMinimap, setShowMinimap] = useState(true);
   const [facilitatorMode, setFacilitatorMode] = useState(false);
   const [showPropertyPanel, setShowPropertyPanel] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showCursors, setShowCursors] = useState(true);
+  
+  // Collaboration state
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [otherUsers, setOtherUsers] = useState<UserPresence[]>([]);
+  const [cursors, setCursors] = useState<Map<string, { x: number; y: number; name: string; color: string }>>(new Map());
+  const [editingNodes, setEditingNodes] = useState<Map<string, { userId: string; userName: string; color: string }>>(new Map());
   
   // Viewport state for minimap
   const [viewportState, setViewportState] = useState({ zoom: 1, panX: 0, panY: 0 });
@@ -64,6 +85,108 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   
   // Connector tool state
   const [connectorStart, setConnectorStart] = useState<string | null>(null);
+  
+  // Current user info
+  const currentUser = useMemo(() => ({
+    id: userId,
+    name: userName,
+    color: userColor || getUserColor(userId)
+  }), [userId, userName, userColor]);
+  
+  // Initialize collaboration
+  useEffect(() => {
+    if (!board.id) return;
+    
+    const callbacks: CollaborationCallbacks = {
+      onUserJoin: (user) => {
+        setOtherUsers(prev => {
+          const filtered = prev.filter(u => u.id !== user.id);
+          return [...filtered, user];
+        });
+      },
+      onUserLeave: (leftUserId) => {
+        setOtherUsers(prev => prev.filter(u => u.id !== leftUserId));
+        setCursors(prev => {
+          const next = new Map(prev);
+          next.delete(leftUserId);
+          return next;
+        });
+      },
+      onCursorMove: (cursorUserId, cursor) => {
+        // Find user from current otherUsers state
+        setOtherUsers(currentUsers => {
+          const user = currentUsers.find(u => u.id === cursorUserId);
+          if (user) {
+            setCursors(prev => {
+              const next = new Map(prev);
+              next.set(cursorUserId, { ...cursor, name: user.name, color: user.color });
+              return next;
+            });
+          }
+          return currentUsers;
+        });
+      },
+      onPresenceSync: (users) => {
+        setOtherUsers(users.filter(u => u.id !== userId));
+      },
+      onConnectionChange: (connected) => {
+        setIsConnected(connected);
+        if (!connected) {
+          setConnectionError('Connection lost. Reconnecting...');
+        } else {
+          setConnectionError(null);
+        }
+      },
+      onEditStart: (editUserId, nodeId) => {
+        setOtherUsers(currentUsers => {
+          const user = currentUsers.find(u => u.id === editUserId);
+          if (user) {
+            setEditingNodes(prev => {
+              const next = new Map(prev);
+              next.set(nodeId, { userId: editUserId, userName: user.name, color: user.color });
+              return next;
+            });
+          }
+          return currentUsers;
+        });
+      },
+      onEditEnd: (editUserId, nodeId) => {
+        setEditingNodes(prev => {
+          const next = new Map(prev);
+          if (next.get(nodeId)?.userId === editUserId) {
+            next.delete(nodeId);
+          }
+          return next;
+        });
+      },
+      onNodeChange: (change) => {
+        // Handle remote node changes
+        if (change.userId !== userId) {
+          // Remote change - apply it
+          // The board state is managed by the parent, so we don't need to do anything here
+          // The parent will receive updates via Supabase subscription
+        }
+      }
+    };
+    
+    // Create collaboration manager
+    const manager = new CollaborationManager(board.id, userId, userName, userColor);
+    collaborationRef.current = manager;
+    manager.subscribe(callbacks);
+    
+    return () => {
+      manager.unsubscribe();
+      collaborationRef.current = null;
+    };
+  }, [board.id, userId, userName, userColor]);
+  
+  // Track cursor movement (throttled)
+  const handleCursorMove = useCallback((e: React.MouseEvent) => {
+    if (!collaborationRef.current || !canvasRef.current) return;
+    
+    const worldCoords = canvasRef.current.getWorldCoordinates(e.clientX, e.clientY);
+    collaborationRef.current.broadcastCursor({ x: worldCoords.x, y: worldCoords.y });
+  }, []);
   
   // Tool options
   const [toolOptions, setToolOptions] = useState<{
@@ -398,7 +521,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   }, [selectedNodeIds, nodes, onUpdateBoard, pushHistory]);
 
   return (
-    <div className="flex flex-col h-full flex-1 bg-gray-50">
+    <div className="flex flex-col h-full flex-1 bg-gray-50" onMouseMove={handleCursorMove}>
       {/* Main Content - Full screen canvas */}
       <div className="flex-1 relative overflow-hidden">
         {/* Back button - positioned in top left */}
@@ -409,6 +532,35 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           <ArrowLeft className="w-5 h-5" />
           <span className="hidden sm:inline">Back</span>
         </button>
+        
+        {/* Connection status indicator */}
+        <div className="absolute top-4 left-24 z-50 flex items-center gap-2">
+          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
+            isConnected 
+              ? 'bg-green-100 text-green-700' 
+              : 'bg-yellow-100 text-yellow-700'
+          }`}>
+            {isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+            {isConnected ? 'Live' : 'Connecting...'}
+          </div>
+          {connectionError && (
+            <div className="px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs">
+              {connectionError}
+            </div>
+          )}
+        </div>
+        
+        {/* User presence list - top right area */}
+        <div className="absolute top-4 right-48 z-50">
+          <UserPresenceList
+            users={otherUsers}
+            currentUser={currentUser}
+            isConnected={isConnected}
+            connectionError={connectionError}
+            editingNodes={editingNodes}
+          />
+        </div>
+        
         {/* Enterprise Canvas */}
         <EnterpriseCanvas
           ref={canvasRef}
@@ -532,7 +684,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           onGroupSelected={handleGroupSelected}
           onUngroupSelected={handleUngroupSelected}
           onStartPresentation={() => {}}
-          onOpenShare={onOpenShare || (() => {})}
+          onOpenShare={() => setShowShareModal(true)}
           onOpenTimer={() => {}}
           participantCount={participantCount}
           facilitatorMode={facilitatorMode}
@@ -561,11 +713,30 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
             onClick={() => setShowMinimap(true)}
             className="absolute bottom-4 right-4 z-40 flex items-center gap-2 px-3 py-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
           >
-            <Map className="w-4 h-4" />
+            <MapIcon className="w-4 h-4" />
             <span className="text-sm">Show Minimap</span>
           </button>
         )}
+        
+        {/* Collaboration Overlay - Live Cursors */}
+        <CollaborationOverlay
+          cursors={cursors}
+          zoom={viewportState.zoom}
+          panX={viewportState.panX}
+          panY={viewportState.panY}
+          showCursors={showCursors}
+        />
       </div>
+      
+      {/* Share Board Modal */}
+      <ShareBoardModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        boardId={board.id}
+        boardName={board.name}
+        isConnected={isConnected}
+        connectedUsers={[currentUser, ...otherUsers.map(u => ({ id: u.id, name: u.name, color: u.color }))]}
+      />
     </div>
   );
 };
@@ -946,7 +1117,7 @@ const Minimap: React.FC<MinimapProps> = ({
     >
       <div className="flex items-center justify-between mb-1 px-1">
         <span className="text-[10px] font-medium text-gray-500 flex items-center gap-1">
-          <Map className="w-3 h-3" /> Minimap
+          <MapIcon className="w-3 h-3" /> Minimap
         </span>
         <button
           onClick={onClose}
