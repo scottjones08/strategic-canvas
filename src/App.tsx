@@ -8756,7 +8756,7 @@ ${transcriptContent}`;
       userName={activeBoard.ownerId}
       userColor="#3b82f6"
       participantCount={1}
-      onOpenShare={() => alert('Share functionality - integrate with ShareBoardModal')}
+      onOpenShare={() => alert('Share functionality - integrate with ShareBoardModal')}}
     />
   ) : (
     <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} onCreateTranscriptNote={handleCreateTranscriptNote} />

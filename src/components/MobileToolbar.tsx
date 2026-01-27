@@ -9,7 +9,7 @@
  * - Quick actions drawer
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import {
   MousePointer2,
@@ -20,6 +20,8 @@ import {
   GitBranch,
   Frame,
   Image as ImageIcon,
+  MoreHorizontal,
+  ChevronUp,
   ChevronDown,
   Undo2,
   Redo2,
@@ -30,8 +32,10 @@ import {
   Magnet,
   Trash2,
   Copy,
+  LayoutGrid,
   X,
-  MoreHorizontal,
+  Check,
+  Palette,
   Square,
   Circle,
   Triangle,
