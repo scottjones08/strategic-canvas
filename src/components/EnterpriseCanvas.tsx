@@ -225,6 +225,8 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
     startY: number;
     startDistance?: number;
     startZoom?: number;
+    panX?: number;
+    panY?: number;
     touches: number;
   } | null>(null);
 
@@ -602,8 +604,8 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
       const dy = e.touches[0].clientY - touchStateRef.current.startY;
       dispatch({
         type: 'SET_PAN',
-        x: touchStateRef.current.panX + dx,
-        y: touchStateRef.current.panY + dy
+        x: (touchStateRef.current.panX ?? 0) + dx,
+        y: (touchStateRef.current.panY ?? 0) + dy
       });
     } else if (e.touches.length === 2 && touchStateRef.current.touches === 2) {
       // Pinch zoom

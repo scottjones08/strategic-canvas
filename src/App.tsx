@@ -2278,16 +2278,12 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   const touchStartRef = useRef<{ x: number; y: number; panX: number; panY: number; touches: number; distance?: number } | null>(null);
   
   // Snap to grid helper (used by alignment guides)
-  // @ts-expect-error - Will be used when connecting to node drag
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _snapToGrid = useCallback((value: number) => {
     if (!gridSnap) return value;
     return Math.round(value / GRID_SIZE) * GRID_SIZE;
   }, [gridSnap]);
   
   // Calculate alignment guides when dragging (TODO: connect to node drag)
-  // @ts-expect-error - Will be used when connecting to node drag
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _calculateAlignmentGuides = useCallback((draggedNode: VisualNode, newX: number, newY: number) => {
     if (!gridSnap) {
       setAlignmentGuides([]);
@@ -8756,7 +8752,7 @@ ${transcriptContent}`;
       userName={activeBoard.ownerId}
       userColor="#3b82f6"
       participantCount={1}
-      onOpenShare={() => alert('Share functionality - integrate with ShareBoardModal')}}
+      onOpenShare={() => alert('Share functionality - integrate with ShareBoardModal')}
     />
   ) : (
     <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} onCreateTranscriptNote={handleCreateTranscriptNote} />
