@@ -8203,6 +8203,11 @@ export default function App() {
         try {
           // For each note, upsert to Supabase
           for (const note of notes) {
+            // Only set source_board_id if the board exists in our synced boards
+            // (avoids foreign key constraint violations)
+            const linkedBoardId = note.linkedBoardIds?.[0] || null;
+            const boardExistsInSupabase = linkedBoardId ? boards.some(b => b.id === linkedBoardId) : false;
+            
             const supabaseNote = {
               id: note.id,
               title: note.title,
@@ -8213,7 +8218,7 @@ export default function App() {
               sort_order: 0,
               tags: note.tags || [],
               is_ai_generated: note.tags?.includes('ai-summary') || note.tags?.includes('auto-generated') || false,
-              source_board_id: note.linkedBoardIds?.[0] || null,
+              source_board_id: boardExistsInSupabase ? linkedBoardId : null,
               owner_id: null,
               organization_id: null
             };
@@ -8247,7 +8252,8 @@ export default function App() {
                   break;
                 }
                 // Ignore 409 conflict (duplicate key) - note already exists
-                if (createError?.message?.includes('409') || createError?.code === '23505') {
+                // Ignore 23503 foreign key violation - board may not be synced yet
+                if (createError?.message?.includes('409') || createError?.code === '23505' || createError?.code === '23503') {
                   continue;
                 }
                 console.error('Failed to save note to Supabase:', createError);
