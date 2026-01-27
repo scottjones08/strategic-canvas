@@ -286,15 +286,14 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
           
           {/* Content Tools */}
           <div className="flex items-center gap-1">
-            {/* Sticky Note - with color picker */}
+            {/* Sticky Note - adds immediately with default color, right-click for color picker */}
             <div className="relative">
               <ToolbarButton
                 active={activeTool === 'sticky' || showStickyPicker}
                 onClick={() => {
-                  // Only toggle picker, don't add sticky until user selects color
-                  setShowStickyPicker(!showStickyPicker);
-                  // Close other pickers
-                  setShowShapePicker(false);
+                  // Add sticky immediately with default yellow color
+                  onToolChange('sticky', { color: '#fef3c7' });
+                  setShowStickyPicker(false);
                 }}
                 onRightClick={(e) => {
                   e.preventDefault();
@@ -307,15 +306,22 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
                 badge={<div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-yellow-400 border border-white" />}
               />
               
-              {/* Sticky Color Picker */}
+              {/* Sticky Color Picker - positioned fixed to avoid overflow clipping */}
               <AnimatePresence>
                 {showStickyPicker && (
                   <motion.div
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-[60]"
+                    className="fixed mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-[100]"
+                    style={{ 
+                      top: '140px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      marginLeft: '-120px'
+                    }}
                   >
+                    <div className="text-xs text-gray-500 mb-2 text-center">Right-click Sticky for color</div>
                     <div className="grid grid-cols-4 gap-2">
                       {STICKY_COLORS.map((color) => (
                         <button
@@ -352,7 +358,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
               <ToolbarButton
                 active={activeTool === 'shape' || showShapePicker}
                 onClick={() => {
-                  // Only toggle picker, don't add shape until user selects one
+                  // Toggle shape picker
                   setShowShapePicker(!showShapePicker);
                   // Close other pickers
                   setShowStickyPicker(false);
@@ -362,16 +368,22 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
                 shortcut="S"
               />
               
-              {/* Shape Picker */}
+              {/* Shape Picker - positioned fixed to avoid overflow clipping */}
               <AnimatePresence>
                 {showShapePicker && (
                   <motion.div
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-[60]"
+                    className="fixed mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-[100]"
+                    style={{ 
+                      top: '140px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      marginLeft: '-80px'
+                    }}
                   >
-                    <div className="grid grid-cols-2 gap-1">
+                    <div className="grid grid-cols-2 gap-1 min-w-[160px]">
                       {SHAPE_OPTIONS.map((shape) => (
                         <button
                           key={shape.type}

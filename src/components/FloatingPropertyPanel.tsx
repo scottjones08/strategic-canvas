@@ -200,8 +200,8 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
         </button>
       </div>
 
-      {/* Scrollable Content */}
-      <div className="max-h-[70vh] overflow-y-auto">
+      {/* Scrollable Content - no scrollbar visible */}
+      <div className="max-h-[70vh] overflow-y-auto scrollbar-hide">
         {/* Quick Actions */}
         <div className="flex items-center gap-1 p-2 border-b border-gray-100">
           <ActionButton

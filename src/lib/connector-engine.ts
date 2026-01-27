@@ -493,6 +493,7 @@ export const autoArrangeWaypoints = (
 
 /**
  * Convert VisualNode connector to ConnectorPath
+ * Always recalculates start/end points based on current node positions
  */
 export const nodeToConnectorPath = (
   node: {
@@ -517,40 +518,43 @@ export const nodeToConnectorPath = (
   const fromCenter = { x: fromNode.x + fromNode.width / 2, y: fromNode.y + fromNode.height / 2 };
   const toCenter = { x: toNode.x + toNode.width / 2, y: toNode.y + toNode.height / 2 };
   
+  // Always recalculate start and end points based on current node positions
   const startPoint = getNearestEdgePoint(fromNode, toCenter);
   const endPoint = getNearestEdgePoint(toNode, fromCenter);
   
-  // Use stored waypoints if available
-  if (node.connectorWaypoints && node.connectorWaypoints.length >= 2) {
-    return {
-      waypoints: node.connectorWaypoints,
-      style: 'curved',
-      routing: 'direct',
-      label: node.connectorLabel,
-      color: node.color || '#6b7280',
-      strokeWidth: 2,
-      strokeStyle: node.connectorStyle || 'solid',
-      arrowStart: false,
-      arrowEnd: true,
-      cornerRadius: 10
-    };
-  }
-  
-  // Create default waypoints
+  // Build waypoints: start (recalculated) + any control points (preserved) + end (recalculated)
   const waypoints: Waypoint[] = [
-    { x: startPoint.x, y: startPoint.y, id: generateId(), type: 'start' },
-    { x: endPoint.x, y: endPoint.y, id: generateId(), type: 'end' }
+    { 
+      x: startPoint.x, 
+      y: startPoint.y, 
+      id: node.connectorWaypoints?.[0]?.id || generateId(), 
+      type: 'start' 
+    }
   ];
   
-  // Add control point if it exists
-  if (node.connectorControlPoint) {
-    waypoints.splice(1, 0, {
+  // Preserve any user-defined control points (middle waypoints)
+  if (node.connectorWaypoints && node.connectorWaypoints.length > 2) {
+    // Add all middle waypoints (excluding first and last)
+    for (let i = 1; i < node.connectorWaypoints.length - 1; i++) {
+      waypoints.push(node.connectorWaypoints[i]);
+    }
+  } else if (node.connectorControlPoint) {
+    // Legacy: use control point if exists
+    waypoints.push({
       x: node.connectorControlPoint.x,
       y: node.connectorControlPoint.y,
       id: generateId(),
       type: 'control'
     });
   }
+  
+  // Always add end point based on current node position
+  waypoints.push({
+    x: endPoint.x,
+    y: endPoint.y,
+    id: node.connectorWaypoints?.[node.connectorWaypoints.length - 1]?.id || generateId(),
+    type: 'end'
+  });
   
   return {
     waypoints,
