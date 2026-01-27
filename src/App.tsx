@@ -784,14 +784,17 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
     }
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (date: Date | string | undefined) => {
+    if (!date) return 'Unknown';
+    const d = date instanceof Date ? date : new Date(date);
+    if (isNaN(d.getTime())) return 'Unknown';
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
+    const diff = now.getTime() - d.getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     if (days === 0) return 'Today';
     if (days === 1) return 'Yesterday';
     if (days < 7) return `${days} days ago`;
-    return date.toLocaleDateString();
+    return d.toLocaleDateString();
   };
 
   return (
@@ -958,6 +961,7 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Client</th>
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Status</th>
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Progress</th>
+                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Participants</th>
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Last Activity</th>
                   <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
                 </tr>
@@ -1039,6 +1043,14 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
                     </td>
                   </motion.tr>
                 ))}
+                {boards.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                      <p className="text-lg mb-2">No boards yet</p>
+                      <p className="text-sm">Click "New Board" to create your first board</p>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
