@@ -466,15 +466,30 @@ export const notesApi = {
   async update(noteId: string, updates: Partial<ProjectNote>): Promise<ProjectNote> {
     if (!supabase) throw new Error('Supabase not configured');
     
-    const { data, error } = await supabase
-      .from('project_notes')
-      .update(updates)
-      .eq('id', noteId)
-      .select()
-      .single();
+    // Use direct fetch to avoid Supabase JS client issues with 406 errors
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
-    if (error) throw error;
-    return data;
+    const response = await fetch(`${supabaseUrl}/rest/v1/project_notes?id=eq.${noteId}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(updates)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    
+    const data = await response.json();
+    if (!data || !data[0]) throw new Error('No data returned from update');
+    return data[0];
   },
 
   // Delete note

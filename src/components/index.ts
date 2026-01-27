@@ -44,6 +44,16 @@ export { AuthProvider } from './AuthProvider';
 export { default as SmoothCanvas } from './SmoothCanvas';
 export type { SmoothCanvasRef, SmoothCanvasProps } from './SmoothCanvas';
 
+// Enterprise Canvas Components
+export { default as EnterpriseCanvas } from './EnterpriseCanvas';
+export type { EnterpriseCanvasRef } from './EnterpriseCanvas';
+export { default as EnhancedConnector } from './EnhancedConnector';
+export { default as EnterpriseToolbar } from './EnterpriseToolbar';
+export type { ToolType, ShapeType } from './EnterpriseToolbar';
+export { default as EnterpriseMeetingView } from './EnterpriseMeetingView';
+export { default as MobileToolbar } from './MobileToolbar';
+export { default as FloatingPropertyPanel } from './FloatingPropertyPanel';
+
 // Facilitator Tools
 export { default as FacilitatorTools } from './FacilitatorTools';
 export type { FacilitatorToolsProps, TimerState, FacilitatorBroadcast } from './FacilitatorTools';

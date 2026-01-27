@@ -126,6 +126,10 @@ import { documentsApi, uploadDocumentFile, getDocumentShareUrl } from './lib/doc
 import type { ClientDocument } from './components/DocumentsView';
 import type { PDFAnnotation, PDFComment } from './lib/pdf-utils';
 
+// Enterprise components
+import { EnterpriseMeetingView } from './components';
+import { useFeatureFlags, useDeviceType } from './hooks';
+
 // Types
 interface Board {
   id: string;
@@ -7681,6 +7685,11 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   
+  // Feature flags for enterprise features
+  const { flags: featureFlags } = useFeatureFlags();
+  // Device type detection for responsive UI
+  useDeviceType();
+  
   // Swipe to open sidebar on mobile
   const touchStartX = useRef<number | null>(null);
   
@@ -8738,7 +8747,21 @@ ${transcriptContent}`;
           
         />
       )}
-      {currentView === 'meeting' && activeBoard && <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} onCreateTranscriptNote={handleCreateTranscriptNote} />}
+      {currentView === 'meeting' && activeBoard && (
+  featureFlags.enterpriseCanvas ? (
+    <EnterpriseMeetingView
+      board={activeBoard}
+      onUpdateBoard={handleUpdateBoard}
+      onBack={handleBackToDashboard}
+      userName={activeBoard.ownerId}
+      userColor="#3b82f6"
+      participantCount={1}
+      onOpenShare={() => alert('Share functionality - integrate with ShareBoardModal')}}
+    />
+  ) : (
+    <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} onCreateTranscriptNote={handleCreateTranscriptNote} />
+  )
+)}
       {currentView === 'notes' && <NotesViewRedesigned boards={boards} onOpenBoard={handleOpenBoard} notes={notes} onUpdateNotes={setNotes} clients={clients} />}
       {currentView === 'documents' && (
         <DocumentsView

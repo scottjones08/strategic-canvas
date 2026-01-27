@@ -1,0 +1,552 @@
+/**
+ * Enhanced Connector Component
+ * 
+ * Features:
+ * - Draggable control points (waypoints)
+ * - Multiple routing styles
+ * - Visual feedback for selection
+ * - Double-click to add new waypoints
+ * - Drag waypoints to reposition
+ */
+
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Trash2, Plus, Minus, Move, GitBranch } from 'lucide-react';
+import type { Waypoint, ConnectorPath, Point } from '../lib/connector-engine';
+import {
+  generatePath,
+  addWaypoint,
+  removeWaypoint,
+  updateWaypoint,
+  getPointOnPath,
+  distance,
+  getNearestEdgePoint
+} from '../lib/connector-engine';
+
+interface EnhancedConnectorProps {
+  id: string;
+  path: ConnectorPath;
+  isSelected: boolean;
+  fromNode?: { x: number; y: number; width: number; height: number };
+  toNode?: { x: number; y: number; width: number; height: number };
+  zoom: number;
+  onUpdate: (path: ConnectorPath) => void;
+  onDelete: () => void;
+  onSelect: () => void;
+  readOnly?: boolean;
+}
+
+// Generate unique ID
+const generateId = () => `wp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
+  id,
+  path,
+  isSelected,
+  fromNode,
+  toNode,
+  zoom,
+  onUpdate,
+  onDelete,
+  onSelect,
+  readOnly = false
+}) => {
+  const [draggingWaypoint, setDraggingWaypoint] = useState<string | null>(null);
+  const [hoveredWaypoint, setHoveredWaypoint] = useState<string | null>(null);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragStartRef = useRef<{ x: number; y: number; waypoint: Waypoint } | null>(null);
+
+  // Generate SVG path
+  const pathD = generatePath(path);
+  
+  // Calculate path bounds for hit testing
+  const pathBounds = React.useMemo(() => {
+    if (path.waypoints.length < 2) return null;
+    const xs = path.waypoints.map(wp => wp.x);
+    const ys = path.waypoints.map(wp => wp.y);
+    return {
+      minX: Math.min(...xs) - 20,
+      maxX: Math.max(...xs) + 20,
+      minY: Math.min(...ys) - 20,
+      maxY: Math.max(...ys) + 20,
+      width: Math.max(...xs) - Math.min(...xs) + 40,
+      height: Math.max(...ys) - Math.min(...ys) + 40
+    };
+  }, [path.waypoints]);
+
+  // Get arrow marker color
+  const getArrowMarker = (color: string) => {
+    const colorMap: Record<string, string> = {
+      '#6b7280': 'gray',
+      '#3b82f6': 'blue',
+      '#22c55e': 'green',
+      '#ef4444': 'red',
+      '#8b5cf6': 'purple',
+      '#f97316': 'orange',
+      '#14b8a6': 'teal',
+      '#ec4899': 'pink'
+    };
+    
+    for (const [hex, name] of Object.entries(colorMap)) {
+      if (color.includes(hex) || color.includes(name)) {
+        return `url(#arrowhead-${name}-${id})`;
+      }
+    }
+    return `url(#arrowhead-gray-${id})`;
+  };
+
+  // Handle path click
+  const handlePathClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSelect();
+  }, [onSelect]);
+
+  // Handle double-click to add waypoint
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    if (readOnly || !svgRef.current) return;
+    
+    e.stopPropagation();
+    
+    // Get click position relative to SVG
+    const rect = svgRef.current.getBoundingClientRect();
+    const clickX = (e.clientX - rect.left) / zoom;
+    const clickY = (e.clientY - rect.top) / zoom;
+    
+    // Find the nearest segment on the path
+    let nearestSegment = 0;
+    let minDist = Infinity;
+    
+    for (let i = 0; i < path.waypoints.length - 1; i++) {
+      const p1 = path.waypoints[i];
+      const p2 = path.waypoints[i + 1];
+      
+      // Project point onto line segment
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      
+      if (len === 0) continue;
+      
+      const t = Math.max(0, Math.min(1, ((clickX - p1.x) * dx + (clickY - p1.y) * dy) / (len * len)));
+      const projX = p1.x + t * dx;
+      const projY = p1.y + t * dy;
+      
+      const dist = Math.sqrt((clickX - projX) ** 2 + (clickY - projY) ** 2);
+      
+      if (dist < minDist) {
+        minDist = dist;
+        nearestSegment = i;
+      }
+    }
+    
+    // Add new waypoint at the click position
+    const newPath = addWaypoint(path, nearestSegment + 1, { x: clickX, y: clickY });
+    onUpdate(newPath);
+  }, [path, zoom, onUpdate, readOnly]);
+
+  // Handle waypoint drag start
+  const handleWaypointMouseDown = useCallback((e: React.MouseEvent, waypoint: Waypoint) => {
+    if (readOnly) return;
+    e.stopPropagation();
+    
+    setDraggingWaypoint(waypoint.id);
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      waypoint
+    };
+  }, [readOnly]);
+
+  // Handle mouse move for dragging
+  useEffect(() => {
+    if (!draggingWaypoint || !dragStartRef.current) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const start = dragStartRef.current!;
+      const dx = (e.clientX - start.x) / zoom;
+      const dy = (e.clientY - start.y) / zoom;
+      
+      const newPath = updateWaypoint(path, draggingWaypoint, {
+        x: start.waypoint.x + dx,
+        y: start.waypoint.y + dy
+      });
+      
+      onUpdate(newPath);
+    };
+
+    const handleMouseUp = () => {
+      setDraggingWaypoint(null);
+      dragStartRef.current = null;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [draggingWaypoint, path, zoom, onUpdate]);
+
+  // Handle context menu
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setShowContextMenu(true);
+  }, []);
+
+  // Delete waypoint
+  const handleDeleteWaypoint = useCallback((waypointId: string) => {
+    // Don't delete start or end waypoints
+    const waypoint = path.waypoints.find(wp => wp.id === waypointId);
+    if (waypoint?.type === 'start' || waypoint?.type === 'end') return;
+    
+    const newPath = removeWaypoint(path, waypointId);
+    onUpdate(newPath);
+  }, [path, onUpdate]);
+
+  // Change path style
+  const handleStyleChange = useCallback((style: ConnectorPath['style']) => {
+    onUpdate({ ...path, style });
+  }, [path, onUpdate]);
+
+  // Get label position (midpoint of path)
+  const labelPoint = getPointOnPath(path, 0.5);
+
+  if (!pathBounds) return null;
+
+  return (
+    <>
+      <svg
+        ref={svgRef}
+        className="absolute pointer-events-none overflow-visible"
+        style={{
+          left: pathBounds.minX,
+          top: pathBounds.minY,
+          width: pathBounds.width,
+          height: pathBounds.height,
+          pointerEvents: 'auto',
+          cursor: isSelected ? 'move' : 'pointer'
+        }}
+        onClick={handlePathClick}
+        onDoubleClick={handleDoubleClick}
+        onContextMenu={handleContextMenu}
+      >
+        <defs>
+          {/* Arrow markers for each color */}
+          {[
+            { id: `arrowhead-gray-${id}`, fill: '#6b7280' },
+            { id: `arrowhead-blue-${id}`, fill: '#3b82f6' },
+            { id: `arrowhead-green-${id}`, fill: '#22c55e' },
+            { id: `arrowhead-red-${id}`, fill: '#ef4444' },
+            { id: `arrowhead-purple-${id}`, fill: '#8b5cf6' },
+            { id: `arrowhead-orange-${id}`, fill: '#f97316' },
+            { id: `arrowhead-teal-${id}`, fill: '#14b8a6' },
+            { id: `arrowhead-pink-${id}`, fill: '#ec4899' }
+          ].map(marker => (
+            <marker
+              key={marker.id}
+              id={marker.id}
+              markerWidth="12"
+              markerHeight="8"
+              refX="10"
+              refY="4"
+              orient="auto"
+            >
+              <path d="M0,0 L12,4 L0,8 L3,4 Z" fill={marker.fill} />
+            </marker>
+          ))}
+        </defs>
+
+        {/* Invisible wider path for easier clicking */}
+        <path
+          d={pathD}
+          fill="none"
+          stroke="transparent"
+          strokeWidth="20"
+          className="cursor-pointer"
+        />
+
+        {/* Shadow path */}
+        <path
+          d={pathD}
+          fill="none"
+          stroke="rgba(0,0,0,0.1)"
+          strokeWidth={(path.strokeWidth || 2) + 2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* Main visible path */}
+        <path
+          d={pathD}
+          fill="none"
+          stroke={path.color}
+          strokeWidth={path.strokeWidth}
+          strokeDasharray={
+            path.strokeStyle === 'dashed' ? '8,4' :
+            path.strokeStyle === 'dotted' ? '2,4' : undefined
+          }
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          markerStart={path.arrowStart ? getArrowMarker(path.color) : undefined}
+          markerEnd={path.arrowEnd ? getArrowMarker(path.color) : undefined}
+          className={`transition-all duration-200 ${isSelected ? 'filter drop-shadow-md' : ''}`}
+        />
+
+        {/* Waypoints (only visible when selected) */}
+        <AnimatePresence>
+          {isSelected && !readOnly && (
+            <g>
+              {path.waypoints.map((waypoint, index) => (
+                <motion.g
+                  key={waypoint.id}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  {/* Waypoint handle */}
+                  <circle
+                    cx={waypoint.x - pathBounds.minX}
+                    cy={waypoint.y - pathBounds.minY}
+                    r={waypoint.type === 'control' ? 6 : 8}
+                    fill={waypoint.type === 'control' ? 'white' : path.color}
+                    stroke={waypoint.type === 'control' ? path.color : 'white'}
+                    strokeWidth={2}
+                    className={`cursor-move transition-all ${
+                      draggingWaypoint === waypoint.id ? 'scale-125' : ''
+                    }`}
+                    onMouseDown={(e) => handleWaypointMouseDown(e, waypoint)}
+                    onMouseEnter={() => setHoveredWaypoint(waypoint.id)}
+                    onMouseLeave={() => setHoveredWaypoint(null)}
+                  />
+                  
+                  {/* Delete button for control points */}
+                  {waypoint.type === 'control' && hoveredWaypoint === waypoint.id && (
+                    <g
+                      transform={`translate(${waypoint.x - pathBounds.minX + 12}, ${waypoint.y - pathBounds.minY - 12})`}
+                      className="cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteWaypoint(waypoint.id);
+                      }}
+                    >
+                      <circle r="8" fill="#ef4444" />
+                      <text
+                        x="0"
+                        y="1"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fill="white"
+                        fontSize="10"
+                      >
+                        ×
+                      </text>
+                    </g>
+                  )}
+                </motion.g>
+              ))}
+            </g>
+          )}
+        </AnimatePresence>
+      </svg>
+
+      {/* Label overlay */}
+      {labelPoint && (
+        <div
+          className="absolute pointer-events-auto"
+          style={{
+            left: labelPoint.x - 50,
+            top: labelPoint.y - 12,
+            zIndex: isSelected ? 100 : 10
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="text"
+            value={path.label || ''}
+            onChange={(e) => onUpdate({ ...path, label: e.target.value })}
+            placeholder="Label..."
+            className={`w-24 text-center text-xs px-2 py-1 rounded border bg-white/90 backdrop-blur-sm transition-all ${
+              isSelected || path.label
+                ? 'opacity-100 border-gray-300'
+                : 'opacity-0 hover:opacity-100 border-transparent'
+            }`}
+            style={{ color: path.color }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }}
+          />
+        </div>
+      )}
+
+      {/* Connector Toolbar (when selected) */}
+      <AnimatePresence>
+        {isSelected && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute bg-white rounded-xl shadow-xl border border-gray-200 p-2 flex items-center gap-1 pointer-events-auto"
+            style={{
+              left: labelPoint ? labelPoint.x - 140 : 0,
+              top: labelPoint ? labelPoint.y + 30 : 0,
+              zIndex: 200
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Style buttons */}
+            <button
+              onClick={() => handleStyleChange('straight')}
+              className={`p-2 rounded-lg ${path.style === 'straight' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
+              title="Straight line"
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleStyleChange('curved')}
+              className={`p-2 rounded-lg ${path.style === 'curved' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
+              title="Curved"
+            >
+              <GitBranch className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleStyleChange('orthogonal')}
+              className={`p-2 rounded-lg ${path.style === 'orthogonal' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
+              title="Orthogonal"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 4 L4 20 L20 20" />
+              </svg>
+            </button>
+            
+            <div className="w-px h-6 bg-gray-200 mx-1" />
+            
+            {/* Line style */}
+            <button
+              onClick={() => onUpdate({ ...path, strokeStyle: 'solid' })}
+              className={`p-2 rounded-lg ${path.strokeStyle === 'solid' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+              title="Solid"
+            >
+              <div className="w-4 h-0.5 bg-gray-600" />
+            </button>
+            <button
+              onClick={() => onUpdate({ ...path, strokeStyle: 'dashed' })}
+              className={`p-2 rounded-lg ${path.strokeStyle === 'dashed' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+              title="Dashed"
+            >
+              <div className="w-4 h-0.5 border-t-2 border-dashed border-gray-600" />
+            </button>
+            <button
+              onClick={() => onUpdate({ ...path, strokeStyle: 'dotted' })}
+              className={`p-2 rounded-lg ${path.strokeStyle === 'dotted' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+              title="Dotted"
+            >
+              <div className="w-4 h-0.5 border-t-2 border-dotted border-gray-600" />
+            </button>
+            
+            <div className="w-px h-6 bg-gray-200 mx-1" />
+            
+            {/* Color picker */}
+            {['#6b7280', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6'].map(color => (
+              <button
+                key={color}
+                onClick={() => onUpdate({ ...path, color })}
+                className={`w-5 h-5 rounded-full hover:ring-2 ${path.color === color ? 'ring-2 ring-offset-1 ring-indigo-500' : ''}`}
+                style={{ backgroundColor: color }}
+              />
+            ))}
+            
+            <div className="w-px h-6 bg-gray-200 mx-1" />
+            
+            {/* Delete */}
+            <button
+              onClick={onDelete}
+              className="p-2 rounded-lg hover:bg-red-100 text-red-500"
+              title="Delete connector"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Context Menu */}
+      <AnimatePresence>
+        {showContextMenu && (
+          <>
+            <div
+              className="fixed inset-0 z-[9998]"
+              onClick={() => setShowContextMenu(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed bg-white rounded-xl shadow-xl border border-gray-200 py-1 z-[9999] min-w-[180px]"
+              style={{ left: contextMenuPos.x, top: contextMenuPos.y }}
+            >
+              <div className="px-3 py-2 text-xs font-medium text-gray-400 border-b border-gray-100">
+                Connector Options
+              </div>
+              <button
+                onClick={() => {
+                  onUpdate({ ...path, arrowStart: !path.arrowStart });
+                  setShowContextMenu(false);
+                }}
+                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+              >
+                {path.arrowStart ? '✓ ' : ''} Arrow at start
+              </button>
+              <button
+                onClick={() => {
+                  onUpdate({ ...path, arrowEnd: !path.arrowEnd });
+                  setShowContextMenu(false);
+                }}
+                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+              >
+                {path.arrowEnd ? '✓ ' : ''} Arrow at end
+              </button>
+              <div className="h-px bg-gray-200 my-1" />
+              <button
+                onClick={() => {
+                  // Add a new waypoint at the center
+                  const midIndex = Math.floor(path.waypoints.length / 2);
+                  const prev = path.waypoints[midIndex - 1];
+                  const next = path.waypoints[midIndex];
+                  const newPoint = {
+                    x: (prev.x + next.x) / 2 + 50,
+                    y: (prev.y + next.y) / 2
+                  };
+                  const newPath = addWaypoint(path, midIndex, newPoint);
+                  onUpdate(newPath);
+                  setShowContextMenu(false);
+                }}
+                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" /> Add control point
+              </button>
+              <div className="h-px bg-gray-200 my-1" />
+              <button
+                onClick={() => {
+                  onDelete();
+                  setShowContextMenu(false);
+                }}
+                className="w-full px-3 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" /> Delete connector
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
+  );
+};
+
+export default EnhancedConnector;

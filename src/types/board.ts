@@ -17,7 +17,32 @@ export interface Board {
   uploadBucketId?: string;
   clientId?: string;
   linkedNoteIds?: string[];
+  // Infinite canvas bounds
+  canvasBounds?: {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  };
+  // Grid settings
+  gridSettings?: {
+    enabled: boolean;
+    size: number;
+    snap: boolean;
+    showDots: boolean;
+  };
 }
+
+// Waypoint for connector routing
+export interface Waypoint {
+  x: number;
+  y: number;
+  id: string;
+  type: 'start' | 'end' | 'control';
+}
+
+// Connector routing style
+export type ConnectorRoutingStyle = 'straight' | 'curved' | 'orthogonal' | 'stepped';
 
 export interface VisualNode {
   id: string;
@@ -43,9 +68,17 @@ export interface VisualNode {
   fontSize?: number;
   borderWidth?: number;
   borderColor?: string;
+  // Enhanced connector properties
   connectorFrom?: string;
   connectorTo?: string;
   connectorStyle?: 'solid' | 'dashed' | 'dotted';
+  connectorLabel?: string;
+  connectorWaypoints?: Waypoint[];
+  connectorRouting?: ConnectorRoutingStyle;
+  connectorArrowStart?: boolean;
+  connectorArrowEnd?: boolean;
+  // Legacy control point (for backwards compatibility)
+  connectorControlPoint?: { x: number; y: number };
   groupId?: string;
   zIndex?: number;
   // Mind map properties
@@ -62,6 +95,17 @@ export interface VisualNode {
   tableData?: { rows: string[][]; headers?: string[] };
   // Link list properties
   links?: { id: string; title: string; url: string; description?: string }[];
+  // Text formatting
+  textAlign?: 'left' | 'center' | 'right';
+  verticalAlign?: 'top' | 'middle' | 'bottom';
+  fontWeight?: 'normal' | 'bold';
+  fontStyle?: 'normal' | 'italic';
+  // Animation
+  animation?: {
+    type: 'fade' | 'slide' | 'scale' | 'bounce';
+    delay?: number;
+    duration?: number;
+  };
 }
 
 export interface SavedTranscript {
