@@ -304,6 +304,15 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     }
   }, [activeTool, toolOptions, handleAddNode]);
   
+  // Double-click handler - create sticky note
+  const handleCanvasDoubleClick = useCallback((worldX: number, worldY: number) => {
+    handleAddNode('sticky', worldX - 100, worldY - 75, { 
+      color: '#fef3c7',
+      width: 200,
+      height: 150
+    });
+  }, [handleAddNode]);
+  
   // Tool change handler
   const handleToolChange = useCallback((tool: ToolType, options?: { shapeType?: ShapeType; color?: string }) => {
     setActiveTool(tool);
@@ -570,6 +579,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           onUpdateNodes={handleUpdateNodes}
           onDeleteNodes={handleDeleteNodes}
           onCanvasClick={handleCanvasClick}
+          onCanvasDoubleClick={handleCanvasDoubleClick}
           onViewportChange={(vp) => {
             setViewportState(vp);
             // Also update canvas size

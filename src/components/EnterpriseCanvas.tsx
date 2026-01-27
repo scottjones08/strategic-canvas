@@ -507,6 +507,17 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
     }
   }, [activeTool, spacePressed, viewport.panX, viewport.panY, onSelectNodes, onCanvasClick, getWorldCoordinates]);
 
+  // Double-click handler for quick sticky note creation
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const isCanvasClick = target === containerRef.current || target.hasAttribute('data-canvas-background');
+    
+    if (isCanvasClick && onCanvasDoubleClick) {
+      const worldCoords = getWorldCoordinates(e.clientX, e.clientY);
+      onCanvasDoubleClick(worldCoords.x, worldCoords.y);
+    }
+  }, [onCanvasDoubleClick, getWorldCoordinates]);
+
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (viewport.isPanning && panStart) {
       const dx = e.clientX - panStart.x;
@@ -698,6 +709,7 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onDoubleClick={handleDoubleClick}
       onWheel={handleWheel}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
