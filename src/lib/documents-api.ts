@@ -908,49 +908,65 @@ export async function uploadDocumentFile(
     });
   }
 
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
   const fileExt = file.name.split('.').pop();
   const fileName = `${crypto.randomUUID()}.${fileExt}`;
-  const filePath = organizationId 
+  const filePath = organizationId
     ? `${organizationId}/${fileName}`
     : `public/${fileName}`;
 
-  // Retry logic for AbortError
+  // Use direct fetch to avoid Supabase JS client hanging issues
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const { error } = await supabase!.storage
-        .from('documents')
-        .upload(filePath, file, {
-          contentType: file.type,
-          upsert: false,
-        });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
-      if (error) {
+      const response = await fetch(
+        `${supabaseUrl}/storage/v1/object/documents/${filePath}`,
+        {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': file.type,
+            'x-upsert': attempt > 1 ? 'true' : 'false',
+          },
+          body: file,
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+
         // Check for storage bucket not found
-        if (error.message?.includes('Bucket not found') || error.message?.includes('bucket')) {
+        if (errorText.includes('Bucket not found') || errorText.includes('bucket')) {
           console.error('Storage bucket "documents" not found. Please create it in Supabase Dashboard > Storage.');
-          alert('Storage bucket "documents" not configured. Please create it in Supabase Dashboard.');
           return null;
         }
-        
+
         // Check for AbortError - retry
-        if (error.message?.includes('abort') || error.message?.includes('AbortError')) {
+        if (errorText.includes('abort') || errorText.includes('AbortError')) {
           if (attempt < maxRetries) {
-            console.log(`Upload attempt ${attempt} aborted, retrying in ${attempt * 500}ms...`);
-            await new Promise(r => setTimeout(r, attempt * 500));
+            console.log(`Upload attempt ${attempt} aborted, retrying in ${attempt * 1000}ms...`);
+            await new Promise(r => setTimeout(r, attempt * 1000));
             continue;
           }
         }
-        
-        console.error('Error uploading file:', error);
+
+        console.error('Error uploading file:', response.status, errorText);
         return null;
       }
 
-      const { data: urlData } = supabase!.storage
-        .from('documents')
-        .getPublicUrl(filePath);
+      // Construct public URL directly
+      const publicUrl = `${supabaseUrl}/storage/v1/object/public/documents/${filePath}`;
 
       return {
-        url: urlData.publicUrl,
+        url: publicUrl,
         path: filePath,
       };
     } catch (e: any) {
@@ -958,7 +974,7 @@ export async function uploadDocumentFile(
       if (e?.name === 'AbortError' || e?.message?.includes('abort') || e?.message?.includes('AbortError')) {
         if (attempt < maxRetries) {
           console.log(`Upload attempt ${attempt} failed with AbortError, retrying...`);
-          await new Promise(r => setTimeout(r, attempt * 500));
+          await new Promise(r => setTimeout(r, attempt * 1000));
           continue;
         }
         console.error('Upload failed after retries - request keeps aborting. Check network/Supabase connection.');
@@ -967,7 +983,7 @@ export async function uploadDocumentFile(
       return null;
     }
   }
-  
+
   return null;
 }
 

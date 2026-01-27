@@ -241,39 +241,63 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
         // We simulate progress for UX
         setProgress({ loaded: file.size * 0.3, total: file.size, percent: 30 });
 
+        // Use direct fetch to avoid Supabase JS client hanging/abort issues
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+        if (!supabaseUrl || !supabaseKey) {
+          throw new Error('Supabase not configured');
+        }
+
         // Retry logic for upload with exponential backoff
         const maxRetries = 3;
         let uploadError: Error | null = null;
-        
+
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
-            const { error } = await getSupabase().storage
-              .from(bucket)
-              .upload(fileKey, arrayBuffer, {
-                contentType: file.type,
-                upsert: attempt > 1, // Allow upsert on retry
-              });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for large files
 
-            if (error) {
-              // Check if it's an abort error
-              if (error.message?.includes('abort') || error.message?.includes('AbortError')) {
+            const uploadResponse = await fetch(
+              `${supabaseUrl}/storage/v1/object/${bucket}/${fileKey}`,
+              {
+                method: 'POST',
+                headers: {
+                  'apikey': supabaseKey,
+                  'Authorization': `Bearer ${supabaseKey}`,
+                  'Content-Type': file.type,
+                  'x-upsert': attempt > 1 ? 'true' : 'false',
+                },
+                body: arrayBuffer,
+                signal: controller.signal,
+              }
+            );
+
+            clearTimeout(timeoutId);
+
+            if (!uploadResponse.ok) {
+              const errorText = await uploadResponse.text();
+              // Check for abort error in response
+              if (errorText.includes('abort') || errorText.includes('AbortError')) {
                 throw new Error('Upload aborted');
               }
-              throw error;
+              throw new Error(`Upload failed: ${uploadResponse.status} ${errorText}`);
             }
-            
+
             // Success
             uploadError = null;
             break;
-          } catch (err) {
+          } catch (err: any) {
             uploadError = err instanceof Error ? err : new Error('Upload failed');
-            
-            // Only retry on abort errors
-            const isAbortError = uploadError.message?.includes('abort') || uploadError.message?.includes('AbortError');
-            
+
+            // Only retry on abort/timeout errors
+            const isAbortError = err?.name === 'AbortError' ||
+              uploadError.message?.includes('abort') ||
+              uploadError.message?.includes('AbortError');
+
             if (attempt < maxRetries && isAbortError) {
-              const delay = attempt * 500;
-              console.log(`Upload attempt ${attempt} aborted, retrying in ${delay}ms...`);
+              const delay = attempt * 1000;
+              console.log(`Upload attempt ${attempt} failed, retrying in ${delay}ms...`);
               await new Promise(resolve => setTimeout(resolve, delay));
               continue;
             }
@@ -285,14 +309,14 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
 
         setProgress({ loaded: file.size * 0.9, total: file.size, percent: 90 });
 
-        // Get public URL
-        const { data: urlData } = getSupabase().storage.from(bucket).getPublicUrl(fileKey);
+        // Construct public URL directly
+        const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucket}/${fileKey}`;
 
         setProgress({ loaded: file.size, total: file.size, percent: 100 });
 
         return {
           name: file.name,
-          url: urlData.publicUrl,
+          url: publicUrl,
           key: fileKey,
           size: file.size,
           type: file.type,
