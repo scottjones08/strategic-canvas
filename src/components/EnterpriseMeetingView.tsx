@@ -949,15 +949,15 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ 
         scale: 1, 
-        opacity: 1,
-        x: node.x,
-        y: node.y,
-        width: node.width,
-        height: node.height
+        opacity: 1
       }}
       whileHover={!isResizing ? { scale: isConnectorMode ? 1.05 : 1.02 } : undefined}
       className={`absolute ${getBorderClass()}`}
       style={{
+        left: node.x,
+        top: node.y,
+        width: node.width,
+        height: node.height,
         cursor: isConnectorMode ? 'crosshair' : (isResizing ? 'default' : 'grab'),
         zIndex: isSelected ? 100 : 10
       }}
