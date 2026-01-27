@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { 
   PDFAnnotation, 
   PDFComment, 
@@ -22,8 +23,8 @@ import {
   reorderPages,
 } from '../lib/pdf-utils';
 
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Configure PDF.js worker - use bundled worker to avoid CDN version mismatch
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 export interface UsePDFDocumentOptions {
   documentId?: string;

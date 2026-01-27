@@ -21,11 +21,12 @@ import {
   Minimize2,
 } from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { useSignerView, SignatureField } from '../hooks/useSignatures';
 import { SignaturePad } from '../components/SignaturePad';
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+// Configure PDF.js worker - use bundled worker to avoid CDN version mismatch
+pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 // ============================================
 // Main SignPage Component

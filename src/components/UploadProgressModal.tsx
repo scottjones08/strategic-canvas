@@ -15,12 +15,33 @@ import {
   Image,
 } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
-// Configure PDF.js worker
+// Configure PDF.js worker - use bundled worker to avoid CDN version mismatch
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 }
+
+// Accepted file types for document upload
+const ACCEPTED_MIME_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'application/msword', // .doc
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.ms-excel', // .xls
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+  'application/vnd.ms-powerpoint', // .ppt
+];
+
+const ACCEPTED_EXTENSIONS = '.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt';
+
+const isAcceptedFile = (file: File): boolean => {
+  if (ACCEPTED_MIME_TYPES.includes(file.type)) return true;
+  // Fallback to extension check for edge cases
+  const ext = file.name.toLowerCase().split('.').pop();
+  return ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt'].includes(ext || '');
+};
 
 // ============================================
 // TYPES
@@ -170,8 +191,8 @@ export const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
 
   // Validate file
   const validateFile = useCallback((file: File): string | null => {
-    if (file.type !== 'application/pdf') {
-      return 'Only PDF files are accepted';
+    if (!isAcceptedFile(file)) {
+      return 'Please upload PDF or Office documents (.docx, .xlsx, .pptx)';
     }
     const maxBytes = maxSizeMB * 1024 * 1024;
     if (file.size > maxBytes) {
@@ -183,7 +204,7 @@ export const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
   // Add files to upload queue
   const addFiles = useCallback((newFiles: File[]) => {
     const uploadFiles: UploadingFile[] = newFiles
-      .filter(file => file.type === 'application/pdf')
+      .filter(file => isAcceptedFile(file))
       .map(file => ({
         id: crypto.randomUUID(),
         file,
@@ -194,7 +215,7 @@ export const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
       }));
 
     if (uploadFiles.length === 0) {
-      alert('Please select PDF files only');
+      alert('Please upload PDF or Office documents (.docx, .xlsx, .pptx)');
       return;
     }
 
@@ -248,9 +269,17 @@ export const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
       const arrayBuffer = await file.arrayBuffer();
       updateFile(id, { progress: 15 });
 
-      // Generate thumbnail
+      // Generate thumbnail (only for PDFs)
       updateFile(id, { status: 'processing', progress: 20 });
-      const { thumbnail, pageCount } = await generateThumbnail(arrayBuffer);
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      let thumbnail: string | null = null;
+      let pageCount = 1;
+      
+      if (isPdf) {
+        const result = await generateThumbnail(arrayBuffer);
+        thumbnail = result.thumbnail;
+        pageCount = result.pageCount;
+      }
       updateFile(id, { progress: 35, pageCount });
 
       let thumbnailUrl: string | undefined;
@@ -331,12 +360,15 @@ export const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
         thumbnailUrl,
       });
 
+      // Remove common extensions from display name
+      const displayName = file.name.replace(/\.(pdf|docx?|xlsx?|pptx?)$/i, '');
+      
       return {
-        name: file.name.replace(/\.pdf$/i, ''),
+        name: displayName,
         fileUrl,
         filePath,
         fileSize: file.size,
-        fileType: 'application/pdf',
+        fileType: file.type || 'application/octet-stream',
         pageCount,
         thumbnailUrl,
       };
@@ -650,7 +682,7 @@ export const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf,application/pdf"
+          accept={ACCEPTED_EXTENSIONS}
           multiple
           onChange={handleFileChange}
           className="hidden"

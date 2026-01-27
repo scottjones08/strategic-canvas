@@ -4,6 +4,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import {
   isOfficeDocument,
   detectOfficeType,
@@ -18,8 +19,8 @@ function getSupabase() {
   return supabase;
 }
 
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Configure PDF.js worker - use bundled worker to avoid CDN version mismatch
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 // ============================================
 // TYPES

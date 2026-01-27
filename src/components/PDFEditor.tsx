@@ -4,6 +4,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import {
   X,
   ChevronLeft,
@@ -25,8 +26,8 @@ import PDFThumbnails from './PDFThumbnails';
 import PDFAnnotationLayer from './PDFAnnotationLayer';
 import type { PDFAnnotation, PDFComment } from '../lib/pdf-utils';
 
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Configure PDF.js worker - use bundled worker to avoid CDN version mismatch
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 export interface PDFEditorProps {
   documentUrl?: string;
