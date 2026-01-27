@@ -289,14 +289,17 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
             {/* Sticky Note - with color picker */}
             <div className="relative">
               <ToolbarButton
-                active={activeTool === 'sticky'}
+                active={activeTool === 'sticky' || showStickyPicker}
                 onClick={() => {
+                  // Only toggle picker, don't add sticky until user selects color
                   setShowStickyPicker(!showStickyPicker);
-                  onToolChange('sticky', { color: STICKY_COLORS[0].bg });
+                  // Close other pickers
+                  setShowShapePicker(false);
                 }}
                 onRightClick={(e) => {
                   e.preventDefault();
                   setShowStickyPicker(!showStickyPicker);
+                  setShowShapePicker(false);
                 }}
                 icon={<StickyNote className="w-5 h-5" />}
                 label="Sticky"
@@ -347,10 +350,12 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
             {/* Shape Tool - with shape picker */}
             <div className="relative">
               <ToolbarButton
-                active={activeTool === 'shape'}
+                active={activeTool === 'shape' || showShapePicker}
                 onClick={() => {
+                  // Only toggle picker, don't add shape until user selects one
                   setShowShapePicker(!showShapePicker);
-                  onToolChange('shape', { shapeType: 'rectangle' });
+                  // Close other pickers
+                  setShowStickyPicker(false);
                 }}
                 icon={<Shapes className="w-5 h-5" />}
                 label="Shapes"
