@@ -51,3 +51,37 @@ export type { FacilitatorToolsProps, TimerState, FacilitatorBroadcast } from './
 // Asset Library
 export { default as AssetLibrary } from './AssetLibrary';
 export type { AssetLibraryProps, AssetInsertPayload } from './AssetLibrary';
+
+// PDF Editor Components
+export { default as PDFEditor } from './PDFEditor';
+export type { PDFEditorProps } from './PDFEditor';
+export { default as PDFToolbar } from './PDFToolbar';
+export { default as PDFThumbnails } from './PDFThumbnails';
+export { default as PDFAnnotationLayer } from './PDFAnnotationLayer';
+export { default as DocumentsView } from './DocumentsView';
+export type { ClientDocument } from './DocumentsView';
+
+// Document Portal (SharePoint-like)
+export { default as DocumentPortal } from './DocumentPortal';
+export type { 
+  Folder as DocumentFolder, 
+  ActivityItem as DocumentActivity, 
+  DocumentVersion, 
+  DocumentPortalProps 
+} from './DocumentPortal';
+
+// E-Signature Workflow Components
+export { 
+  SignatureRequestModal, 
+  SignerView, 
+  SignatureStatusPanel 
+} from './SignatureWorkflow';
+export type { 
+  SignatureField, 
+  Signer, 
+  SignatureRequest, 
+  AuditLogEntry 
+} from './SignatureWorkflow';
+
+// Signature Pad
+export { SignaturePad } from './SignaturePad';

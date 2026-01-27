@@ -120,6 +120,11 @@ import FacilitatorTools from './components/FacilitatorTools';
 import AssetLibrary from './components/AssetLibrary';
 import type { AssetInsertPayload } from './components/AssetLibrary';
 import NotesViewRedesigned from './components/NotesViewRedesign';
+import DocumentsView from './components/DocumentsView';
+import PDFEditor from './components/PDFEditor';
+import { documentsApi, uploadDocumentFile, getDocumentShareUrl } from './lib/documents-api';
+import type { ClientDocument } from './components/DocumentsView';
+import type { PDFAnnotation, PDFComment } from './lib/pdf-utils';
 
 // Types
 interface Board {
@@ -237,7 +242,7 @@ interface ActionItem {
   assigneeId?: string;
 }
 
-type ViewType = 'dashboard' | 'meeting' | 'notes' | 'clients';
+type ViewType = 'dashboard' | 'meeting' | 'notes' | 'documents' | 'clients';
 
 // Collaboration types
 interface UserPresence {
@@ -588,6 +593,7 @@ const Sidebar = ({
     { id: 'dashboard' as ViewType, label: 'Dashboard', icon: LayoutDashboard, description: 'All boards & progress' },
     { id: 'meeting' as ViewType, label: 'Whiteboard', icon: FolderKanban, description: 'Active whiteboard' },
     { id: 'notes' as ViewType, label: 'Notes', icon: BookOpen, description: 'Notion-style docs' },
+    { id: 'documents' as ViewType, label: 'Documents', icon: FileText, description: 'PDF documents' },
     { id: 'clients' as ViewType, label: 'Clients', icon: Building2, description: 'Client management' },
   ];
 
@@ -7669,6 +7675,10 @@ export default function App() {
   const [activeBoard, setActiveBoard] = useState<Board | null>(null);
   const [notes, setNotes] = useState<ProjectNote[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [documents, setDocuments] = useState<ClientDocument[]>([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(true);
+  const [activeDocument, setActiveDocument] = useState<ClientDocument | null>(null);
+  const [showPDFEditor, setShowPDFEditor] = useState(false);
   const [isLoadingClients, setIsLoadingClients] = useState(true);
   const [supabaseConnected, setSupabaseConnected] = useState(false);
   const [supabaseTablesExist, setSupabaseTablesExist] = useState(true); // Assume true, set false on first error
@@ -8508,6 +8518,120 @@ ${transcriptContent}`;
     });
   };
 
+  // ============================================
+  // DOCUMENTS HANDLERS
+  // ============================================
+
+  // Load documents on mount
+  useEffect(() => {
+    const loadDocuments = async () => {
+      setIsLoadingDocuments(true);
+      try {
+        const docs = await documentsApi.getAll();
+        setDocuments(docs);
+      } catch (error) {
+        console.error('Error loading documents:', error);
+      } finally {
+        setIsLoadingDocuments(false);
+      }
+    };
+    loadDocuments();
+  }, []);
+
+  // Handle document upload
+  const handleDocumentUpload = useCallback(async (files: FileList, clientId?: string) => {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.type !== 'application/pdf') continue;
+
+      try {
+        // Upload file
+        const uploadResult = await uploadDocumentFile(file);
+        if (!uploadResult) continue;
+
+        // Create document record
+        const newDoc = await documentsApi.create({
+          name: file.name.replace(/\.pdf$/i, ''),
+          fileUrl: uploadResult.url,
+          fileSize: file.size,
+          fileType: 'application/pdf',
+          pageCount: 1, // Will be updated when PDF is loaded
+          clientId,
+        });
+
+        if (newDoc) {
+          setDocuments(prev => [newDoc, ...prev]);
+        }
+      } catch (error) {
+        console.error('Error uploading document:', error);
+      }
+    }
+  }, []);
+
+  // Handle document delete
+  const handleDocumentDelete = useCallback(async (documentId: string) => {
+    if (!confirm('Are you sure you want to delete this document?')) return;
+    
+    const success = await documentsApi.delete(documentId);
+    if (success) {
+      setDocuments(prev => prev.filter(d => d.id !== documentId));
+      if (activeDocument?.id === documentId) {
+        setActiveDocument(null);
+        setShowPDFEditor(false);
+      }
+    }
+  }, [activeDocument]);
+
+  // Handle document rename
+  const handleDocumentRename = useCallback(async (documentId: string, newName: string) => {
+    const updated = await documentsApi.update(documentId, { name: newName });
+    if (updated) {
+      setDocuments(prev => prev.map(d => d.id === documentId ? updated : d));
+    }
+  }, []);
+
+  // Handle document open
+  const handleDocumentOpen = useCallback((document: ClientDocument) => {
+    setActiveDocument(document);
+    setShowPDFEditor(true);
+  }, []);
+
+  // Handle document share
+  const handleDocumentShare = useCallback((document: ClientDocument) => {
+    // This would open a share modal similar to ShareBoardModal
+    console.log('Share document:', document);
+    // For now, just copy a basic URL to clipboard
+    if (document.shareToken) {
+      const url = getDocumentShareUrl(document.shareToken);
+      navigator.clipboard.writeText(url);
+      alert('Share link copied to clipboard!');
+    } else {
+      alert('Share functionality coming soon!');
+    }
+  }, []);
+
+  // Handle document download
+  const handleDocumentDownload = useCallback((document: ClientDocument) => {
+    const a = window.document.createElement('a');
+    a.href = document.fileUrl;
+    a.download = `${document.name}.pdf`;
+    a.click();
+  }, []);
+
+  // Handle document save (annotations)
+  const handleDocumentSave = useCallback(async (data: { annotations: PDFAnnotation[]; comments: PDFComment[] }) => {
+    if (!activeDocument) return;
+    
+    const success = await documentsApi.updateAnnotations(activeDocument.id, data.annotations);
+    if (success) {
+      setDocuments(prev => prev.map(d => 
+        d.id === activeDocument.id 
+          ? { ...d, annotations: data.annotations, comments: data.comments }
+          : d
+      ));
+    }
+  }, [activeDocument]);
+
   return (
     <div className="h-screen flex bg-gray-50 overflow-hidden">
       {/* Shared board error modal */}
@@ -8565,7 +8689,41 @@ ${transcriptContent}`;
       )}
       {currentView === 'meeting' && activeBoard && <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} onCreateTranscriptNote={handleCreateTranscriptNote} />}
       {currentView === 'notes' && <NotesViewRedesigned boards={boards} onOpenBoard={handleOpenBoard} notes={notes} onUpdateNotes={setNotes} clients={clients} />}
+      {currentView === 'documents' && (
+        <DocumentsView
+          documents={documents}
+          clients={clients}
+          onUpload={handleDocumentUpload}
+          onDelete={handleDocumentDelete}
+          onRename={handleDocumentRename}
+          onOpen={handleDocumentOpen}
+          onShare={handleDocumentShare}
+          onDownload={handleDocumentDownload}
+          isLoading={isLoadingDocuments}
+        />
+      )}
       {currentView === 'clients' && <ClientsView boards={boards} onOpenBoard={handleOpenBoard} clients={clients} onClientsChange={setClients} />}
+      
+      {/* PDF Editor Modal */}
+      {showPDFEditor && activeDocument && (
+        <div className="fixed inset-0 z-50 bg-white">
+          <PDFEditor
+            documentUrl={activeDocument.fileUrl}
+            documentId={activeDocument.id}
+            documentName={activeDocument.name}
+            clientId={activeDocument.clientId}
+            initialAnnotations={activeDocument.annotations}
+            onSave={handleDocumentSave}
+            onClose={() => {
+              setShowPDFEditor(false);
+              setActiveDocument(null);
+            }}
+            showToolbar={true}
+            showThumbnails={true}
+            showComments={true}
+          />
+        </div>
+      )}
     </div>
   );
 }
