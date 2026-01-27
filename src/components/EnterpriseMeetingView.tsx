@@ -1693,8 +1693,34 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
     >
       {renderContent()}
       
+      {/* Connection points - visible in connector mode */}
+      {isConnectorMode && (
+        <>
+          {/* Top */}
+          <div 
+            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-125 transition-transform shadow-sm"
+            title="Connect from top"
+          />
+          {/* Right */}
+          <div 
+            className="absolute top-1/2 right-0 translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-125 transition-transform shadow-sm"
+            title="Connect from right"
+          />
+          {/* Bottom */}
+          <div 
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-125 transition-transform shadow-sm"
+            title="Connect from bottom"
+          />
+          {/* Left */}
+          <div 
+            className="absolute top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-125 transition-transform shadow-sm"
+            title="Connect from left"
+          />
+        </>
+      )}
+      
       {/* Selection handles with resize functionality */}
-      {isSelected && (
+      {isSelected && !isConnectorMode && (
         <>
           <div 
             className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm cursor-nw-resize hover:bg-indigo-100"
