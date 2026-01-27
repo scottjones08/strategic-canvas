@@ -138,6 +138,7 @@ export interface Database {
           content: string | null;
           organization_id: string | null;
           board_id: string | null;
+          client_id: string | null;
           owner_id: string;
           is_public: boolean;
           icon: string | null;
@@ -153,6 +154,7 @@ export interface Database {
           content?: string | null;
           organization_id?: string | null;
           board_id?: string | null;
+          client_id?: string | null;
           owner_id: string;
           is_public?: boolean;
           icon?: string | null;
@@ -168,6 +170,7 @@ export interface Database {
           content?: string | null;
           organization_id?: string | null;
           board_id?: string | null;
+          client_id?: string | null;
           owner_id?: string;
           is_public?: boolean;
           icon?: string | null;

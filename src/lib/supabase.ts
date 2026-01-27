@@ -26,6 +26,7 @@ export interface CanvasBoard {
 export interface ProjectNote {
   id: string;
   organization_id: string | null;
+  client_id: string | null;
   title: string;
   content: string | null;
   icon: string;

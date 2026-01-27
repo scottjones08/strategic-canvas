@@ -8192,6 +8192,7 @@ export default function App() {
               content: note.content || '',
               icon: note.icon || '📝',
               parent_id: note.parentId || null,
+              client_id: note.clientId || null,
               sort_order: 0,
               tags: note.tags || [],
               is_ai_generated: note.tags?.includes('ai-summary') || note.tags?.includes('auto-generated') || false,
