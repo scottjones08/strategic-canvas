@@ -476,7 +476,10 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
     
     const isPanTool = activeTool === 'pan' || activeTool === 'hand' || spacePressed;
     const target = e.target as HTMLElement;
-    const isCanvasClick = target === containerRef.current || target.hasAttribute('data-canvas-background');
+    // Check if click is on canvas (container, grid background, or world content div)
+    const isCanvasClick = target === containerRef.current || 
+                          target === canvasRef.current ||
+                          target.hasAttribute('data-canvas-background');
     
     if (isPanTool) {
       e.preventDefault();
@@ -510,7 +513,9 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
   // Double-click handler for quick sticky note creation
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    const isCanvasClick = target === containerRef.current || target.hasAttribute('data-canvas-background');
+    const isCanvasClick = target === containerRef.current || 
+                          target === canvasRef.current ||
+                          target.hasAttribute('data-canvas-background');
     
     if (isCanvasClick && onCanvasDoubleClick) {
       const worldCoords = getWorldCoordinates(e.clientX, e.clientY);
