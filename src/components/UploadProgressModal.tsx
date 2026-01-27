@@ -326,7 +326,7 @@ export const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
         
         updateFile(id, { progress: 90 });
       } else {
-        // Upload to Supabase Storage
+        // Upload to Supabase Storage with retry logic
         const fileExt = file.name.split('.').pop();
         const fileName = crypto.randomUUID();
         filePath = organizationId
@@ -343,17 +343,52 @@ export const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
           }));
         }, 200);
 
-        const { error: uploadError } = await supabase.storage
-          .from(bucket)
-          .upload(filePath, arrayBuffer, {
-            contentType: file.type,
-            upsert: false,
-          });
+        // Retry logic for upload with exponential backoff
+        const maxRetries = 3;
+        let lastError: Error | null = null;
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            const { error: uploadError } = await supabase.storage
+              .from(bucket)
+              .upload(filePath, arrayBuffer, {
+                contentType: file.type,
+                upsert: attempt > 1, // Allow upsert on retry in case partial upload
+              });
+
+            if (uploadError) {
+              // Check if it's an abort error
+              if (uploadError.message?.includes('abort') || uploadError.message?.includes('AbortError')) {
+                throw new Error('Upload aborted');
+              }
+              throw new Error(uploadError.message);
+            }
+            
+            // Success - break out of retry loop
+            lastError = null;
+            break;
+          } catch (err) {
+            lastError = err instanceof Error ? err : new Error('Upload failed');
+            
+            // Only retry on abort errors (likely React StrictMode double-mount)
+            const isAbortError = lastError.message?.includes('abort') || lastError.message?.includes('AbortError');
+            
+            if (attempt < maxRetries && isAbortError) {
+              const delay = attempt * 500; // 500ms, 1000ms, 1500ms
+              console.log(`Upload attempt ${attempt} aborted, retrying in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            }
+            
+            // Non-abort error or max retries reached
+            break;
+          }
+        }
 
         clearInterval(progressInterval);
 
-        if (uploadError) {
-          throw new Error(uploadError.message);
+        if (lastError) {
+          throw lastError;
         }
 
         updateFile(id, { progress: 85 });

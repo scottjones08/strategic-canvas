@@ -236,17 +236,50 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
           }
         }
 
-        // Upload the main file
+        // Upload the main file with retry logic
         // Supabase storage doesn't support progress events natively
         // We simulate progress for UX
         setProgress({ loaded: file.size * 0.3, total: file.size, percent: 30 });
 
-        const { error: uploadError } = await getSupabase().storage
-          .from(bucket)
-          .upload(fileKey, arrayBuffer, {
-            contentType: file.type,
-            upsert: false,
-          });
+        // Retry logic for upload with exponential backoff
+        const maxRetries = 3;
+        let uploadError: Error | null = null;
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            const { error } = await getSupabase().storage
+              .from(bucket)
+              .upload(fileKey, arrayBuffer, {
+                contentType: file.type,
+                upsert: attempt > 1, // Allow upsert on retry
+              });
+
+            if (error) {
+              // Check if it's an abort error
+              if (error.message?.includes('abort') || error.message?.includes('AbortError')) {
+                throw new Error('Upload aborted');
+              }
+              throw error;
+            }
+            
+            // Success
+            uploadError = null;
+            break;
+          } catch (err) {
+            uploadError = err instanceof Error ? err : new Error('Upload failed');
+            
+            // Only retry on abort errors
+            const isAbortError = uploadError.message?.includes('abort') || uploadError.message?.includes('AbortError');
+            
+            if (attempt < maxRetries && isAbortError) {
+              const delay = attempt * 500;
+              console.log(`Upload attempt ${attempt} aborted, retrying in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            }
+            break;
+          }
+        }
 
         if (uploadError) throw uploadError;
 
