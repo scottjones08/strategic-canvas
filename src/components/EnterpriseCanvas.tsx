@@ -138,6 +138,7 @@ interface EnterpriseCanvasProps {
   onCanvasClick?: (worldX: number, worldY: number, e: React.MouseEvent) => void;
   onCanvasDoubleClick?: (worldX: number, worldY: number) => void;
   onViewportChange?: (viewport: { zoom: number; panX: number; panY: number }) => void;
+  activeTool?: string; // Tool from parent - 'select', 'hand', 'sticky', 'shape', etc.
   gridEnabled?: boolean;
   gridSnap?: boolean;
   showGrid?: boolean;
@@ -174,6 +175,7 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
   onCanvasClick,
   onCanvasDoubleClick,
   onViewportChange,
+  activeTool: parentActiveTool = 'select',
   gridEnabled = true,
   gridSnap = false,
   showGrid = true,
@@ -221,7 +223,10 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
   // Pan state
   const [panStart, setPanStart] = useState<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const [spacePressed, setSpacePressed] = useState(false);
-  const [activeTool, setActiveTool] = useState<'select' | 'pan' | 'hand'>('select');
+  // Internal tool for canvas-specific tools (select/hand from toolbar in canvas)
+  const [internalTool, setInternalTool] = useState<'select' | 'hand'>('select');
+  // Effective tool: use parent tool, fall back to internal
+  const activeTool = parentActiveTool || internalTool;
   
   // Touch state
   const touchStateRef = useRef<{
@@ -406,11 +411,11 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
           break;
         case 'v':
         case 'V':
-          setActiveTool('select');
+          setInternalTool('select');
           break;
         case 'h':
         case 'H':
-          setActiveTool('pan');
+          setInternalTool('hand');
           break;
         case '+':
         case '=':
@@ -811,14 +816,14 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
       {/* Toolbar */}
       <div className="absolute top-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-2 z-50">
         <button
-          onClick={() => setActiveTool('select')}
+          onClick={() => setInternalTool('select')}
           className={`p-2 rounded-lg transition-colors ${activeTool === 'select' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
           title="Select (V)"
         >
           <MousePointer2 className="w-5 h-5" />
         </button>
         <button
-          onClick={() => setActiveTool('hand')}
+          onClick={() => setInternalTool('hand')}
           className={`p-2 rounded-lg transition-colors ${activeTool === 'hand' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
           title="Pan (H)"
         >

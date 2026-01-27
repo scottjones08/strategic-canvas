@@ -578,6 +578,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
               setCanvasSize({ width: view.width, height: view.height });
             }
           }}
+          activeTool={activeTool}
           gridEnabled={gridEnabled}
           gridSnap={gridSnap}
           showGrid={true}
