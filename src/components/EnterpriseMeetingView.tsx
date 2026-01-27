@@ -347,40 +347,16 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="hidden sm:inline">Back</span>
-          </button>
-          
-          <div className="h-6 w-px bg-gray-200" />
-          
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900">{board.name}</h1>
-            <p className="text-xs text-gray-500">
-              {nodes.length} elements • {participantCount} participant{participantCount !== 1 ? 's' : ''}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onOpenShare}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <Share2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Share</span>
-          </button>
-        </div>
-      </div>
-      
-      {/* Main Content */}
+      {/* Main Content - Full screen canvas */}
       <div className="flex-1 relative overflow-hidden">
+        {/* Back button - positioned in top left */}
+        <button
+          onClick={onBack}
+          className="absolute top-4 left-4 z-50 flex items-center gap-2 px-3 py-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="hidden sm:inline">Back</span>
+        </button>
         {/* Enterprise Canvas */}
         <EnterpriseCanvas
           ref={canvasRef}
