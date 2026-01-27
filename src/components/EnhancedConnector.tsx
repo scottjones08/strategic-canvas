@@ -7,11 +7,12 @@
  * - Visual feedback for selection
  * - Double-click to add new waypoints
  * - Drag waypoints to reposition
+ * - Better styling options
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Plus, Minus, Move, GitBranch } from 'lucide-react';
+import { Trash2, Plus, Minus, Move, GitBranch, MousePointer2 } from 'lucide-react';
 import type { Waypoint, ConnectorPath, Point } from '../lib/connector-engine';
 import {
   generatePath,
@@ -55,6 +56,7 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
   const [hoveredWaypoint, setHoveredWaypoint] = useState<string | null>(null);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const [showToolbar, setShowToolbar] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const dragStartRef = useRef<{ x: number; y: number; waypoint: Waypoint } | null>(null);
 
@@ -67,30 +69,44 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
     const xs = path.waypoints.map(wp => wp.x);
     const ys = path.waypoints.map(wp => wp.y);
     return {
-      minX: Math.min(...xs) - 20,
-      maxX: Math.max(...xs) + 20,
-      minY: Math.min(...ys) - 20,
-      maxY: Math.max(...ys) + 20,
-      width: Math.max(...xs) - Math.min(...xs) + 40,
-      height: Math.max(...ys) - Math.min(...ys) + 40
+      minX: Math.min(...xs) - 30,
+      maxX: Math.max(...xs) + 30,
+      minY: Math.min(...ys) - 30,
+      maxY: Math.max(...ys) + 30,
+      width: Math.max(...xs) - Math.min(...xs) + 60,
+      height: Math.max(...ys) - Math.min(...ys) + 60
     };
   }, [path.waypoints]);
 
-  // Get arrow marker color
+  // Get arrow marker color - improved color detection
   const getArrowMarker = (color: string) => {
     const colorMap: Record<string, string> = {
       '#6b7280': 'gray',
+      '#9ca3af': 'gray',
       '#3b82f6': 'blue',
+      '#6366f1': 'blue',
       '#22c55e': 'green',
+      '#10b981': 'green',
       '#ef4444': 'red',
+      '#f87171': 'red',
       '#8b5cf6': 'purple',
+      '#a78bfa': 'purple',
       '#f97316': 'orange',
+      '#fb923c': 'orange',
       '#14b8a6': 'teal',
-      '#ec4899': 'pink'
+      '#2dd4bf': 'teal',
+      '#ec4899': 'pink',
+      '#f472b6': 'pink'
     };
     
+    // Check for exact match first
+    if (colorMap[color]) {
+      return `url(#arrowhead-${colorMap[color]}-${id})`;
+    }
+    
+    // Check for partial match
     for (const [hex, name] of Object.entries(colorMap)) {
-      if (color.includes(hex) || color.includes(name)) {
+      if (color.toLowerCase().includes(hex.toLowerCase()) || color.toLowerCase().includes(name.toLowerCase())) {
         return `url(#arrowhead-${name}-${id})`;
       }
     }
@@ -101,6 +117,7 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
   const handlePathClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     onSelect();
+    setShowToolbar(true);
   }, [onSelect]);
 
   // Handle double-click to add waypoint
@@ -109,10 +126,7 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
 
     e.stopPropagation();
 
-    // Get click position relative to SVG, then convert to world coordinates
     const rect = svgRef.current.getBoundingClientRect();
-    // First get position relative to SVG in screen units, then divide by zoom to get SVG-local coords
-    // Then add pathBounds offset to get world coordinates
     const clickX = (e.clientX - rect.left) / zoom + pathBounds.minX;
     const clickY = (e.clientY - rect.top) / zoom + pathBounds.minY;
 
@@ -124,7 +138,6 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
       const p1 = path.waypoints[i];
       const p2 = path.waypoints[i + 1];
 
-      // Project point onto line segment
       const dx = p2.x - p1.x;
       const dy = p2.y - p1.y;
       const len = Math.sqrt(dx * dx + dy * dy);
@@ -143,7 +156,6 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
       }
     }
 
-    // Add new waypoint at the click position (now in world coordinates)
     const newPath = addWaypoint(path, nearestSegment + 1, { x: clickX, y: clickY });
     onUpdate(newPath);
   }, [path, zoom, onUpdate, readOnly, pathBounds]);
@@ -202,7 +214,6 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
 
   // Delete waypoint
   const handleDeleteWaypoint = useCallback((waypointId: string) => {
-    // Don't delete start or end waypoints
     const waypoint = path.waypoints.find(wp => wp.id === waypointId);
     if (waypoint?.type === 'start' || waypoint?.type === 'end') return;
     
@@ -218,7 +229,23 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
   // Get label position (midpoint of path)
   const labelPoint = getPointOnPath(path, 0.5);
 
+  // Hide toolbar when not selected
+  useEffect(() => {
+    if (!isSelected) {
+      setShowToolbar(false);
+    }
+  }, [isSelected]);
+
   if (!pathBounds) return null;
+
+  // Calculate stroke dash array based on style
+  const getStrokeDashArray = () => {
+    switch (path.strokeStyle) {
+      case 'dashed': return '8,6';
+      case 'dotted': return '2,6';
+      default: return undefined;
+    }
+  };
 
   return (
     <>
@@ -231,7 +258,8 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
           width: pathBounds.width,
           height: pathBounds.height,
           pointerEvents: 'auto',
-          cursor: isSelected ? 'move' : 'pointer'
+          cursor: isSelected ? 'move' : 'pointer',
+          zIndex: isSelected ? 50 : 5
         }}
         onClick={handlePathClick}
         onDoubleClick={handleDoubleClick}
@@ -252,13 +280,14 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
             <marker
               key={marker.id}
               id={marker.id}
-              markerWidth="12"
-              markerHeight="8"
-              refX="10"
-              refY="4"
+              markerWidth="10"
+              markerHeight="10"
+              refX="9"
+              refY="3"
               orient="auto"
+              markerUnits="strokeWidth"
             >
-              <path d="M0,0 L12,4 L0,8 L3,4 Z" fill={marker.fill} />
+              <path d="M0,0 L0,6 L9,3 z" fill={marker.fill} />
             </marker>
           ))}
         </defs>
@@ -270,7 +299,7 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
             d={pathD}
             fill="none"
             stroke="transparent"
-            strokeWidth="20"
+            strokeWidth="25"
             className="cursor-pointer"
           />
 
@@ -278,8 +307,8 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
           <path
             d={pathD}
             fill="none"
-            stroke="rgba(0,0,0,0.1)"
-            strokeWidth={(path.strokeWidth || 2) + 2}
+            stroke="rgba(0,0,0,0.15)"
+            strokeWidth={(path.strokeWidth || 2) + 3}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -289,22 +318,21 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
             d={pathD}
             fill="none"
             stroke={path.color}
-            strokeWidth={path.strokeWidth}
-            strokeDasharray={
-              path.strokeStyle === 'dashed' ? '8,4' :
-              path.strokeStyle === 'dotted' ? '2,4' : undefined
-            }
+            strokeWidth={path.strokeWidth || 2}
+            strokeDasharray={getStrokeDashArray()}
             strokeLinecap="round"
             strokeLinejoin="round"
             markerStart={path.arrowStart ? getArrowMarker(path.color) : undefined}
             markerEnd={path.arrowEnd ? getArrowMarker(path.color) : undefined}
-            className={`transition-all duration-200 ${isSelected ? 'filter drop-shadow-md' : ''}`}
+            style={{
+              filter: isSelected ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' : 'none'
+            }}
           />
         </g>
 
-        {/* Waypoints (only visible when selected) */}
+        {/* Waypoints - visible when selected or hovered */}
         <AnimatePresence>
-          {isSelected && !readOnly && (
+          {(isSelected || showToolbar) && !readOnly && (
             <g>
               {path.waypoints.map((waypoint, index) => (
                 <motion.g
@@ -312,17 +340,21 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0, opacity: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ delay: index * 0.03 }}
                 >
                   {/* Waypoint handle */}
                   <circle
                     cx={waypoint.x - pathBounds.minX}
                     cy={waypoint.y - pathBounds.minY}
-                    r={waypoint.type === 'control' ? 6 : 8}
+                    r={waypoint.type === 'control' ? 8 : 10}
                     fill={waypoint.type === 'control' ? 'white' : path.color}
                     stroke={waypoint.type === 'control' ? path.color : 'white'}
-                    strokeWidth={2}
-                    className={`cursor-move transition-all ${
+                    strokeWidth={3}
+                    style={{
+                      cursor: waypoint.type === 'control' ? 'move' : 'default',
+                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+                    }}
+                    className={`transition-all ${
                       draggingWaypoint === waypoint.id ? 'scale-125' : ''
                     }`}
                     onMouseDown={(e) => handleWaypointMouseDown(e, waypoint)}
@@ -333,21 +365,22 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
                   {/* Delete button for control points */}
                   {waypoint.type === 'control' && hoveredWaypoint === waypoint.id && (
                     <g
-                      transform={`translate(${waypoint.x - pathBounds.minX + 12}, ${waypoint.y - pathBounds.minY - 12})`}
+                      transform={`translate(${waypoint.x - pathBounds.minX + 14}, ${waypoint.y - pathBounds.minY - 14})`}
                       className="cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteWaypoint(waypoint.id);
                       }}
                     >
-                      <circle r="8" fill="#ef4444" />
+                      <circle r="10" fill="#ef4444" stroke="white" strokeWidth="2" />
                       <text
                         x="0"
                         y="1"
                         textAnchor="middle"
                         dominantBaseline="middle"
                         fill="white"
-                        fontSize="10"
+                        fontSize="12"
+                        fontWeight="bold"
                       >
                         ×
                       </text>
@@ -365,8 +398,8 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
         <div
           className="absolute pointer-events-auto"
           style={{
-            left: labelPoint.x - 50,
-            top: labelPoint.y - 12,
+            left: labelPoint.x - 60,
+            top: labelPoint.y - 15,
             zIndex: isSelected ? 100 : 10
           }}
           onClick={(e) => e.stopPropagation()}
@@ -376,7 +409,7 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
             value={path.label || ''}
             onChange={(e) => onUpdate({ ...path, label: e.target.value })}
             placeholder="Label..."
-            className={`w-24 text-center text-xs px-2 py-1 rounded border bg-white/90 backdrop-blur-sm transition-all ${
+            className={`w-28 text-center text-xs px-2 py-1.5 rounded-lg border bg-white/95 backdrop-blur-sm shadow-sm transition-all ${
               isSelected || path.label
                 ? 'opacity-100 border-gray-300'
                 : 'opacity-0 hover:opacity-100 border-transparent'
@@ -394,14 +427,13 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
       <AnimatePresence>
         {isSelected && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="absolute bg-white rounded-xl shadow-xl border border-gray-200 p-2 flex items-center gap-1 pointer-events-auto"
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-2 flex items-center gap-1 pointer-events-auto z-[200] flex-wrap max-w-[90vw]"
             style={{
-              left: labelPoint ? labelPoint.x - 140 : 0,
-              top: labelPoint ? labelPoint.y + 30 : 0,
-              zIndex: 200
+              left: labelPoint ? Math.min(labelPoint.x - 140, window.innerWidth - 300) : 20,
+              top: labelPoint ? labelPoint.y + 40 : 20,
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -429,13 +461,22 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
                 <path d="M4 4 L4 20 L20 20" />
               </svg>
             </button>
+            <button
+              onClick={() => handleStyleChange('stepped')}
+              className={`p-2 rounded-lg ${path.style === 'stepped' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
+              title="Stepped"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 4 L4 12 L12 12 L12 20 L20 20" />
+              </svg>
+            </button>
             
             <div className="w-px h-6 bg-gray-200 mx-1" />
             
             {/* Line style */}
             <button
               onClick={() => onUpdate({ ...path, strokeStyle: 'solid' })}
-              className={`p-2 rounded-lg ${path.strokeStyle === 'solid' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+              className={`p-2 rounded-lg ${path.strokeStyle === 'solid' || !path.strokeStyle ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
               title="Solid"
             >
               <div className="w-4 h-0.5 bg-gray-600" />
@@ -457,8 +498,30 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
             
             <div className="w-px h-6 bg-gray-200 mx-1" />
             
+            {/* Arrow toggles */}
+            <button
+              onClick={() => onUpdate({ ...path, arrowStart: !path.arrowStart })}
+              className={`p-2 rounded-lg ${path.arrowStart ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
+              title="Arrow at start"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 4 L4 12 L12 20" />
+              </svg>
+            </button>
+            <button
+              onClick={() => onUpdate({ ...path, arrowEnd: !path.arrowEnd })}
+              className={`p-2 rounded-lg ${path.arrowEnd !== false ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
+              title="Arrow at end"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 4 L20 12 L12 20" />
+              </svg>
+            </button>
+            
+            <div className="w-px h-6 bg-gray-200 mx-1" />
+            
             {/* Color picker */}
-            {['#6b7280', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6'].map(color => (
+            {['#6b7280', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6', '#f97316'].map(color => (
               <button
                 key={color}
                 onClick={() => onUpdate({ ...path, color })}
@@ -494,7 +557,10 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="fixed bg-white rounded-xl shadow-xl border border-gray-200 py-1 z-[9999] min-w-[180px]"
-              style={{ left: contextMenuPos.x, top: contextMenuPos.y }}
+              style={{ 
+                left: Math.min(contextMenuPos.x, window.innerWidth - 200), 
+                top: Math.min(contextMenuPos.y, window.innerHeight - 250) 
+              }}
             >
               <div className="px-3 py-2 text-xs font-medium text-gray-400 border-b border-gray-100">
                 Connector Options
@@ -515,12 +581,11 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
                 }}
                 className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
               >
-                {path.arrowEnd ? '✓ ' : ''} Arrow at end
+                {path.arrowEnd !== false ? '✓ ' : ''} Arrow at end
               </button>
               <div className="h-px bg-gray-200 my-1" />
               <button
                 onClick={() => {
-                  // Add a new waypoint at the center
                   const midIndex = Math.floor(path.waypoints.length / 2);
                   const prev = path.waypoints[midIndex - 1];
                   const next = path.waypoints[midIndex];

@@ -11,7 +11,7 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Users, Share2, MoreHorizontal, Maximize2, Map as MapIcon, Eye, EyeOff, Wifi, WifiOff, Youtube, Image, X, Upload, Table2, Plus, Inbox, Link as LinkIcon, ExternalLink, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Users, Share2, MoreHorizontal, Maximize2, Map as MapIcon, Eye, EyeOff, Wifi, WifiOff, Youtube, Image, X, Upload, Table2, Plus, Inbox, Link as LinkIcon, ExternalLink, FolderOpen, Hand, MousePointer2, Type, GitBranch } from 'lucide-react';
 import type { Board, VisualNode } from '../types/board';
 import type { ConnectorPath, Waypoint } from '../lib/connector-engine';
 import { EnterpriseCanvas, EnterpriseCanvasRef } from './EnterpriseCanvas';
@@ -768,43 +768,44 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       
       {/* Main Content - Full screen canvas */}
       <div ref={containerRef} className="flex-1 relative overflow-hidden">
-        {/* Back button - positioned in top left */}
+        {/* Back button - positioned in top left - mobile optimized */}
         <button
           onClick={onBack}
-          className="absolute top-4 left-4 z-50 flex items-center gap-2 px-3 py-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+          className="absolute top-2 sm:top-4 left-2 sm:left-4 z-40 flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl shadow-lg border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="hidden sm:inline">Back</span>
+          <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="hidden sm:inline text-sm">Back</span>
         </button>
         
-        {/* Connection status indicator */}
-        <div className="absolute top-4 left-24 z-50 flex items-center gap-2">
+        {/* Connection status indicator - mobile optimized */}
+        <div className="absolute top-2 sm:top-4 left-14 sm:left-24 z-40 flex items-center gap-1.5 sm:gap-2">
           {/* Toggle left panel */}
           {!showLeftPanel && (
             <button
               onClick={() => setShowLeftPanel(true)}
-              className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-medium hover:bg-indigo-200 transition-colors"
+              className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 text-[10px] sm:text-xs font-medium hover:bg-indigo-200 transition-colors"
             >
-              Show Panel
+              <span className="sm:hidden">Panel</span>
+              <span className="hidden sm:inline">Show Panel</span>
             </button>
           )}
-          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
+          <div className={`flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
             isConnected 
               ? 'bg-green-100 text-green-700' 
               : 'bg-yellow-100 text-yellow-700'
           }`}>
-            {isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-            {isConnected ? 'Live' : 'Connecting...'}
+            {isConnected ? <Wifi className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <WifiOff className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+            <span className="hidden sm:inline">{isConnected ? 'Live' : 'Connecting...'}</span>
           </div>
           {connectionError && (
-            <div className="px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs">
+            <div className="hidden sm:block px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs">
               {connectionError}
             </div>
           )}
         </div>
         
-        {/* User presence list - top right area */}
-        <div className="absolute top-4 right-48 z-50">
+        {/* User presence list - top right area - hidden on mobile */}
+        <div className="hidden md:block absolute top-4 right-48 z-50">
           <UserPresenceList
             users={otherUsers}
             currentUser={currentUser}
@@ -1000,12 +1001,78 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
         {!showMinimap && (
           <button
             onClick={() => setShowMinimap(true)}
-            className="absolute bottom-4 right-4 z-40 flex items-center gap-2 px-3 py-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+            className="absolute bottom-20 sm:bottom-4 right-2 sm:right-4 z-40 flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl shadow-lg border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
           >
-            <MapIcon className="w-4 h-4" />
-            <span className="text-sm">Show Minimap</span>
+            <MapIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="text-xs sm:text-sm hidden sm:inline">Show Minimap</span>
           </button>
         )}
+        
+        {/* Mobile Quick Action FAB */}
+        <div className="sm:hidden absolute bottom-4 right-2 z-40 flex flex-col gap-2">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              const center = canvasRef.current ? {
+                x: -viewportState.panX / viewportState.zoom + (canvasSize.width / 2 / viewportState.zoom),
+                y: -viewportState.panY / viewportState.zoom + (canvasSize.height / 2 / viewportState.zoom)
+              } : { x: 400, y: 300 };
+              handleAddNode('sticky', center.x - 100, center.y - 75, { 
+                color: '#fef3c7',
+                width: 200,
+                height: 150
+              });
+            }}
+            className="w-12 h-12 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </motion.button>
+        </div>
+        
+        {/* Mobile Bottom Toolbar */}
+        <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-gray-200 px-2 py-2 flex justify-around items-center safe-area-pb">
+          <MobileToolButton
+            active={activeTool === 'select'}
+            onClick={() => setActiveTool('select')}
+            icon={<MousePointer2 className="w-5 h-5" />}
+            label="Select"
+          />
+          <MobileToolButton
+            active={activeTool === 'hand'}
+            onClick={() => setActiveTool('hand')}
+            icon={<Hand className="w-5 h-5" />}
+            label="Pan"
+          />
+          <MobileToolButton
+            active={activeTool === 'connector'}
+            onClick={() => setActiveTool('connector')}
+            icon={<GitBranch className="w-5 h-5" />}
+            label="Connect"
+          />
+          <MobileToolButton
+            onClick={() => {
+              const center = canvasRef.current ? {
+                x: -viewportState.panX / viewportState.zoom + (canvasSize.width / 2 / viewportState.zoom),
+                y: -viewportState.panY / viewportState.zoom + (canvasSize.height / 2 / viewportState.zoom)
+              } : { x: 400, y: 300 };
+              handleAddNode('text', center.x - 100, center.y - 25, {
+                color: 'transparent',
+                width: 200,
+                height: 50,
+                fontSize: 24
+              });
+            }}
+            icon={<Type className="w-5 h-5" />}
+            label="Text"
+          />
+          <MobileToolButton
+            onClick={() => setShowLeftPanel(!showLeftPanel)}
+            icon={<Users className="w-5 h-5" />}
+            label="People"
+          />
+        </div>
         
         {/* Collaboration Overlay - Live Cursors */}
         <CollaborationOverlay
@@ -1819,13 +1886,18 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
     >
       {renderContent()}
       
-      {/* Connection points - visible in connector mode */}
-      {isConnectorMode && (
+      {/* Connection points - visible in connector mode or when node is selected */}
+      {(isConnectorMode || isSelected) && (
         <>
           {/* Top */}
           <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-150 hover:bg-blue-600 transition-all shadow-md z-10"
-            title="Connect from top"
+            className={`absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 border-2 border-white rounded-full cursor-crosshair hover:scale-150 transition-all shadow-lg z-20 ${
+              isConnectorMode ? 'bg-blue-500 hover:bg-blue-600 animate-pulse' : 'bg-gray-400 hover:bg-blue-500'
+            }`}
+            style={{ 
+              boxShadow: isConnectorMode ? '0 0 0 4px rgba(59, 130, 246, 0.3)' : '0 2px 8px rgba(0,0,0,0.3)'
+            }}
+            title={isConnectorMode ? "Click to connect" : "Switch to connector tool"}
             onClick={(e) => {
               e.stopPropagation();
               onSelect();
@@ -1833,8 +1905,13 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
           />
           {/* Right */}
           <div
-            className="absolute top-1/2 right-0 translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-150 hover:bg-blue-600 transition-all shadow-md z-10"
-            title="Connect from right"
+            className={`absolute top-1/2 right-0 translate-x-1/2 -translate-y-1/2 w-5 h-5 border-2 border-white rounded-full cursor-crosshair hover:scale-150 transition-all shadow-lg z-20 ${
+              isConnectorMode ? 'bg-blue-500 hover:bg-blue-600 animate-pulse' : 'bg-gray-400 hover:bg-blue-500'
+            }`}
+            style={{ 
+              boxShadow: isConnectorMode ? '0 0 0 4px rgba(59, 130, 246, 0.3)' : '0 2px 8px rgba(0,0,0,0.3)'
+            }}
+            title={isConnectorMode ? "Click to connect" : "Switch to connector tool"}
             onClick={(e) => {
               e.stopPropagation();
               onSelect();
@@ -1842,8 +1919,13 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
           />
           {/* Bottom */}
           <div
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-150 hover:bg-blue-600 transition-all shadow-md z-10"
-            title="Connect from bottom"
+            className={`absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-5 h-5 border-2 border-white rounded-full cursor-crosshair hover:scale-150 transition-all shadow-lg z-20 ${
+              isConnectorMode ? 'bg-blue-500 hover:bg-blue-600 animate-pulse' : 'bg-gray-400 hover:bg-blue-500'
+            }`}
+            style={{ 
+              boxShadow: isConnectorMode ? '0 0 0 4px rgba(59, 130, 246, 0.3)' : '0 2px 8px rgba(0,0,0,0.3)'
+            }}
+            title={isConnectorMode ? "Click to connect" : "Switch to connector tool"}
             onClick={(e) => {
               e.stopPropagation();
               onSelect();
@@ -1851,8 +1933,13 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
           />
           {/* Left */}
           <div
-            className="absolute top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-150 hover:bg-blue-600 transition-all shadow-md z-10"
-            title="Connect from left"
+            className={`absolute top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 w-5 h-5 border-2 border-white rounded-full cursor-crosshair hover:scale-150 transition-all shadow-lg z-20 ${
+              isConnectorMode ? 'bg-blue-500 hover:bg-blue-600 animate-pulse' : 'bg-gray-400 hover:bg-blue-500'
+            }`}
+            style={{ 
+              boxShadow: isConnectorMode ? '0 0 0 4px rgba(59, 130, 246, 0.3)' : '0 2px 8px rgba(0,0,0,0.3)'
+            }}
+            title={isConnectorMode ? "Click to connect" : "Switch to connector tool"}
             onClick={(e) => {
               e.stopPropagation();
               onSelect();
@@ -2078,5 +2165,27 @@ const Minimap: React.FC<MinimapProps> = ({
     </div>
   );
 };
+
+// Mobile Tool Button Component
+interface MobileToolButtonProps {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+}
+
+const MobileToolButton: React.FC<MobileToolButtonProps> = ({ icon, label, onClick, active }) => (
+  <button
+    onClick={onClick}
+    className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
+      active 
+        ? 'text-indigo-600 bg-indigo-50' 
+        : 'text-gray-600 hover:bg-gray-100'
+    }`}
+  >
+    {icon}
+    <span className="text-[10px] font-medium">{label}</span>
+  </button>
+);
 
 export default EnterpriseMeetingView;

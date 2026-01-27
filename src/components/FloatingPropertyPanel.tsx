@@ -168,18 +168,33 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
   const isSticky = node.type === 'sticky';
   const isFrame = node.type === 'frame';
 
+  // Mobile optimized position
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+  const mobileStyle = isMobile ? {
+    left: '50%',
+    top: 'auto',
+    bottom: '80px',
+    transform: 'translateX(-50%)',
+    width: '90vw',
+    maxWidth: '360px'
+  } : {
+    left: panelPos.x,
+    top: panelPos.y
+  };
+
   return (
     <motion.div
       ref={panelRef}
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
+      initial={{ opacity: 0, x: isMobile ? 0 : -20, y: isMobile ? 20 : 0 }}
+      animate={{ opacity: 1, x: isMobile ? 0 : 0, y: 0 }}
+      exit={{ opacity: 0, x: isMobile ? 0 : -20, y: isMobile ? 20 : 0 }}
       className={`
-        fixed w-72 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden
+        fixed bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden
+        ${isMobile ? 'w-[90vw] max-w-[360px]' : 'w-72'}
         ${isDragging ? 'cursor-grabbing select-none' : ''}
       `}
-      style={{ left: panelPos.x, top: panelPos.y }}
-      onMouseDown={handleMouseDown}
+      style={isMobile ? mobileStyle : { left: panelPos.x, top: panelPos.y }}
+      onMouseDown={!isMobile ? handleMouseDown : undefined}
     >
       {/* Header */}
       <div 

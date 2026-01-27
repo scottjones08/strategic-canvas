@@ -209,9 +209,9 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
   return (
     <>
       {/* Main Toolbar */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
+      <div className="absolute top-2 sm:top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1.5 sm:gap-2 pointer-events-none w-[98vw] sm:w-auto">
         {/* Top row - Board name and participants */}
-        <div className="flex items-center gap-3 pointer-events-auto">
+        <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto px-2">
           {/* Board Name */}
           <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 px-4 py-2">
             {isEditingName ? (
@@ -240,27 +240,27 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
             )}
           </div>
           
-          {/* Participants */}
+          {/* Participants - simplified on mobile */}
           <button
             onClick={onOpenShare}
-            className="flex items-center gap-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-1.5 sm:gap-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 hover:bg-gray-50 transition-colors"
           >
-            <div className="flex -space-x-2">
-              <div className="w-6 h-6 rounded-full bg-indigo-500 border-2 border-white flex items-center justify-center text-white text-xs font-medium">
+            <div className="flex -space-x-1.5 sm:-space-x-2">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-500 border-2 border-white flex items-center justify-center text-white text-[10px] sm:text-xs font-medium">
                 S
               </div>
               {participantCount > 1 && (
-                <div className="w-6 h-6 rounded-full bg-green-500 border-2 border-white flex items-center justify-center text-white text-xs font-medium">
+                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-green-500 border-2 border-white flex items-center justify-center text-white text-[10px] sm:text-xs font-medium">
                   +{participantCount - 1}
                 </div>
               )}
             </div>
-            <span className="text-sm text-gray-600">Share</span>
+            <span className="text-xs sm:text-sm text-gray-600 hidden sm:inline">Share</span>
           </button>
         </div>
         
         {/* Tools row - responsive with horizontal scroll on small screens */}
-        <div className="flex items-center gap-1 sm:gap-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-1.5 sm:p-2 pointer-events-auto max-w-[95vw] overflow-x-auto scrollbar-hide">
+        <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-1 sm:p-1.5 md:p-2 pointer-events-auto max-w-[98vw] overflow-x-auto scrollbar-hide">
           {/* Primary Tools */}
           <div className="flex items-center gap-1">
             {/* Select Tool */}
@@ -707,17 +707,20 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
     onContextMenu={onRightClick}
     disabled={disabled}
     className={`
-      relative flex flex-col items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl transition-all flex-shrink-0
+      relative flex flex-col items-center justify-center 
+      w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 
+      rounded-lg sm:rounded-xl transition-all flex-shrink-0
+      touch-target
       ${active 
-        ? 'bg-indigo-100 text-indigo-600' 
+        ? 'bg-indigo-100 text-indigo-600 shadow-inner' 
         : 'hover:bg-gray-100 text-gray-600'
       }
       ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
     `}
     title={`${label}${shortcut ? ` (${shortcut})` : ''}`}
   >
-    {icon}
-    <span className="text-[9px] sm:text-[10px] font-medium mt-0.5 hidden sm:block">{label}</span>
+    <span className="w-4 h-4 sm:w-5 sm:h-5">{icon}</span>
+    <span className="text-[8px] sm:text-[9px] md:text-[10px] font-medium mt-0.5 hidden sm:block truncate max-w-full px-1">{label}</span>
     {badge}
   </button>
 );
