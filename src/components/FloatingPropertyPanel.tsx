@@ -264,13 +264,16 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
 
           {/* Opacity */}
           <div className="mb-4">
-            <label className="text-xs font-medium text-gray-500 mb-2 block">Opacity</label>
+            <label className="text-xs font-medium text-gray-500 mb-2 block">
+              Opacity ({Math.round((node.opacity ?? 1) * 100)}%)
+            </label>
             <input
               type="range"
               min="0.1"
               max="1"
               step="0.1"
-              value={1}
+              value={node.opacity ?? 1}
+              onChange={(e) => onUpdate({ opacity: parseFloat(e.target.value) })}
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
             />
           </div>

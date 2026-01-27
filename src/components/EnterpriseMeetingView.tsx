@@ -1313,12 +1313,22 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
         return (
           <div 
             className="w-full h-full rounded-xl p-4 shadow-md"
-            style={{ backgroundColor: node.color }}
+            style={{ 
+              backgroundColor: node.color,
+              opacity: node.opacity ?? 1
+            }}
           >
             <textarea
               value={node.content}
               onChange={(e) => onUpdate({ content: e.target.value })}
-              className="w-full h-full bg-transparent resize-none border-none outline-none text-gray-800 placeholder-gray-500"
+              className="w-full h-full bg-transparent resize-none border-none outline-none placeholder-gray-500"
+              style={{
+                fontSize: node.fontSize || 14,
+                fontWeight: node.fontWeight || 'normal',
+                fontStyle: node.fontStyle || 'normal',
+                textAlign: node.textAlign || 'left',
+                color: node.color === '#1f2937' ? '#ffffff' : '#374151'
+              }}
               placeholder="Type here..."
               onClick={(e) => e.stopPropagation()}
             />
@@ -1330,8 +1340,15 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
           <textarea
             value={node.content}
             onChange={(e) => onUpdate({ content: e.target.value })}
-            className="w-full h-full bg-transparent resize-none border-none outline-none text-gray-900 font-medium"
-            style={{ fontSize: node.fontSize || 24 }}
+            className="w-full h-full bg-transparent resize-none border-none outline-none"
+            style={{ 
+              fontSize: node.fontSize || 24,
+              fontWeight: node.fontWeight || 'normal',
+              fontStyle: node.fontStyle || 'normal',
+              textAlign: node.textAlign || 'left',
+              opacity: node.opacity ?? 1,
+              color: '#111827'
+            }}
             placeholder="Type here..."
             onClick={(e) => e.stopPropagation()}
           />
@@ -1344,13 +1361,21 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
             className="w-full h-full flex items-center justify-center"
             style={{
               backgroundColor: node.color,
+              opacity: node.opacity ?? 1,
               ...shapeStyle
             }}
           >
             <textarea
               value={node.content}
               onChange={(e) => onUpdate({ content: e.target.value })}
-              className="w-full h-full bg-transparent resize-none border-none outline-none text-gray-700 text-center p-4"
+              className="w-full h-full bg-transparent resize-none border-none outline-none p-4"
+              style={{
+                fontSize: node.fontSize || 14,
+                fontWeight: node.fontWeight || 'normal',
+                fontStyle: node.fontStyle || 'normal',
+                textAlign: node.textAlign || 'center',
+                color: node.color === '#1f2937' ? '#ffffff' : '#374151'
+              }}
               placeholder="Type here..."
               onClick={(e) => e.stopPropagation()}
             />

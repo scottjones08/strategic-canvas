@@ -100,6 +100,8 @@ export interface VisualNode {
   verticalAlign?: 'top' | 'middle' | 'bottom';
   fontWeight?: 'normal' | 'bold';
   fontStyle?: 'normal' | 'italic';
+  // Visual properties
+  opacity?: number;
   // Animation
   animation?: {
     type: 'fade' | 'slide' | 'scale' | 'bounce';
