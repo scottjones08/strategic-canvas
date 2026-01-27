@@ -22,18 +22,15 @@ import React, {
   useImperativeHandle
 } from 'react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { 
-  ZoomIn, 
-  ZoomOut, 
-  Maximize, 
-  Grid3X3, 
+import {
+  ZoomIn,
+  ZoomOut,
+  Maximize,
   Magnet,
-  Move,
   MousePointer2,
   Hand
 } from 'lucide-react';
-import type { VisualNode, Waypoint } from '../types/board';
-import type { ConnectorPath } from '../lib/connector-engine';
+import type { VisualNode } from '../types/board';
 import { EnhancedConnector } from './EnhancedConnector';
 import { nodeToConnectorPath } from '../lib/connector-engine';
 
@@ -168,8 +165,8 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
   onSelectNodes,
   onUpdateNodes,
   onDeleteNodes,
-  onCanvasClick,
-  onCanvasDoubleClick,
+  onCanvasClick: _onCanvasClick,
+  onCanvasDoubleClick: _onCanvasDoubleClick,
   gridEnabled = true,
   gridSnap = false,
   showGrid = true,
@@ -212,7 +209,7 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
   const [lassoEnd, setLassoEnd] = useState<{ x: number; y: number } | null>(null);
   
   // Alignment guides
-  const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuide[]>([]);
+  const [alignmentGuides, _setAlignmentGuides] = useState<AlignmentGuide[]>([]);
   
   // Pan state
   const [panStart, setPanStart] = useState<{ x: number; y: number; panX: number; panY: number } | null>(null);
@@ -225,6 +222,8 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
     startY: number;
     startDistance?: number;
     startZoom?: number;
+    panX?: number;
+    panY?: number;
     touches: number;
   } | null>(null);
 
@@ -254,80 +253,8 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
     return { x, y };
   }, [viewport.panX, viewport.panY, viewport.zoom]);
 
-  // Snap to grid
-  const snapToGrid = useCallback((value: number) => {
-    if (!gridSnap) return value;
-    return Math.round(value / GRID_SIZE) * GRID_SIZE;
-  }, [gridSnap]);
-
-  // Calculate alignment guides
-  const calculateAlignmentGuides = useCallback((draggingNode: VisualNode, newX: number, newY: number) => {
-    const guides: AlignmentGuide[] = [];
-    const SNAP_THRESHOLD = 10 / viewport.zoom;
-    
-    const draggedCenterX = newX + draggingNode.width / 2;
-    const draggedCenterY = newY + draggingNode.height / 2;
-    const draggedRight = newX + draggingNode.width;
-    const draggedBottom = newY + draggingNode.height;
-    
-    nodes.filter(n => n.id !== draggingNode.id && n.type !== 'connector').forEach(node => {
-      const nodeCenterX = node.x + node.width / 2;
-      const nodeCenterY = node.y + node.height / 2;
-      const nodeRight = node.x + node.width;
-      const nodeBottom = node.y + node.height;
-      
-      // Left edge alignment
-      if (Math.abs(newX - node.x) < SNAP_THRESHOLD) {
-        guides.push({ 
-          type: 'vertical', 
-          position: node.x * viewport.zoom + viewport.panX,
-          strength: 1 - Math.abs(newX - node.x) / SNAP_THRESHOLD
-        });
-      }
-      // Right edge alignment
-      if (Math.abs(draggedRight - nodeRight) < SNAP_THRESHOLD) {
-        guides.push({ 
-          type: 'vertical', 
-          position: (node.x + node.width) * viewport.zoom + viewport.panX,
-          strength: 1 - Math.abs(draggedRight - nodeRight) / SNAP_THRESHOLD
-        });
-      }
-      // Center X alignment
-      if (Math.abs(draggedCenterX - nodeCenterX) < SNAP_THRESHOLD) {
-        guides.push({ 
-          type: 'vertical', 
-          position: nodeCenterX * viewport.zoom + viewport.panX,
-          strength: 1 - Math.abs(draggedCenterX - nodeCenterX) / SNAP_THRESHOLD
-        });
-      }
-      // Top edge alignment
-      if (Math.abs(newY - node.y) < SNAP_THRESHOLD) {
-        guides.push({ 
-          type: 'horizontal', 
-          position: node.y * viewport.zoom + viewport.panY,
-          strength: 1 - Math.abs(newY - node.y) / SNAP_THRESHOLD
-        });
-      }
-      // Bottom edge alignment
-      if (Math.abs(draggedBottom - nodeBottom) < SNAP_THRESHOLD) {
-        guides.push({ 
-          type: 'horizontal', 
-          position: (node.y + node.height) * viewport.zoom + viewport.panY,
-          strength: 1 - Math.abs(draggedBottom - nodeBottom) / SNAP_THRESHOLD
-        });
-      }
-      // Center Y alignment
-      if (Math.abs(draggedCenterY - nodeCenterY) < SNAP_THRESHOLD) {
-        guides.push({ 
-          type: 'horizontal', 
-          position: nodeCenterY * viewport.zoom + viewport.panY,
-          strength: 1 - Math.abs(draggedCenterY - nodeCenterY) / SNAP_THRESHOLD
-        });
-      }
-    });
-    
-    return guides;
-  }, [nodes, viewport.zoom, viewport.panX, viewport.panY]);
+  // Suppress unused gridSnap warning (used in UI but not in current implementation)
+  void gridSnap;
 
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
@@ -602,8 +529,8 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
       const dy = e.touches[0].clientY - touchStateRef.current.startY;
       dispatch({
         type: 'SET_PAN',
-        x: touchStateRef.current.panX + dx,
-        y: touchStateRef.current.panY + dy
+        x: (touchStateRef.current.panX ?? 0) + dx,
+        y: (touchStateRef.current.panY ?? 0) + dy
       });
     } else if (e.touches.length === 2 && touchStateRef.current.touches === 2) {
       // Pinch zoom
@@ -641,10 +568,9 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
   }, []);
 
   // Separate connectors from other nodes
-  const { connectors, nonConnectors } = useMemo(() => {
+  const { connectors } = useMemo(() => {
     const conn = nodes.filter(n => n.type === 'connector' && n.connectorFrom && n.connectorTo);
-    const nonConn = nodes.filter(n => !(n.type === 'connector' && n.connectorFrom && n.connectorTo));
-    return { connectors: conn, nonConnectors: nonConn };
+    return { connectors: conn };
   }, [nodes]);
 
   // Render

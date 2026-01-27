@@ -22,7 +22,6 @@ import {
   AlignRight,
   Bold,
   Italic,
-  Underline,
   ChevronDown,
   ChevronUp,
   Minus,
@@ -31,15 +30,10 @@ import {
   Copy,
   Lock,
   Unlock,
-  Move,
   ArrowUp,
   ArrowDown,
-  LayoutGrid,
   Maximize2,
-  Minimize2,
-  MoreHorizontal,
   Square,
-  RotateCw
 } from 'lucide-react';
 import type { VisualNode } from '../types/board';
 
@@ -70,9 +64,6 @@ const COLOR_PRESETS = [
   { bg: '#ffffff', border: '#e5e7eb', name: 'White' },
   { bg: '#1f2937', border: '#374151', name: 'Dark', text: '#ffffff' },
 ];
-
-// Font size options
-const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48];
 
 export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
   node,
@@ -160,8 +151,6 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
 
   const hasTextContent = !['image', 'youtube', 'bucket', 'connector', 'drawing'].includes(node.type);
   const isShape = node.type === 'shape';
-  const isSticky = node.type === 'sticky';
-  const isFrame = node.type === 'frame';
 
   return (
     <motion.div

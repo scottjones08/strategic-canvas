@@ -242,8 +242,6 @@ export const generateSteppedPath = (
   
   for (let i = 1; i < points.length; i++) {
     const current = points[i];
-    const prev = points[i - 1];
-    
     // Step: horizontal first, then vertical
     path += ` H ${current.x} V ${current.y}`;
   }
@@ -286,7 +284,7 @@ export const findPathAroundObstacles = (
   start: Point,
   end: Point,
   obstacles: Obstacle[],
-  gridSize: number = 20
+  _gridSize: number = 20
 ): Point[] => {
   // Simple implementation: add intermediate waypoints to avoid obstacles
   const waypoints: Point[] = [];
@@ -457,7 +455,7 @@ export const getPathLength = (path: ConnectorPath): number => {
  */
 export const autoArrangeWaypoints = (
   path: ConnectorPath,
-  obstacles: Obstacle[] = []
+  _obstacles: Obstacle[] = []
 ): ConnectorPath => {
   // For now, just ensure start and end are edge points
   // More sophisticated routing can be added later

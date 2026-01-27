@@ -9,19 +9,12 @@
  * - Mobile-responsive touch interactions
  */
 
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Users, Share2, MoreHorizontal, Maximize2 } from 'lucide-react';
+import React, { useState, useCallback, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Share2 } from 'lucide-react';
 import type { Board, VisualNode } from '../types/board';
-import type { ConnectorPath, Waypoint } from '../lib/connector-engine';
 import { EnterpriseCanvas, EnterpriseCanvasRef } from './EnterpriseCanvas';
 import { EnterpriseToolbar, ToolType, ShapeType } from './EnterpriseToolbar';
-import { createConnectorPath, nodeToConnectorPath } from '../lib/connector-engine';
-
-// Extended node with connector path
-interface ExtendedVisualNode extends VisualNode {
-  connectorPath?: ConnectorPath;
-}
 
 interface EnterpriseMeetingViewProps {
   board: Board;
@@ -41,7 +34,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   onUpdateBoard,
   onBack,
   userName,
-  userColor,
+  userColor: _userColor,
   participantCount = 1,
   onOpenShare
 }) => {
@@ -53,7 +46,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [gridEnabled, setGridEnabled] = useState(true);
   const [gridSnap, setGridSnap] = useState(false);
-  const [showMinimap, setShowMinimap] = useState(true);
+  const [_showMinimap, _setShowMinimap] = useState(true);
   const [facilitatorMode, setFacilitatorMode] = useState(false);
   
   // Tool options
@@ -474,7 +467,7 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
   isSelected,
   onSelect,
   onUpdate,
-  onDelete
+  onDelete: _onDelete
 }) => {
   const handleDragEnd = (_: any, info: any) => {
     onUpdate({

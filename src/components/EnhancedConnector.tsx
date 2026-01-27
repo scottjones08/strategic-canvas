@@ -11,16 +11,14 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Plus, Minus, Move, GitBranch } from 'lucide-react';
-import type { Waypoint, ConnectorPath, Point } from '../lib/connector-engine';
+import { Trash2, Plus, Minus, GitBranch } from 'lucide-react';
+import type { Waypoint, ConnectorPath } from '../lib/connector-engine';
 import {
   generatePath,
   addWaypoint,
   removeWaypoint,
   updateWaypoint,
   getPointOnPath,
-  distance,
-  getNearestEdgePoint
 } from '../lib/connector-engine';
 
 interface EnhancedConnectorProps {
@@ -36,15 +34,12 @@ interface EnhancedConnectorProps {
   readOnly?: boolean;
 }
 
-// Generate unique ID
-const generateId = () => `wp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
 export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
   id,
   path,
   isSelected,
-  fromNode,
-  toNode,
+  fromNode: _fromNode,
+  toNode: _toNode,
   zoom,
   onUpdate,
   onDelete,
