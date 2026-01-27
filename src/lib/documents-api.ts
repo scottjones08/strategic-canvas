@@ -889,6 +889,9 @@ export const documentShareLinksApi = {
 // FILE UPLOAD HELPER
 // ============================================
 
+// Storage bucket name - ensure this matches your Supabase bucket name exactly
+const STORAGE_BUCKET = 'documents';
+
 export async function uploadDocumentFile(
   file: File,
   organizationId?: string,
@@ -917,69 +920,87 @@ export async function uploadDocumentFile(
     ? `${organizationId}/${fileName}`
     : `public/${fileName}`;
 
+  console.log(`[Documents] Uploading file to bucket "${STORAGE_BUCKET}", path: ${filePath}`);
+
   // Use direct fetch to avoid Supabase JS client hanging issues
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
-      const response = await fetch(
-        `${supabaseUrl}/storage/v1/object/documents/${filePath}`,
-        {
-          method: 'POST',
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': file.type,
-            'x-upsert': attempt > 1 ? 'true' : 'false',
-          },
-          body: file,
-          signal: controller.signal,
-        }
-      );
+      const uploadUrl = `${supabaseUrl}/storage/v1/object/${STORAGE_BUCKET}/${filePath}`;
+      console.log(`[Documents] Upload URL: ${uploadUrl}`);
+
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': file.type,
+          'x-upsert': attempt > 1 ? 'true' : 'false',
+        },
+        body: file,
+        signal: controller.signal,
+      });
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error(`[Documents] Upload error (attempt ${attempt}):`, response.status, errorText);
 
         // Check for storage bucket not found
-        if (errorText.includes('Bucket not found') || errorText.includes('bucket')) {
-          console.error('Storage bucket "documents" not found. Please create it in Supabase Dashboard > Storage.');
+        if (errorText.includes('Bucket not found') || errorText.includes('bucket') || response.status === 400) {
+          console.error(`[Documents] ❌ Storage bucket "${STORAGE_BUCKET}" not found!`);
+          console.error('[Documents] To fix this:');
+          console.error('  1. Go to Supabase Dashboard > Storage');
+          console.error(`  2. Create a new bucket named "${STORAGE_BUCKET}"`);
+          console.error('  3. Set the bucket to "Public" for file access');
+          console.error('  4. Enable RLS policies if needed');
+          alert(`Storage bucket "${STORAGE_BUCKET}" not found in Supabase. Please create it in Supabase Dashboard > Storage.`);
           return null;
         }
 
         // Check for AbortError - retry
         if (errorText.includes('abort') || errorText.includes('AbortError')) {
           if (attempt < maxRetries) {
-            console.log(`Upload attempt ${attempt} aborted, retrying in ${attempt * 1000}ms...`);
+            console.log(`[Documents] Upload attempt ${attempt} aborted, retrying in ${attempt * 1000}ms...`);
             await new Promise(r => setTimeout(r, attempt * 1000));
             continue;
           }
         }
 
-        console.error('Error uploading file:', response.status, errorText);
+        // Check for policy/permission errors
+        if (response.status === 403 || errorText.includes('policy')) {
+          console.error('[Documents] ❌ Permission denied - check RLS policies');
+          console.error('[Documents] Make sure your bucket has appropriate policies for uploads');
+          alert('Permission denied uploading file. Check Supabase storage bucket policies.');
+          return null;
+        }
+
         return null;
       }
 
       // Construct public URL directly
-      const publicUrl = `${supabaseUrl}/storage/v1/object/public/documents/${filePath}`;
+      const publicUrl = `${supabaseUrl}/storage/v1/object/public/${STORAGE_BUCKET}/${filePath}`;
+      console.log(`[Documents] ✅ Upload successful! Public URL: ${publicUrl}`);
 
       return {
         url: publicUrl,
         path: filePath,
       };
     } catch (e: any) {
+      console.error(`[Documents] Upload exception (attempt ${attempt}):`, e);
+      
       // Handle AbortError with retry
       if (e?.name === 'AbortError' || e?.message?.includes('abort') || e?.message?.includes('AbortError')) {
         if (attempt < maxRetries) {
-          console.log(`Upload attempt ${attempt} failed with AbortError, retrying...`);
+          console.log(`[Documents] Upload attempt ${attempt} failed with AbortError, retrying...`);
           await new Promise(r => setTimeout(r, attempt * 1000));
           continue;
         }
-        console.error('Upload failed after retries - request keeps aborting. Check network/Supabase connection.');
+        console.error('[Documents] Upload failed after retries - request keeps aborting. Check network/Supabase connection.');
       }
-      console.error('Error uploading file:', e);
       return null;
     }
   }
