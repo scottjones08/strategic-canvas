@@ -2,6 +2,38 @@
 -- Extends strategic-canvas with document management and e-signature capabilities
 
 -- ============================================================================
+-- PREREQUISITE TABLES (if not exists)
+-- ============================================================================
+
+-- Organizations table (clients/companies)
+CREATE TABLE IF NOT EXISTS organizations (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE,
+  logo_url TEXT,
+  website TEXT,
+  industry TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Clients table (contacts within organizations)
+CREATE TABLE IF NOT EXISTS clients (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  title TEXT,
+  avatar_url TEXT,
+  color TEXT DEFAULT '#6366f1',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_clients_organization ON clients(organization_id);
+
+-- ============================================================================
 -- ENUMS
 -- ============================================================================
 
