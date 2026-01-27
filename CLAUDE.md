@@ -177,6 +177,10 @@ Appears when a single node is selected. Features:
 | 2026-01-27 | Connection points on shapes | EnterpriseMeetingView.tsx |
 | 2026-01-27 | Fixed shapes picker z-index - now visible above toolbar | EnterpriseToolbar.tsx |
 | 2026-01-27 | Fixed connector arrows positioning - recalculates when nodes move | EnterpriseCanvas.tsx |
+| 2026-01-27 | Fixed connector start/end waypoints - always recalculates from node positions | connector-engine.ts |
+| 2026-01-27 | Fixed toolbar dropdowns - use fixed positioning to avoid overflow clipping | EnterpriseToolbar.tsx |
+| 2026-01-27 | Fixed sticky button - adds sticky immediately on click | EnterpriseToolbar.tsx |
+| 2026-01-27 | Fixed property panel scrollbars - hidden with scrollbar-hide | FloatingPropertyPanel.tsx |
 
 ---
 
