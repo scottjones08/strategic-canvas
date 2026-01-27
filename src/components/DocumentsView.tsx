@@ -1,6 +1,7 @@
 // DocumentsView.tsx - Client Documents List and Management
 // Displays documents grouped by client with upload, sharing, and editing capabilities
 // Now supports PDF and Microsoft Office documents (Word, Excel, PowerPoint)
+// Features: Folder support, document preview, admin/client-based visibility
 
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,6 +24,10 @@ import {
   FileUp,
   Table,
   Presentation,
+  FolderPlus,
+  // Folder,  // Reserved for folder view
+  // X,       // Reserved for folder delete
+  // Check,   // Reserved for folder rename
 } from 'lucide-react';
 import type { PDFAnnotation, PDFComment } from '../lib/pdf-utils';
 import {
@@ -33,8 +38,20 @@ import {
   // OFFICE_TYPE_LABELS,
 } from '../lib/office-utils';
 import UploadProgressModal, { UploadResult } from './UploadProgressModal';
+import DocumentPreviewModal from './DocumentPreviewModal';
 
 // Document interface
+// Folder interface for document organization
+export interface DocumentFolder {
+  id: string;
+  name: string;
+  clientId?: string;
+  parentId?: string; // For nested folders
+  color?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface ClientDocument {
   id: string;
   name: string;
@@ -48,6 +65,7 @@ export interface ClientDocument {
   officeType?: OfficeDocumentType; // Office document type if applicable
   clientId?: string;
   organizationId?: string;
+  folderId?: string; // Folder this document belongs to
   thumbnailUrl?: string;
   annotations: PDFAnnotation[];
   comments: PDFComment[];
@@ -74,16 +92,24 @@ interface Client {
 interface DocumentsViewProps {
   documents: ClientDocument[];
   clients: Client[];
-  onUpload: (files: FileList, clientId?: string) => Promise<void>;
-  onUploadWithProgress?: (results: UploadResult[], clientId?: string) => Promise<void>;
+  folders?: DocumentFolder[];
+  onUpload: (files: FileList, clientId?: string, folderId?: string) => Promise<void>;
+  onUploadWithProgress?: (results: UploadResult[], clientId?: string, folderId?: string) => Promise<void>;
   onDelete: (documentId: string) => void;
   onRename: (documentId: string, newName: string) => void;
   onOpen: (document: ClientDocument) => void;
   onShare: (document: ClientDocument) => void;
   onDownload: (document: ClientDocument) => void;
+  onCreateFolder?: (name: string, clientId?: string, parentId?: string) => void;
+  onDeleteFolder?: (folderId: string) => void;
+  onRenameFolder?: (folderId: string, newName: string) => void;
+  onMoveDocument?: (documentId: string, folderId: string | null) => void;
   selectedClientId?: string;
   organizationId?: string;
   isLoading?: boolean;
+  // User context for permissions
+  currentUserClientId?: string; // The client this user belongs to
+  isAdmin?: boolean; // Whether user is admin (can see all clients)
 }
 
 // Helper functions
@@ -583,6 +609,7 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
 export const DocumentsView: React.FC<DocumentsViewProps> = ({
   documents,
   clients,
+  folders: _folders = [],
   onUpload,
   onUploadWithProgress,
   onDelete,
@@ -590,28 +617,64 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
   onOpen,
   onShare,
   onDownload,
+  onCreateFolder,
+  onDeleteFolder: _onDeleteFolder,
+  onRenameFolder: _onRenameFolder,
+  onMoveDocument: _onMoveDocument,
   selectedClientId,
   organizationId,
   isLoading = false,
+  currentUserClientId,
+  isAdmin = false,
 }) => {
+  // Reserved for future folder functionality
+  void _folders;
+  void _onDeleteFolder;
+  void _onRenameFolder;
+  void _onMoveDocument;
+
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set(['ungrouped', ...clients.map(c => c.id)]));
+  const [_expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  void _expandedFolders; // Reserved for folder expansion
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Preview modal state
+  const [previewDocument, setPreviewDocument] = useState<ClientDocument | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  
+  // Folder creation state
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
 
-  // Filter and sort documents
+  // Determine which client to use for document assignment
+  const effectiveClientId = selectedClientId || currentUserClientId;
+
+  // Filter and sort documents based on user permissions
   const filteredDocuments = useMemo(() => {
     let filtered = documents.filter(doc => doc.status === 'active');
 
-    // Filter by client if selected
-    if (selectedClientId) {
+    // Apply client-based visibility
+    if (!isAdmin && currentUserClientId) {
+      // Non-admin users only see their client's documents
+      filtered = filtered.filter(doc => doc.clientId === currentUserClientId);
+    } else if (selectedClientId) {
+      // Admin with a selected client filter
       filtered = filtered.filter(doc => doc.clientId === selectedClientId);
+    }
+    // If isAdmin and no selectedClientId, show all documents
+
+    // Filter by current folder
+    if (currentFolderId) {
+      filtered = filtered.filter(doc => doc.folderId === currentFolderId);
     }
 
     // Filter by search
@@ -703,12 +766,46 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
     }
   }, [onUpload, onUploadWithProgress, selectedClientId]);
 
-  // Handle upload complete from modal
+  // Handle upload complete from modal - assign to effective client and current folder
   const handleUploadComplete = useCallback(async (results: UploadResult[]) => {
     if (onUploadWithProgress) {
-      await onUploadWithProgress(results, selectedClientId);
+      await onUploadWithProgress(results, effectiveClientId, currentFolderId || undefined);
     }
-  }, [onUploadWithProgress, selectedClientId]);
+  }, [onUploadWithProgress, effectiveClientId, currentFolderId]);
+
+  // Handle document preview
+  const handlePreviewDocument = useCallback((doc: ClientDocument) => {
+    setPreviewDocument(doc);
+    setShowPreview(true);
+  }, []);
+
+  // Handle folder creation
+  const handleCreateFolder = useCallback(() => {
+    if (!newFolderName.trim() || !onCreateFolder) return;
+    onCreateFolder(newFolderName.trim(), effectiveClientId, currentFolderId || undefined);
+    setNewFolderName('');
+    setShowNewFolderInput(false);
+  }, [newFolderName, onCreateFolder, effectiveClientId, currentFolderId]);
+
+  // Toggle folder expansion (reserved for folder tree view)
+  const _toggleFolder = useCallback((folderId: string) => {
+    setExpandedFolders(prev => {
+      const next = new Set(prev);
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+      return next;
+    });
+  }, []);
+  void _toggleFolder;
+
+  // Navigate into a folder (reserved for folder navigation)
+  const _navigateToFolder = useCallback((folderId: string | null) => {
+    setCurrentFolderId(folderId);
+  }, []);
+  void _navigateToFolder;
 
   // Handle file input change - routes through modal for consistent UX
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -826,10 +923,23 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
             </button>
           </div>
 
+          {/* Create Folder button */}
+          {onCreateFolder && (
+            <button
+              onClick={() => setShowNewFolderInput(true)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg 
+                hover:bg-gray-50 transition-colors"
+            >
+              <FolderPlus size={18} />
+              New Folder
+            </button>
+          )}
+
           {/* Upload button */}
           <button
             onClick={() => {
               if (onUploadWithProgress) {
+                setPendingFiles([]);
                 setShowUploadModal(true);
               } else {
                 fileInputRef.current?.click();
@@ -890,7 +1000,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
                 key={doc.id}
                 document={doc}
                 client={clients.find(c => c.id === doc.clientId)}
-                onOpen={() => onOpen(doc)}
+                onOpen={() => handlePreviewDocument(doc)}
                 onEdit={() => onOpen(doc)}
                 onShare={() => onShare(doc)}
                 onDownload={() => onDownload(doc)}
@@ -956,7 +1066,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
                               key={doc.id}
                               document={doc}
                               client={client}
-                              onOpen={() => onOpen(doc)}
+                              onOpen={() => handlePreviewDocument(doc)}
                               onEdit={() => onOpen(doc)}
                               onShare={() => onShare(doc)}
                               onDownload={() => onDownload(doc)}
@@ -1014,10 +1124,79 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
               setPendingFiles([]);
             }}
             onUploadComplete={handleUploadComplete}
-            clientId={selectedClientId}
+            clientId={effectiveClientId}
             organizationId={organizationId}
             initialFiles={pendingFiles}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Document Preview Modal */}
+      <DocumentPreviewModal
+        isOpen={showPreview}
+        onClose={() => {
+          setShowPreview(false);
+          setPreviewDocument(null);
+        }}
+        document={previewDocument}
+        onDownload={previewDocument ? () => onDownload(previewDocument) : undefined}
+        onShare={previewDocument ? () => onShare(previewDocument) : undefined}
+      />
+
+      {/* New Folder Modal */}
+      <AnimatePresence>
+        {showNewFolderInput && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center"
+            onClick={() => setShowNewFolderInput(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <FolderPlus className="w-5 h-5 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Create New Folder</h3>
+              </div>
+              
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={e => setNewFolderName(e.target.value)}
+                placeholder="Folder name..."
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleCreateFolder();
+                  if (e.key === 'Escape') setShowNewFolderInput(false);
+                }}
+              />
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowNewFolderInput(false)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateFolder}
+                  disabled={!newFolderName.trim()}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                >
+                  Create Folder
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
