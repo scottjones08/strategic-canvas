@@ -346,7 +346,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   }, [selectedNodeIds, nodes, onUpdateBoard, pushHistory]);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-full flex-1 bg-gray-50">
       {/* Main Content - Full screen canvas */}
       <div className="flex-1 relative overflow-hidden">
         {/* Back button - positioned in top left */}
