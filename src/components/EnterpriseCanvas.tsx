@@ -462,17 +462,24 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
         panY: viewport.panY
       });
     } else if (isCanvasClick) {
-      // Start lasso selection
-      e.preventDefault();
-      setIsLassoing(true);
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (rect) {
-        setLassoStart({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-        setLassoEnd({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      // Call onCanvasClick for tool-based element creation
+      if (onCanvasClick) {
+        const worldCoords = getWorldCoordinates(e.clientX, e.clientY);
+        onCanvasClick(worldCoords.x, worldCoords.y, e);
       }
-      onSelectNodes([]);
+      // Start lasso selection only if select tool is active
+      if (activeTool === 'select') {
+        e.preventDefault();
+        setIsLassoing(true);
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (rect) {
+          setLassoStart({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+          setLassoEnd({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        }
+        onSelectNodes([]);
+      }
     }
-  }, [activeTool, spacePressed, viewport.panX, viewport.panY, onSelectNodes]);
+  }, [activeTool, spacePressed, viewport.panX, viewport.panY, onSelectNodes, onCanvasClick, getWorldCoordinates]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (viewport.isPanning && panStart) {

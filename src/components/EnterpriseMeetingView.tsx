@@ -16,6 +16,7 @@ import type { Board, VisualNode } from '../types/board';
 import type { ConnectorPath, Waypoint } from '../lib/connector-engine';
 import { EnterpriseCanvas, EnterpriseCanvasRef } from './EnterpriseCanvas';
 import { EnterpriseToolbar, ToolType, ShapeType } from './EnterpriseToolbar';
+import { FloatingPropertyPanel } from './FloatingPropertyPanel';
 import { createConnectorPath, nodeToConnectorPath } from '../lib/connector-engine';
 
 // Extended node with connector path
@@ -55,6 +56,10 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   const [gridSnap, setGridSnap] = useState(false);
   const [showMinimap, setShowMinimap] = useState(true);
   const [facilitatorMode, setFacilitatorMode] = useState(false);
+  const [showPropertyPanel, setShowPropertyPanel] = useState(false);
+  
+  // Connector tool state
+  const [connectorStart, setConnectorStart] = useState<string | null>(null);
   
   // Tool options
   const [toolOptions, setToolOptions] = useState<{
@@ -131,9 +136,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   
   // Canvas click handler for adding nodes
   const handleCanvasClick = useCallback((worldX: number, worldY: number, e: React.MouseEvent) => {
-    // Only add on direct canvas clicks (not on existing nodes)
-    if (e.target !== e.currentTarget) return;
-    
+    // worldX and worldY are already in world coordinates from EnterpriseCanvas
     switch (activeTool) {
       case 'sticky':
         handleAddNode('sticky', worldX - 100, worldY - 75, { 
@@ -180,7 +183,52 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     if (options) {
       setToolOptions(prev => ({ ...prev, ...options }));
     }
+    // Reset connector start when switching tools
+    if (tool !== 'connector') {
+      setConnectorStart(null);
+    }
   }, []);
+  
+  // Create connector between two nodes
+  const createConnector = useCallback((fromId: string, toId: string) => {
+    const connectorNode: VisualNode = {
+      id: generateId(),
+      type: 'connector',
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+      content: '',
+      color: '#6366f1',
+      rotation: 0,
+      locked: false,
+      votes: 0,
+      votedBy: [],
+      createdBy: userName,
+      comments: [],
+      connectorFrom: fromId,
+      connectorTo: toId,
+      connectorWaypoints: []
+    };
+    const newNodes = [...nodes, connectorNode];
+    onUpdateBoard({ visualNodes: newNodes });
+    pushHistory(newNodes);
+  }, [nodes, userName, onUpdateBoard, pushHistory]);
+  
+  // Handle node click for connector tool
+  const handleNodeClickForConnector = useCallback((nodeId: string) => {
+    if (activeTool !== 'connector') return;
+    
+    if (!connectorStart) {
+      // First click - set start node
+      setConnectorStart(nodeId);
+    } else if (connectorStart !== nodeId) {
+      // Second click - create connector
+      createConnector(connectorStart, nodeId);
+      setConnectorStart(null);
+      setActiveTool('select');
+    }
+  }, [activeTool, connectorStart, createConnector]);
   
   // Node updates
   const handleUpdateNodes = useCallback((updatedNodes: VisualNode[]) => {
@@ -378,8 +426,16 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
                 key={node.id}
                 node={node}
                 isSelected={selectedNodeIds.includes(node.id)}
+                isConnectorStart={connectorStart === node.id}
+                isConnectorMode={activeTool === 'connector'}
                 zoom={1}
-                onSelect={() => handleSelectNodes([node.id])}
+                onSelect={() => {
+                  if (activeTool === 'connector') {
+                    handleNodeClickForConnector(node.id);
+                  } else {
+                    handleSelectNodes([node.id]);
+                  }
+                }}
                 onUpdate={(updates) => {
                   const newNodes = nodes.map(n => 
                     n.id === node.id ? { ...n, ...updates } : n
@@ -390,6 +446,48 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
               />
             ))}
         </EnterpriseCanvas>
+        
+        {/* Floating Property Panel for selected nodes */}
+        {selectedNodeIds.length === 1 && nodes.find(n => n.id === selectedNodeIds[0]) && (
+          <FloatingPropertyPanel
+            node={nodes.find(n => n.id === selectedNodeIds[0])!}
+            isOpen={true}
+            onUpdate={(updates) => {
+              const newNodes = nodes.map(n => 
+                n.id === selectedNodeIds[0] ? { ...n, ...updates } : n
+              );
+              handleUpdateNodes(newNodes);
+            }}
+            onClose={() => setSelectedNodeIds([])}
+            onDelete={() => handleDeleteNodes(selectedNodeIds)}
+            onDuplicate={() => handleDuplicateSelected()}
+            onBringToFront={() => {
+              const node = nodes.find(n => n.id === selectedNodeIds[0]);
+              if (node) {
+                const newNodes = nodes.filter(n => n.id !== node.id);
+                newNodes.push(node);
+                handleUpdateNodes(newNodes);
+              }
+            }}
+            onSendToBack={() => {
+              const node = nodes.find(n => n.id === selectedNodeIds[0]);
+              if (node) {
+                const newNodes = nodes.filter(n => n.id !== node.id);
+                newNodes.unshift(node);
+                handleUpdateNodes(newNodes);
+              }
+            }}
+            onLockToggle={() => {
+              const node = nodes.find(n => n.id === selectedNodeIds[0]);
+              if (node) {
+                const newNodes = nodes.map(n => 
+                  n.id === node.id ? { ...n, locked: !n.locked } : n
+                );
+                handleUpdateNodes(newNodes);
+              }
+            }}
+          />
+        )}
         
         {/* Enterprise Toolbar */}
         <EnterpriseToolbar
@@ -439,6 +537,8 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
 interface NodeComponentProps {
   node: VisualNode;
   isSelected: boolean;
+  isConnectorStart?: boolean;
+  isConnectorMode?: boolean;
   zoom: number;
   onSelect: () => void;
   onUpdate: (updates: Partial<VisualNode>) => void;
@@ -448,15 +548,88 @@ interface NodeComponentProps {
 const NodeComponent: React.FC<NodeComponentProps> = ({
   node,
   isSelected,
+  isConnectorStart = false,
+  isConnectorMode = false,
+  zoom,
   onSelect,
   onUpdate,
   onDelete
 }) => {
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+  const [startPos, setStartPos] = useState({ x: 0, y: 0, width: 0, height: 0, nodeX: 0, nodeY: 0 });
+  
   const handleDragEnd = (_: any, info: any) => {
-    onUpdate({
-      x: node.x + info.offset.x,
-      y: node.y + info.offset.y
+    if (!isResizing) {
+      onUpdate({
+        x: node.x + info.offset.x,
+        y: node.y + info.offset.y
+      });
+    }
+  };
+
+  // Resize handlers
+  const handleResizeStart = (e: React.MouseEvent, handle: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsResizing(true);
+    setResizeHandle(handle);
+    setStartPos({
+      x: e.clientX,
+      y: e.clientY,
+      width: node.width,
+      height: node.height,
+      nodeX: node.x,
+      nodeY: node.y
     });
+    
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const dx = moveEvent.clientX - e.clientX;
+      const dy = moveEvent.clientY - e.clientY;
+      
+      let newWidth = node.width;
+      let newHeight = node.height;
+      let newX = node.x;
+      let newY = node.y;
+      
+      // Min size
+      const minSize = 50;
+      
+      switch (handle) {
+        case 'se':
+          newWidth = Math.max(minSize, startPos.width + dx);
+          newHeight = Math.max(minSize, startPos.height + dy);
+          break;
+        case 'sw':
+          newWidth = Math.max(minSize, startPos.width - dx);
+          newHeight = Math.max(minSize, startPos.height + dy);
+          newX = startPos.nodeX + (startPos.width - newWidth);
+          break;
+        case 'ne':
+          newWidth = Math.max(minSize, startPos.width + dx);
+          newHeight = Math.max(minSize, startPos.height - dy);
+          newY = startPos.nodeY + (startPos.height - newHeight);
+          break;
+        case 'nw':
+          newWidth = Math.max(minSize, startPos.width - dx);
+          newHeight = Math.max(minSize, startPos.height - dy);
+          newX = startPos.nodeX + (startPos.width - newWidth);
+          newY = startPos.nodeY + (startPos.height - newHeight);
+          break;
+      }
+      
+      onUpdate({ width: newWidth, height: newHeight, x: newX, y: newY });
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      setResizeHandle(null);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   };
 
   const renderContent = () => {
@@ -547,9 +720,17 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
     }
   };
 
+  // Determine border style for connector mode
+  const getBorderClass = () => {
+    if (isConnectorStart) return 'ring-2 ring-green-500 ring-offset-2';
+    if (isConnectorMode) return 'ring-2 ring-dashed ring-indigo-300 ring-offset-1 hover:ring-indigo-500';
+    if (isSelected) return 'ring-2 ring-indigo-500 ring-offset-2';
+    return '';
+  };
+
   return (
     <motion.div
-      drag
+      drag={!isResizing && !isConnectorMode}
       dragMomentum={false}
       onDragEnd={handleDragEnd}
       onClick={(e) => {
@@ -565,22 +746,34 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
         width: node.width,
         height: node.height
       }}
-      whileHover={{ scale: 1.02 }}
-      className={`absolute ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}
+      whileHover={!isResizing ? { scale: isConnectorMode ? 1.05 : 1.02 } : undefined}
+      className={`absolute ${getBorderClass()}`}
       style={{
-        cursor: 'grab',
+        cursor: isConnectorMode ? 'crosshair' : (isResizing ? 'default' : 'grab'),
         zIndex: isSelected ? 100 : 10
       }}
     >
       {renderContent()}
       
-      {/* Selection handles */}
+      {/* Selection handles with resize functionality */}
       {isSelected && (
         <>
-          <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm cursor-nw-resize" />
-          <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm cursor-ne-resize" />
-          <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm cursor-sw-resize" />
-          <div className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm cursor-se-resize" />
+          <div 
+            className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm cursor-nw-resize hover:bg-indigo-100"
+            onMouseDown={(e) => handleResizeStart(e, 'nw')}
+          />
+          <div 
+            className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm cursor-ne-resize hover:bg-indigo-100"
+            onMouseDown={(e) => handleResizeStart(e, 'ne')}
+          />
+          <div 
+            className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm cursor-sw-resize hover:bg-indigo-100"
+            onMouseDown={(e) => handleResizeStart(e, 'sw')}
+          />
+          <div 
+            className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm cursor-se-resize hover:bg-indigo-100"
+            onMouseDown={(e) => handleResizeStart(e, 'se')}
+          />
         </>
       )}
     </motion.div>
