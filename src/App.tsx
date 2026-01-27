@@ -8538,7 +8538,7 @@ ${transcriptContent}`;
     loadDocuments();
   }, []);
 
-  // Handle document upload
+  // Handle document upload (legacy - no progress)
   const handleDocumentUpload = useCallback(async (files: FileList, clientId?: string) => {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -8564,6 +8564,41 @@ ${transcriptContent}`;
         }
       } catch (error) {
         console.error('Error uploading document:', error);
+      }
+    }
+  }, []);
+
+  // Handle document upload with progress (from UploadProgressModal)
+  const handleDocumentUploadWithProgress = useCallback(async (
+    results: Array<{
+      name: string;
+      fileUrl: string;
+      filePath: string;
+      fileSize: number;
+      fileType: string;
+      pageCount: number;
+      thumbnailUrl?: string;
+    }>,
+    clientId?: string
+  ) => {
+    for (const result of results) {
+      try {
+        // Create document record with all the data from upload
+        const newDoc = await documentsApi.create({
+          name: result.name,
+          fileUrl: result.fileUrl,
+          fileSize: result.fileSize,
+          fileType: result.fileType,
+          pageCount: result.pageCount,
+          thumbnailUrl: result.thumbnailUrl,
+          clientId,
+        });
+
+        if (newDoc) {
+          setDocuments(prev => [newDoc, ...prev]);
+        }
+      } catch (error) {
+        console.error('Error creating document record:', error);
       }
     }
   }, []);
@@ -8694,6 +8729,7 @@ ${transcriptContent}`;
           documents={documents}
           clients={clients}
           onUpload={handleDocumentUpload}
+          onUploadWithProgress={handleDocumentUploadWithProgress}
           onDelete={handleDocumentDelete}
           onRename={handleDocumentRename}
           onOpen={handleDocumentOpen}

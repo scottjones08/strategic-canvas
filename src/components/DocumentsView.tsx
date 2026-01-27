@@ -1,5 +1,6 @@
 // DocumentsView.tsx - Client Documents List and Management
 // Displays documents grouped by client with upload, sharing, and editing capabilities
+// Now supports PDF and Microsoft Office documents (Word, Excel, PowerPoint)
 
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,8 +21,18 @@ import {
   ChevronDown,
   Loader2,
   FileUp,
+  Table,
+  Presentation,
 } from 'lucide-react';
 import type { PDFAnnotation, PDFComment } from '../lib/pdf-utils';
+import {
+  isOfficeDocument,
+  detectOfficeType,
+  OfficeDocumentType,
+  OFFICE_TYPE_COLORS,
+  // OFFICE_TYPE_LABELS,
+} from '../lib/office-utils';
+import UploadProgressModal, { UploadResult } from './UploadProgressModal';
 
 // Document interface
 export interface ClientDocument {
@@ -32,6 +43,9 @@ export interface ClientDocument {
   fileSize: number;
   fileType: string;
   pageCount: number;
+  sheetCount?: number; // For Excel documents
+  slideCount?: number; // For PowerPoint documents
+  officeType?: OfficeDocumentType; // Office document type if applicable
   clientId?: string;
   organizationId?: string;
   thumbnailUrl?: string;
@@ -61,12 +75,14 @@ interface DocumentsViewProps {
   documents: ClientDocument[];
   clients: Client[];
   onUpload: (files: FileList, clientId?: string) => Promise<void>;
+  onUploadWithProgress?: (results: UploadResult[], clientId?: string) => Promise<void>;
   onDelete: (documentId: string) => void;
   onRename: (documentId: string, newName: string) => void;
   onOpen: (document: ClientDocument) => void;
   onShare: (document: ClientDocument) => void;
   onDownload: (document: ClientDocument) => void;
   selectedClientId?: string;
+  organizationId?: string;
   isLoading?: boolean;
 }
 
@@ -89,6 +105,57 @@ const formatDate = (date: Date): string => {
   if (days < 7) return `${days} days ago`;
   return date.toLocaleDateString();
 };
+
+// Get document icon based on file type
+const getDocumentIcon = (document: ClientDocument) => {
+  const officeType = document.officeType || detectOfficeType(document.name, document.fileType);
+  
+  switch (officeType) {
+    case 'word':
+      return { Icon: FileText, color: OFFICE_TYPE_COLORS.word };
+    case 'excel':
+      return { Icon: Table, color: OFFICE_TYPE_COLORS.excel };
+    case 'powerpoint':
+      return { Icon: Presentation, color: OFFICE_TYPE_COLORS.powerpoint };
+    default:
+      // Check if it's a PDF
+      if (document.fileType === 'application/pdf' || document.name.endsWith('.pdf')) {
+        return { Icon: FileText, color: '#DC2626' }; // Red for PDF
+      }
+      return { Icon: FileText, color: '#6B7280' }; // Gray for unknown
+  }
+};
+
+// Get document info text
+const getDocumentInfo = (document: ClientDocument): string => {
+  const officeType = document.officeType || detectOfficeType(document.name, document.fileType);
+  
+  switch (officeType) {
+    case 'excel':
+      return document.sheetCount 
+        ? `${document.sheetCount} sheet${document.sheetCount !== 1 ? 's' : ''}`
+        : '1 sheet';
+    case 'powerpoint':
+      return document.slideCount
+        ? `${document.slideCount} slide${document.slideCount !== 1 ? 's' : ''}`
+        : '1 slide';
+    default:
+      return `${document.pageCount} page${document.pageCount !== 1 ? 's' : ''}`;
+  }
+};
+
+// Accepted file types for upload
+const ACCEPTED_FILE_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-powerpoint',
+];
+
+const ACCEPTED_FILE_EXTENSIONS = '.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt';
 
 // Document Card Component
 interface DocumentCardProps {
@@ -148,7 +215,10 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <FileText size={24} className="text-red-400" />
+              {(() => {
+                const { Icon, color } = getDocumentIcon(document);
+                return <Icon size={24} style={{ color }} />;
+              })()}
             </div>
           )}
         </div>
@@ -176,7 +246,7 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
             <h4 className="font-medium text-gray-800 truncate">{document.name}</h4>
           )}
           <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-            <span>{document.pageCount} pages</span>
+            <span>{getDocumentInfo(document)}</span>
             <span>{formatFileSize(document.fileSize)}</span>
             {client && (
               <span className="flex items-center gap-1">
@@ -339,7 +409,10 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <FileText size={48} className="text-red-300" />
+            {(() => {
+              const { Icon, color } = getDocumentIcon(document);
+              return <Icon size={48} style={{ color, opacity: 0.6 }} />;
+            })()}
           </div>
         )}
 
@@ -429,7 +502,7 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
           <h4 className="font-medium text-gray-800 truncate text-sm">{document.name}</h4>
         )}
         <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
-          <span>{document.pageCount} pages • {formatFileSize(document.fileSize)}</span>
+          <span>{getDocumentInfo(document)} • {formatFileSize(document.fileSize)}</span>
           <span>{formatDate(new Date(document.updatedAt))}</span>
         </div>
       </div>
@@ -511,12 +584,14 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
   documents,
   clients,
   onUpload,
+  onUploadWithProgress,
   onDelete,
   onRename,
   onOpen,
   onShare,
   onDownload,
   selectedClientId,
+  organizationId,
   isLoading = false,
 }) => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -526,6 +601,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set(['ungrouped', ...clients.map(c => c.id)]));
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filter and sort documents
@@ -589,7 +665,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
     return groups;
   }, [filteredDocuments, clients, selectedClientId]);
 
-  // Handle file drop
+  // Handle file drop - show upload modal with files
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDraggingOver(false);
@@ -597,22 +673,40 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
     const files = e.dataTransfer.files;
     if (files.length === 0) return;
 
-    // Filter for PDF files
-    const pdfFiles = Array.from(files).filter(f => f.type === 'application/pdf');
-    if (pdfFiles.length === 0) {
-      alert('Please upload PDF files only');
+    // Filter for supported file types (PDF and Office documents)
+    const supportedFiles = Array.from(files).filter(f => 
+      ACCEPTED_FILE_TYPES.includes(f.type) ||
+      isOfficeDocument(f.name, f.type)
+    );
+    
+    if (supportedFiles.length === 0) {
+      alert('Please upload PDF or Office documents (.docx, .xlsx, .pptx)');
       return;
     }
 
+    // If we have the progress-enabled upload, show modal
+    if (onUploadWithProgress) {
+      setShowUploadModal(true);
+      return;
+    }
+
+    // Fallback to old behavior
     setIsUploading(true);
     try {
       const fileList = new DataTransfer();
-      pdfFiles.forEach(f => fileList.items.add(f));
+      supportedFiles.forEach(f => fileList.items.add(f));
       await onUpload(fileList.files, selectedClientId);
     } finally {
       setIsUploading(false);
     }
-  }, [onUpload, selectedClientId]);
+  }, [onUpload, onUploadWithProgress, selectedClientId]);
+
+  // Handle upload complete from modal
+  const handleUploadComplete = useCallback(async (results: UploadResult[]) => {
+    if (onUploadWithProgress) {
+      await onUploadWithProgress(results, selectedClientId);
+    }
+  }, [onUploadWithProgress, selectedClientId]);
 
   // Handle file input change
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -711,7 +805,13 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
 
           {/* Upload button */}
           <button
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              if (onUploadWithProgress) {
+                setShowUploadModal(true);
+              } else {
+                fileInputRef.current?.click();
+              }
+            }}
             disabled={isUploading}
             className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg 
               hover:bg-blue-600 transition-colors disabled:opacity-50"
@@ -721,7 +821,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
             ) : (
               <Upload size={18} />
             )}
-            Upload PDF
+            Upload Document
           </button>
         </div>
       </div>
@@ -738,7 +838,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
             <FolderOpen size={64} className="text-gray-300" />
             <h3 className="text-xl font-medium text-gray-600">No documents yet</h3>
             <p className="text-gray-500 text-center max-w-md">
-              Upload PDF documents to view, annotate, and share with your clients.
+              Upload PDF and Office documents (Word, Excel, PowerPoint) to view, annotate, and share with your clients.
             </p>
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -746,7 +846,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
                 hover:bg-blue-600 transition-colors"
             >
               <Upload size={20} />
-              Upload your first PDF
+              Upload your first document
             </button>
           </div>
         ) : selectedClientId ? (
@@ -857,22 +957,35 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
           >
             <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
               <FileUp size={64} className="mx-auto text-blue-500 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">Drop PDF files here</h3>
-              <p className="text-gray-600">Release to upload</p>
+              <h3 className="text-xl font-semibold text-gray-800 mb-2">Drop files here</h3>
+              <p className="text-gray-600">PDF, Word, Excel, or PowerPoint</p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Hidden file input */}
+      {/* Hidden file input - now accepts Office documents too */}
       <input
         ref={fileInputRef}
         type="file"
-        accept=".pdf,application/pdf"
+        accept={ACCEPTED_FILE_EXTENSIONS}
         multiple
         onChange={handleFileChange}
         className="hidden"
       />
+
+      {/* Upload Progress Modal */}
+      <AnimatePresence>
+        {showUploadModal && (
+          <UploadProgressModal
+            isOpen={showUploadModal}
+            onClose={() => setShowUploadModal(false)}
+            onUploadComplete={handleUploadComplete}
+            clientId={selectedClientId}
+            organizationId={organizationId}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

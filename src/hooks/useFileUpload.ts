@@ -1,9 +1,16 @@
 // useFileUpload.ts - File upload hook for Supabase Storage
-// Handles PDF uploads with progress tracking and thumbnail generation
+// Handles PDF and Office document uploads with progress tracking and thumbnail generation
 
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import * as pdfjsLib from 'pdfjs-dist';
+import {
+  isOfficeDocument,
+  detectOfficeType,
+  OfficeDocumentType,
+  OFFICE_TYPE_COLORS,
+  // getOfficeAcceptedTypes,
+} from '../lib/office-utils';
 
 // Guard to throw if supabase is not configured
 function getSupabase() {
@@ -31,7 +38,10 @@ export interface UploadedFile {
   size: number;
   type: string;
   pageCount?: number;
+  sheetCount?: number;
+  slideCount?: number;
   thumbnailUrl?: string;
+  officeType?: OfficeDocumentType;
 }
 
 export interface UseFileUploadOptions {
@@ -41,6 +51,7 @@ export interface UseFileUploadOptions {
   acceptedTypes?: string[];
   generateThumbnail?: boolean;
   thumbnailScale?: number;
+  allowOfficeDocuments?: boolean;
 }
 
 // ============================================
@@ -55,7 +66,21 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
     acceptedTypes = ['application/pdf'],
     generateThumbnail = true,
     thumbnailScale = 0.3,
+    allowOfficeDocuments = true,
   } = options;
+
+  // Extend accepted types to include Office documents if allowed
+  const effectiveAcceptedTypes = allowOfficeDocuments
+    ? [
+        ...acceptedTypes,
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'application/vnd.ms-powerpoint',
+      ]
+    : acceptedTypes;
 
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
@@ -64,9 +89,15 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
   // Validate file
   const validateFile = useCallback(
     (file: File): string | null => {
-      // Check file type
-      if (acceptedTypes.length > 0 && !acceptedTypes.includes(file.type)) {
-        return `Invalid file type. Accepted types: ${acceptedTypes.join(', ')}`;
+      // Check file type - also check by extension for Office documents
+      const isOffice = allowOfficeDocuments && isOfficeDocument(file.name, file.type);
+      const isAcceptedType = effectiveAcceptedTypes.length === 0 || 
+        effectiveAcceptedTypes.includes(file.type) || 
+        isOffice;
+
+      if (!isAcceptedType) {
+        const officeExts = allowOfficeDocuments ? ', .docx, .xlsx, .pptx' : '';
+        return `Invalid file type. Accepted types: PDF${officeExts}`;
       }
 
       // Check file size
@@ -77,7 +108,7 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
 
       return null;
     },
-    [acceptedTypes, maxSizeMB]
+    [effectiveAcceptedTypes, maxSizeMB, allowOfficeDocuments]
   );
 
   // Generate thumbnail from PDF
@@ -165,9 +196,12 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
         // Read file as array buffer for PDF processing
         const arrayBuffer = await file.arrayBuffer();
 
-        // Generate thumbnail if PDF
+        // Generate thumbnail based on file type
         let thumbnailUrl: string | null = null;
         let pageCount = 0;
+        let sheetCount: number | undefined;
+        let slideCount: number | undefined;
+        let officeType: OfficeDocumentType | undefined;
 
         if (file.type === 'application/pdf' && generateThumbnail) {
           const { thumbnail, pageCount: pages } = await generatePDFThumbnail(arrayBuffer);
@@ -175,6 +209,29 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
 
           if (thumbnail) {
             thumbnailUrl = await uploadThumbnail(thumbnail, file.name);
+          }
+        } else if (isOfficeDocument(file.name, file.type)) {
+          // Handle Office documents
+          officeType = detectOfficeType(file.name, file.type);
+          
+          // Generate a colored placeholder thumbnail for Office docs
+          if (generateThumbnail) {
+            const officeThumbnail = generateOfficeDocumentThumbnail(officeType, file.name);
+            if (officeThumbnail) {
+              thumbnailUrl = await uploadThumbnail(officeThumbnail, file.name);
+            }
+          }
+
+          // Try to extract metadata (sheet/slide count) from Office files
+          try {
+            const metadata = await extractOfficeMetadata(arrayBuffer, officeType);
+            if (metadata) {
+              sheetCount = metadata.sheetCount;
+              slideCount = metadata.slideCount;
+              pageCount = metadata.pageCount || 0;
+            }
+          } catch (e) {
+            console.warn('Could not extract Office metadata:', e);
           }
         }
 
@@ -206,7 +263,10 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
           size: file.size,
           type: file.type,
           pageCount,
+          sheetCount,
+          slideCount,
           thumbnailUrl: thumbnailUrl || undefined,
+          officeType,
         };
       } catch (err) {
         console.error('Error uploading file:', err);
@@ -338,6 +398,144 @@ export function useFileDrop(options: {
       onDrop: handleDrop,
     },
   };
+}
+
+// ============================================
+// Office Document Helpers
+// ============================================
+
+/**
+ * Generate a thumbnail placeholder for Office documents
+ */
+function generateOfficeDocumentThumbnail(type: OfficeDocumentType, filename: string): string {
+  const color = OFFICE_TYPE_COLORS[type];
+  const icon = type === 'word' ? 'W' : type === 'excel' ? 'X' : type === 'powerpoint' ? 'P' : '?';
+  
+  // Create a canvas to draw the thumbnail
+  const canvas = document.createElement('canvas');
+  canvas.width = 200;
+  canvas.height = 260;
+  const ctx = canvas.getContext('2d');
+  
+  if (!ctx) return '';
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Top colored bar
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, canvas.width, 60);
+
+  // Document icon/letter
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 32px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(icon, canvas.width / 2, 30);
+
+  // File icon outline
+  ctx.strokeStyle = '#e5e7eb';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(40, 80);
+  ctx.lineTo(40, 220);
+  ctx.lineTo(160, 220);
+  ctx.lineTo(160, 100);
+  ctx.lineTo(140, 80);
+  ctx.lineTo(40, 80);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Folded corner
+  ctx.beginPath();
+  ctx.moveTo(140, 80);
+  ctx.lineTo(140, 100);
+  ctx.lineTo(160, 100);
+  ctx.stroke();
+
+  // Content lines (placeholder)
+  ctx.strokeStyle = '#d1d5db';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 5; i++) {
+    const y = 120 + i * 20;
+    const width = i === 0 ? 80 : 100;
+    ctx.beginPath();
+    ctx.moveTo(55, y);
+    ctx.lineTo(55 + width, y);
+    ctx.stroke();
+  }
+
+  // File extension label
+  const ext = filename.substring(filename.lastIndexOf('.')).toUpperCase();
+  ctx.fillStyle = color;
+  ctx.font = 'bold 14px Arial';
+  ctx.textAlign = 'right';
+  ctx.fillText(ext, canvas.width - 20, canvas.height - 15);
+
+  return canvas.toDataURL('image/jpeg', 0.8);
+}
+
+/**
+ * Extract metadata from Office documents using JSZip
+ */
+async function extractOfficeMetadata(
+  arrayBuffer: ArrayBuffer,
+  type: OfficeDocumentType
+): Promise<{ pageCount?: number; sheetCount?: number; slideCount?: number } | null> {
+  try {
+    const JSZip = (await import('jszip')).default;
+    const zip = await JSZip.loadAsync(arrayBuffer);
+
+    switch (type) {
+      case 'word': {
+        // Word documents don't store page count directly in metadata
+        // We could parse document.xml for paragraph count as an estimate
+        return { pageCount: 1 };
+      }
+
+      case 'excel': {
+        // Count sheets by looking for sheet XML files
+        const sheetFiles = Object.keys(zip.files).filter(
+          name => name.startsWith('xl/worksheets/sheet') && name.endsWith('.xml')
+        );
+        return { sheetCount: sheetFiles.length };
+      }
+
+      case 'powerpoint': {
+        // Count slides by looking for slide XML files
+        const slideFiles = Object.keys(zip.files).filter(
+          name => name.startsWith('ppt/slides/slide') && name.endsWith('.xml')
+        );
+        return { slideCount: slideFiles.length };
+      }
+
+      default:
+        return null;
+    }
+  } catch (e) {
+    console.warn('Could not extract Office metadata:', e);
+    return null;
+  }
+}
+
+/**
+ * Get file accept string for Office documents
+ */
+export function getOfficeFileAccept(): string {
+  return [
+    '.pdf',
+    '.docx', '.doc',
+    '.xlsx', '.xls',
+    '.pptx', '.ppt',
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.ms-powerpoint',
+  ].join(',');
 }
 
 export default useFileUpload;

@@ -45,6 +45,7 @@ import {
   documentShareLinksApi,
   getDocumentShareUrl,
 } from '../lib/documents-api';
+import UploadProgressModal, { UploadResult } from './UploadProgressModal';
 
 // ============================================
 // TYPES
@@ -93,6 +94,7 @@ interface DocumentPortalProps {
   documents: ClientDocument[];
   clients: Client[];
   onUpload: (files: FileList, folderId?: string, clientId?: string) => Promise<void>;
+  onUploadWithProgress?: (results: UploadResult[], folderId?: string, clientId?: string) => Promise<void>;
   onDelete: (documentId: string) => void;
   onRename: (documentId: string, newName: string) => void;
   onOpen: (document: ClientDocument) => void;
@@ -1762,6 +1764,7 @@ export const DocumentPortal: React.FC<DocumentPortalProps> = ({
   documents,
   clients,
   onUpload,
+  onUploadWithProgress,
   onDelete,
   onRename,
   onOpen,
@@ -1769,12 +1772,11 @@ export const DocumentPortal: React.FC<DocumentPortalProps> = ({
   onDownload,
   onMove,
   selectedClientId,
-  organizationId: _organizationId, // Reserved for future use
+  organizationId,
   isLoading = false,
 }) => {
   // Suppress unused variable warnings
   void _onShare;
-  void _organizationId;
   // View state
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
@@ -2312,11 +2314,23 @@ export const DocumentPortal: React.FC<DocumentPortalProps> = ({
       {/* Modals */}
       <AnimatePresence>
         {showUploadModal && (
-          <UploadModal
-            isOpen={showUploadModal}
-            onClose={() => setShowUploadModal(false)}
-            onUpload={(files) => onUpload(files, currentFolderId || undefined, selectedClientId)}
-          />
+          onUploadWithProgress ? (
+            <UploadProgressModal
+              isOpen={showUploadModal}
+              onClose={() => setShowUploadModal(false)}
+              onUploadComplete={async (results) => {
+                await onUploadWithProgress(results, currentFolderId || undefined, selectedClientId);
+              }}
+              clientId={selectedClientId}
+              organizationId={organizationId}
+            />
+          ) : (
+            <UploadModal
+              isOpen={showUploadModal}
+              onClose={() => setShowUploadModal(false)}
+              onUpload={(files) => onUpload(files, currentFolderId || undefined, selectedClientId)}
+            />
+          )
         )}
       </AnimatePresence>
 

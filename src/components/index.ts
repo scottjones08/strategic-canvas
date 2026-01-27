@@ -85,3 +85,23 @@ export type {
 
 // Signature Pad
 export { SignaturePad } from './SignaturePad';
+
+// Upload Progress
+export { UploadProgress, DragDropZone } from './UploadProgress';
+export type { UploadFile } from './UploadProgress';
+
+// Office Editor (Word, Excel, PowerPoint) - Legacy
+export { OfficeEditor, QuickOfficeViewer, detectDocumentType } from './OfficeEditor';
+export type { OfficeDocument, OfficeDocumentType, OfficeEditorProps } from './OfficeEditor';
+
+// Office Viewer - New comprehensive viewer for Office documents
+export { default as OfficeViewer } from './OfficeViewer';
+export type { 
+  OfficeViewerProps, 
+  ViewerMode, 
+  EditMode 
+} from './OfficeViewer';
+
+// Office Document Modal - Modal wrapper for OfficeViewer
+export { OfficeDocumentModal, useOfficeDocumentModal } from './OfficeDocumentModal';
+export type { OfficeDocumentModalProps } from './OfficeDocumentModal';
