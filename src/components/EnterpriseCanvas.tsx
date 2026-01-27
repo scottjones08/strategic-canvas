@@ -825,54 +825,6 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
         ))}
       </AnimatePresence>
 
-      {/* Toolbar */}
-      <div className="absolute top-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-2 z-50">
-        <button
-          onClick={() => setInternalTool('select')}
-          className={`p-2 rounded-lg transition-colors ${activeTool === 'select' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
-          title="Select (V)"
-        >
-          <MousePointer2 className="w-5 h-5" />
-        </button>
-        <button
-          onClick={() => setInternalTool('hand')}
-          className={`p-2 rounded-lg transition-colors ${activeTool === 'hand' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
-          title="Pan (H)"
-        >
-          <Hand className="w-5 h-5" />
-        </button>
-        
-        <div className="w-px h-6 bg-gray-200" />
-        
-        <button
-          onClick={() => dispatch({ type: 'ZOOM', zoom: viewport.zoom * 1.2 })}
-          className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
-          title="Zoom in"
-        >
-          <ZoomIn className="w-5 h-5" />
-        </button>
-        <span className="text-sm font-medium text-gray-700 min-w-[50px] text-center">
-          {Math.round(viewport.zoom * 100)}%
-        </span>
-        <button
-          onClick={() => dispatch({ type: 'ZOOM', zoom: viewport.zoom * 0.8 })}
-          className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
-          title="Zoom out"
-        >
-          <ZoomOut className="w-5 h-5" />
-        </button>
-        
-        <div className="w-px h-6 bg-gray-200" />
-        
-        <button
-          onClick={() => dispatch({ type: 'RESET' })}
-          className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
-          title="Reset view"
-        >
-          <Maximize className="w-5 h-5" />
-        </button>
-      </div>
-
       {/* Tool hints */}
       <div className="absolute bottom-4 left-4 text-xs text-gray-400 space-y-0.5 pointer-events-none select-none">
         <div className="flex items-center gap-2">

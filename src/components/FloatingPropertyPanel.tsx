@@ -93,10 +93,15 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
   const [expandedSections, setExpandedSections] = useState<string[]>(['style', 'text']);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Update local position when prop changes
+  // Update local position when prop changes (only on x/y value changes)
   useEffect(() => {
-    setPanelPos(position);
-  }, [position]);
+    setPanelPos(prev => {
+      if (prev.x !== position.x || prev.y !== position.y) {
+        return position;
+      }
+      return prev;
+    });
+  }, [position.x, position.y]);
 
   // Handle drag start
   const handleMouseDown = (e: React.MouseEvent) => {

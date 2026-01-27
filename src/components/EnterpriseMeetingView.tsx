@@ -20,6 +20,7 @@ import { FloatingPropertyPanel } from './FloatingPropertyPanel';
 import { CollaborationOverlay } from './CollaborationOverlay';
 import { UserPresenceList } from './UserPresenceList';
 import ShareBoardModal from './ShareBoardModal';
+import UnifiedLeftPanel from './UnifiedLeftPanel';
 import { createConnectorPath, nodeToConnectorPath } from '../lib/connector-engine';
 import { 
   UserPresence, 
@@ -72,6 +73,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   const [showShareModal, setShowShareModal] = useState(false);
   const [showMediaModal, setShowMediaModal] = useState<'youtube' | 'image' | null>(null);
   const [showCursors, setShowCursors] = useState(true);
+  const [showLeftPanel, setShowLeftPanel] = useState(true);
   
   // Collaboration state
   const [isConnected, setIsConnected] = useState(false);
@@ -647,7 +649,22 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   }, [nodes, userName, onUpdateBoard, pushHistory]);
 
   return (
-    <div className="flex flex-col h-full flex-1 bg-gray-50" onMouseMove={handleCursorMove}>
+    <div className="flex h-full flex-1 bg-gray-50" onMouseMove={handleCursorMove}>
+      {/* Unified Left Panel - Transcript, Actions, People, History */}
+      {showLeftPanel && (
+        <UnifiedLeftPanel
+          users={otherUsers}
+          currentUser={currentUser}
+          isConnected={isConnected}
+          connectionError={connectionError}
+          editingNodes={editingNodes}
+          showCursors={showCursors}
+          onToggleCursors={() => setShowCursors(!showCursors)}
+          boardId={board.id}
+          boardName={board.name}
+        />
+      )}
+      
       {/* Main Content - Full screen canvas */}
       <div className="flex-1 relative overflow-hidden">
         {/* Back button - positioned in top left */}
@@ -661,6 +678,15 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
         
         {/* Connection status indicator */}
         <div className="absolute top-4 left-24 z-50 flex items-center gap-2">
+          {/* Toggle left panel */}
+          {!showLeftPanel && (
+            <button
+              onClick={() => setShowLeftPanel(true)}
+              className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-medium hover:bg-indigo-200 transition-colors"
+            >
+              Show Panel
+            </button>
+          )}
           <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
             isConnected 
               ? 'bg-green-100 text-green-700' 
