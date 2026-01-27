@@ -99,7 +99,7 @@ import {
   MicIcon,
   StopCircleIcon,
   Share,
-  Cloud,
+  // Cloud,
   Menu,
 } from 'lucide-react';
 import QRCode from 'qrcode';
@@ -708,7 +708,7 @@ const Sidebar = ({
 };
 
 // Dashboard View
-const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clients, onAddClient, isLoadingClients, onSyncToCloud }: {
+const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clients, onAddClient, isLoadingClients }: {
   boards: Board[];
   onOpenBoard: (board: Board) => void;
   onCreateBoard: (name: string, template: string, clientId: string) => Promise<void>;
@@ -716,7 +716,6 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
   clients: Client[];
   onAddClient: (client: Partial<Client>) => Promise<void>;
   isLoadingClients: boolean;
-  onSyncToCloud: () => Promise<number>;
 }) => {
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
@@ -728,14 +727,12 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
   const [newClientIndustry, setNewClientIndustry] = useState('');
   const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [isCreatingBoard, setIsCreatingBoard] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<string | null>(null);
   const activeBoards = boards.filter(b => b.status === 'active');
   const completedBoards = boards.filter(b => b.status === 'completed');
   const totalProgress = boards.length > 0 ? Math.round(boards.reduce((acc, b) => acc + (b.progress || 0), 0) / boards.length) : 0;
 
   const handleCreateBoard = async () => {
-    if (!newBoardName.trim() || !selectedClientId || isCreatingBoard) return;
+    if (!newBoardName.trim() || isCreatingBoard) return;
     setIsCreatingBoard(true);
     try {
       // Wait for board to be created in Supabase before closing modal
@@ -836,41 +833,11 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowNewBoardModal(true)} className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 bg-indigo-600 text-white rounded-xl text-sm sm:text-base font-medium shadow-lg shadow-indigo-200">
               <Plus className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline">New</span> Board
             </motion.button>
-            <motion.button 
-              whileHover={{ scale: 1.02 }} 
-              whileTap={{ scale: 0.98 }} 
-              onClick={async () => {
-                setIsSyncing(true);
-                setSyncResult(null);
-                try {
-                  const count = await onSyncToCloud();
-                  setSyncResult(`✅ Synced ${count} boards to cloud`);
-                  setTimeout(() => setSyncResult(null), 3000);
-                } catch (err) {
-                  setSyncResult('❌ Sync failed');
-                  setTimeout(() => setSyncResult(null), 3000);
-                }
-                setIsSyncing(false);
-              }}
-              disabled={isSyncing}
-              className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 bg-emerald-600 text-white rounded-xl text-sm sm:text-base font-medium shadow-lg shadow-emerald-200 disabled:opacity-50"
-            >
-              {isSyncing ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Cloud className="w-4 h-4 sm:w-5 sm:h-5" />}
-              {isSyncing ? 'Syncing...' : <><span className="hidden sm:inline">Sync to</span> Cloud</>}
-            </motion.button>
             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => alert('Schedule meeting coming soon! For now, create a board and start a recording session.')} className="hidden sm:flex items-center gap-3 px-6 py-3 bg-white text-gray-700 rounded-xl font-medium border border-gray-200">
               <Calendar className="w-5 h-5" /> Schedule Meeting
             </motion.button>
           </div>
-          {syncResult && (
-            <motion.p 
-              initial={{ opacity: 0, y: -10 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              className="mt-3 text-sm font-medium text-gray-700"
-            >
-              {syncResult}
-            </motion.p>
-          )}
+          {/* Sync result removed */}
         </div>
 
         {showNewBoardModal && (
@@ -969,7 +936,7 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
                   </div>
                 </div>
                 <div className="flex gap-3 pt-4 mt-2 border-t border-gray-100">
-                  <motion.button whileHover={{ scale: 1.02 }} onClick={handleCreateBoard} disabled={!newBoardName.trim() || !selectedClientId || isCreatingBoard} className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed">{isCreatingBoard ? 'Creating...' : 'Create Board'}</motion.button>
+                  <motion.button whileHover={{ scale: 1.02 }} onClick={handleCreateBoard} disabled={!newBoardName.trim() || isCreatingBoard} className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed">{isCreatingBoard ? 'Creating...' : 'Create Board'}</motion.button>
                   <motion.button whileHover={{ scale: 1.02 }} onClick={() => setShowNewBoardModal(false)} className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium">Cancel</motion.button>
                 </div>
               </div>
@@ -7338,11 +7305,14 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   );
 };
 // Clients View
-const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange }: {
+const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange, documents, notes, onOpenDocument }: {
   boards: Board[];
   onOpenBoard: (board: Board) => void;
   clients: Client[];
   onClientsChange: (clients: Client[]) => void;
+  documents: ClientDocument[];
+  notes: ProjectNote[];
+  onOpenDocument?: (doc: ClientDocument) => void;
 }) => {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -7352,6 +7322,8 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange }: {
 
   const selectedClient = clients.find(c => c.id === selectedClientId);
   const clientBoards = selectedClientId ? boards.filter(b => b.clientId === selectedClientId) : [];
+  const clientDocuments = selectedClientId ? documents.filter(d => d.clientId === selectedClientId) : [];
+  const clientNotes = selectedClientId ? notes.filter(n => (n as any).clientId === selectedClientId) : [];
 
   const filteredClients = clients.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -7571,6 +7543,79 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange }: {
                   <FolderOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No boards assigned to this client</p>
                   <button className="mt-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium">Create first board</button>
+                </div>
+              )}
+            </div>
+
+            {/* Client Documents */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4 mt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-gray-400" />
+                  Documents ({clientDocuments.length})
+                </h3>
+              </div>
+              
+              {clientDocuments.length > 0 ? (
+                <div className="space-y-2">
+                  {clientDocuments.map(doc => (
+                    <motion.div
+                      key={doc.id}
+                      whileHover={{ scale: 1.01 }}
+                      onClick={() => onOpenDocument?.(doc)}
+                      className="p-3 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/50 cursor-pointer transition-all flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+                          <FileText className="w-4 h-4 text-red-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">{doc.name}</p>
+                          <p className="text-xs text-gray-500">{doc.pageCount} pages • {new Date(doc.updatedAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-gray-400" />
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-gray-400">
+                  <FileText className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No documents shared with this client</p>
+                </div>
+              )}
+            </div>
+
+            {/* Client Notes */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4 mt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-gray-400" />
+                  Notes ({clientNotes.length})
+                </h3>
+              </div>
+              
+              {clientNotes.length > 0 ? (
+                <div className="space-y-2">
+                  {clientNotes.map(note => (
+                    <div
+                      key={note.id}
+                      className="p-3 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/50 cursor-pointer transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">{note.icon}</span>
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">{note.title}</p>
+                          <p className="text-xs text-gray-500 line-clamp-1">{note.content?.substring(0, 100) || 'No content'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-gray-400">
+                  <BookOpen className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No notes for this client</p>
                 </div>
               )}
             </div>
@@ -8397,51 +8442,6 @@ ${transcriptContent}`;
   };
 
   // Sync all local boards to Supabase
-  const handleSyncToCloud = async (): Promise<number> => {
-    if (!isSupabaseConfigured()) {
-      throw new Error('Supabase not configured');
-    }
-
-    let synced = 0;
-    for (const board of boards) {
-      try {
-        // Check if exists
-        const existing = await boardsApi.getById(board.id);
-        if (existing) {
-          // Update
-          await boardsApi.update(board.id, {
-            name: board.name,
-            visual_nodes: board.visualNodes,
-            zoom: board.zoom || 1,
-            pan_x: board.panX || 0,
-            pan_y: board.panY || 0,
-            last_activity: new Date().toISOString()
-          });
-        } else {
-          // Create
-          await boardsApi.create({
-            id: board.id,
-            name: board.name,
-            owner_id: board.ownerId || '1',
-            organization_id: board.clientId || null,
-            visual_nodes: board.visualNodes,
-            zoom: board.zoom || 1,
-            pan_x: board.panX || 0,
-            pan_y: board.panY || 0,
-            status: 'active',
-            progress: board.progress || 0,
-            last_activity: new Date().toISOString()
-          });
-        }
-        synced++;
-        console.log('✅ Synced:', board.name);
-      } catch (err) {
-        console.error('❌ Failed to sync:', board.name, err);
-      }
-    }
-    return synced;
-  };
-
   const handleViewChange = (view: ViewType) => {
     if (view === 'meeting') {
       if (activeBoard) {
@@ -8719,7 +8719,7 @@ ${transcriptContent}`;
           clients={clients}
           onAddClient={handleAddClient}
           isLoadingClients={isLoadingClients}
-          onSyncToCloud={handleSyncToCloud}
+          
         />
       )}
       {currentView === 'meeting' && activeBoard && <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} onCreateTranscriptNote={handleCreateTranscriptNote} />}
@@ -8738,7 +8738,7 @@ ${transcriptContent}`;
           isLoading={isLoadingDocuments}
         />
       )}
-      {currentView === 'clients' && <ClientsView boards={boards} onOpenBoard={handleOpenBoard} clients={clients} onClientsChange={setClients} />}
+      {currentView === 'clients' && <ClientsView boards={boards} onOpenBoard={handleOpenBoard} clients={clients} onClientsChange={setClients} documents={documents} notes={notes} onOpenDocument={(doc) => { setActiveDocument(doc); setCurrentView('documents'); }} />}
       
       {/* PDF Editor Modal */}
       {showPDFEditor && activeDocument && (
