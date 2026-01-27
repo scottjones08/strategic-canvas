@@ -185,6 +185,7 @@ Appears when a single node is selected. Features:
 | 2026-01-27 | Connection dots visible on selected nodes, better connector UX | EnterpriseMeetingView.tsx |
 | 2026-01-27 | Mobile bottom toolbar, floating action button, responsive layout | EnterpriseMeetingView.tsx |
 | 2026-01-27 | Connector control points - double-click to add, drag to route | EnhancedConnector.tsx |
+| 2026-01-27 | Fixed connector not attaching to nodes - fresh start/end waypoints | connector-engine.ts |
 
 ---
 
