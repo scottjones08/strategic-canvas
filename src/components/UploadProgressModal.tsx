@@ -81,6 +81,7 @@ interface UploadProgressModalProps {
   organizationId?: string;
   bucket?: string;
   maxSizeMB?: number;
+  initialFiles?: File[];
 }
 
 // ============================================
@@ -172,6 +173,7 @@ export const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
   organizationId,
   bucket = 'documents',
   maxSizeMB = 50,
+  initialFiles,
 }) => {
   void _clientId; // Reserved for future folder/client organization
   const [files, setFiles] = useState<UploadingFile[]>([]);
@@ -179,6 +181,7 @@ export const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const initialFilesProcessedRef = useRef(false);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -186,8 +189,29 @@ export const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
       setFiles([]);
       setIsProcessing(false);
       setIsDraggingOver(false);
+      initialFilesProcessedRef.current = false;
     }
   }, [isOpen]);
+
+  // Process initial files when modal opens with files
+  useEffect(() => {
+    if (isOpen && initialFiles && initialFiles.length > 0 && !initialFilesProcessedRef.current) {
+      initialFilesProcessedRef.current = true;
+      const uploadFiles: UploadingFile[] = initialFiles
+        .filter(file => isAcceptedFile(file))
+        .map(file => ({
+          id: crypto.randomUUID(),
+          file,
+          name: file.name,
+          size: file.size,
+          progress: 0,
+          status: 'pending' as UploadStatus,
+        }));
+      if (uploadFiles.length > 0) {
+        setFiles(uploadFiles);
+      }
+    }
+  }, [isOpen, initialFiles]);
 
   // Validate file
   const validateFile = useCallback((file: File): string | null => {

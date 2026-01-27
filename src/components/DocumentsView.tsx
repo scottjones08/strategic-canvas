@@ -602,6 +602,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filter and sort documents
@@ -684,8 +685,9 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
       return;
     }
 
-    // If we have the progress-enabled upload, show modal
+    // If we have the progress-enabled upload, show modal with files
     if (onUploadWithProgress) {
+      setPendingFiles(supportedFiles);
       setShowUploadModal(true);
       return;
     }
@@ -708,21 +710,42 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
     }
   }, [onUploadWithProgress, selectedClientId]);
 
-  // Handle file input change
+  // Handle file input change - routes through modal for consistent UX
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    // Reset input immediately so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    // Filter for supported file types
+    const supportedFiles = Array.from(files).filter(f => 
+      ACCEPTED_FILE_TYPES.includes(f.type) ||
+      isOfficeDocument(f.name, f.type)
+    );
+
+    if (supportedFiles.length === 0) {
+      alert('Please upload PDF or Office documents (.docx, .xlsx, .pptx)');
+      return;
+    }
+
+    // If we have progress-enabled upload, show modal with files
+    if (onUploadWithProgress) {
+      setPendingFiles(supportedFiles);
+      setShowUploadModal(true);
+      return;
+    }
+
+    // Fallback to old behavior
     setIsUploading(true);
     try {
       await onUpload(files, selectedClientId);
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
     }
-  }, [onUpload, selectedClientId]);
+  }, [onUpload, onUploadWithProgress, selectedClientId]);
 
   const toggleClient = (clientId: string) => {
     const newExpanded = new Set(expandedClients);
@@ -841,7 +864,14 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
               Upload PDF and Office documents (Word, Excel, PowerPoint) to view, annotate, and share with your clients.
             </p>
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                if (onUploadWithProgress) {
+                  setPendingFiles([]);
+                  setShowUploadModal(true);
+                } else {
+                  fileInputRef.current?.click();
+                }
+              }}
               className="mt-4 flex items-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg 
                 hover:bg-blue-600 transition-colors"
             >
@@ -979,10 +1009,14 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
         {showUploadModal && (
           <UploadProgressModal
             isOpen={showUploadModal}
-            onClose={() => setShowUploadModal(false)}
+            onClose={() => {
+              setShowUploadModal(false);
+              setPendingFiles([]);
+            }}
             onUploadComplete={handleUploadComplete}
             clientId={selectedClientId}
             organizationId={organizationId}
+            initialFiles={pendingFiles}
           />
         )}
       </AnimatePresence>
