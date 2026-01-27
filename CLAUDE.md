@@ -175,6 +175,8 @@ Appears when a single node is selected. Features:
 | 2026-01-27 | Responsive toolbar with horizontal scroll | EnterpriseToolbar.tsx |
 | 2026-01-27 | Document upload error handling | documents-api.ts |
 | 2026-01-27 | Connection points on shapes | EnterpriseMeetingView.tsx |
+| 2026-01-27 | Fixed shapes picker z-index - now visible above toolbar | EnterpriseToolbar.tsx |
+| 2026-01-27 | Fixed connector arrows positioning - recalculates when nodes move | EnterpriseCanvas.tsx |
 
 ---
 

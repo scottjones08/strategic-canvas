@@ -698,6 +698,17 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
     return { connectors: conn, nonConnectors: nonConn };
   }, [nodes]);
 
+  // Recalculate connector waypoints when connected nodes move
+  const getConnectorPath = useCallback((connector: VisualNode): ConnectorPath | null => {
+    const fromNode = nodes.find(n => n.id === connector.connectorFrom);
+    const toNode = nodes.find(n => n.id === connector.connectorTo);
+    
+    if (!fromNode || !toNode) return null;
+    
+    // Import and use nodeToConnectorPath
+    return nodeToConnectorPath(connector, fromNode, toNode);
+  }, [nodes]);
+
   // Render
   return (
     <div
@@ -756,7 +767,8 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
           
           if (!fromNode || !toNode) return null;
           
-          const connectorPath = nodeToConnectorPath(node, fromNode, toNode);
+          // Always recalculate the path based on current node positions
+          const connectorPath = getConnectorPath(node);
           if (!connectorPath) return null;
           
           return (

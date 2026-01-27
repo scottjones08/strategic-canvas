@@ -314,7 +314,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50"
+                    className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-[60]"
                   >
                     <div className="grid grid-cols-4 gap-2">
                       {STICKY_COLORS.map((color) => (
@@ -369,7 +369,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50"
+                    className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-[60]"
                   >
                     <div className="grid grid-cols-2 gap-1">
                       {SHAPE_OPTIONS.map((shape) => (
@@ -537,7 +537,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50 min-w-[200px]"
+                  className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-[60] min-w-[200px]"
                 >
                   <MenuItem icon={<Download className="w-4 h-4" />} label="Export board" />
                   <MenuItem icon={<Copy className="w-4 h-4" />} label="Duplicate board" />
