@@ -11,7 +11,7 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Users, Share2, MoreHorizontal, Maximize2, Map as MapIcon, Eye, EyeOff, Wifi, WifiOff, Youtube, Image, X, Upload, Table2, Plus, Link as LinkIcon, ExternalLink, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Users, Share2, MoreHorizontal, Maximize2, Map as MapIcon, Eye, EyeOff, Wifi, WifiOff, Youtube, Image, X, Upload, Table2, Plus, Inbox, Link as LinkIcon, ExternalLink, FolderOpen } from 'lucide-react';
 import type { Board, VisualNode } from '../types/board';
 import type { ConnectorPath, Waypoint } from '../lib/connector-engine';
 import { EnterpriseCanvas, EnterpriseCanvasRef } from './EnterpriseCanvas';
