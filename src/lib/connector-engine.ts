@@ -519,40 +519,39 @@ export const nodeToConnectorPath = (
   const toCenter = { x: toNode.x + toNode.width / 2, y: toNode.y + toNode.height / 2 };
   
   // Always recalculate start and end points based on current node positions
-  const startPoint = getNearestEdgePoint(fromNode, toCenter);
-  const endPoint = getNearestEdgePoint(toNode, fromCenter);
+  const startPoint = getNearestEdgePoint(fromNode, toCenter, 5);
+  const endPoint = getNearestEdgePoint(toNode, fromCenter, 5);
   
-  // Build waypoints: start (recalculated) + any control points (preserved) + end (recalculated)
+  // Build waypoints with NEW IDs for start and end (always recalculated)
   const waypoints: Waypoint[] = [
     { 
       x: startPoint.x, 
       y: startPoint.y, 
-      id: node.connectorWaypoints?.[0]?.id || generateId(), 
+      id: generateId(), // Always generate new ID for start
       type: 'start' 
     }
   ];
   
-  // Preserve any user-defined control points (middle waypoints)
-  if (node.connectorWaypoints && node.connectorWaypoints.length > 2) {
+  // Preserve any user-defined control points (middle waypoints) only if they exist and are valid
+  const storedWaypoints = node.connectorWaypoints || [];
+  const hasValidStoredWaypoints = storedWaypoints.length >= 2;
+  
+  if (hasValidStoredWaypoints) {
     // Add all middle waypoints (excluding first and last)
-    for (let i = 1; i < node.connectorWaypoints.length - 1; i++) {
-      waypoints.push(node.connectorWaypoints[i]);
+    for (let i = 1; i < storedWaypoints.length - 1; i++) {
+      const wp = storedWaypoints[i];
+      // Only preserve control points, not start/end
+      if (wp.type === 'control') {
+        waypoints.push({ ...wp });
+      }
     }
-  } else if (node.connectorControlPoint) {
-    // Legacy: use control point if exists
-    waypoints.push({
-      x: node.connectorControlPoint.x,
-      y: node.connectorControlPoint.y,
-      id: generateId(),
-      type: 'control'
-    });
   }
   
   // Always add end point based on current node position
   waypoints.push({
     x: endPoint.x,
     y: endPoint.y,
-    id: node.connectorWaypoints?.[node.connectorWaypoints.length - 1]?.id || generateId(),
+    id: generateId(), // Always generate new ID for end
     type: 'end'
   });
   
@@ -564,8 +563,8 @@ export const nodeToConnectorPath = (
     color: node.color || '#6b7280',
     strokeWidth: 2,
     strokeStyle: node.connectorStyle || 'solid',
-    arrowStart: false,
-    arrowEnd: true,
+    arrowStart: node.connectorArrowStart || false,
+    arrowEnd: node.connectorArrowEnd !== false, // Default to true
     cornerRadius: 10
   };
 };
