@@ -8770,6 +8770,23 @@ ${transcriptContent}`;
     <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} onCreateTranscriptNote={handleCreateTranscriptNote} />
   )
 )}
+      {currentView === 'meeting' && !activeBoard && (
+        <div className="flex-1 flex items-center justify-center bg-gray-50">
+          <div className="text-center max-w-md px-6">
+            <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <FolderKanban className="w-8 h-8 text-indigo-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">No Board Selected</h2>
+            <p className="text-gray-600 mb-6">Select a board from the dashboard or create a new one to get started.</p>
+            <button
+              onClick={() => setCurrentView('dashboard')}
+              className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
       {currentView === 'notes' && <NotesViewRedesigned boards={boards} onOpenBoard={handleOpenBoard} notes={notes} onUpdateNotes={setNotes} clients={clients} />}
       {currentView === 'documents' && (
         <DocumentsView
