@@ -55,7 +55,13 @@ import {
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
   LayoutGrid,
-  Frame
+  Frame,
+  Youtube,
+  Table2,
+  Network,
+  Link,
+  FolderOpen,
+  Inbox
 } from 'lucide-react';
 
 export type ToolType = 
@@ -67,7 +73,12 @@ export type ToolType =
   | 'connector' 
   | 'frame'
   | 'image'
-  | 'pen';
+  | 'youtube'
+  | 'table'
+  | 'pen'
+  | 'mindmap'
+  | 'bucket'
+  | 'linklist';
 
 export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'star';
 
@@ -108,6 +119,7 @@ interface EnterpriseToolbarProps {
   onToggleFacilitatorMode: () => void;
   boardName: string;
   onBoardNameChange: (name: string) => void;
+  onOpenMediaModal?: (type: 'youtube' | 'image') => void;
 }
 
 // Sticky note colors
@@ -166,7 +178,8 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
   facilitatorMode,
   onToggleFacilitatorMode,
   boardName,
-  onBoardNameChange
+  onBoardNameChange,
+  onOpenMediaModal
 }) => {
   const [showStickyPicker, setShowStickyPicker] = useState(false);
   const [showShapePicker, setShowShapePicker] = useState(false);
@@ -389,6 +402,60 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
               icon={<Frame className="w-5 h-5" />}
               label="Frame"
               shortcut="F"
+            />
+            
+            {/* Mind Map Tool */}
+            <ToolbarButton
+              active={activeTool === 'mindmap'}
+              onClick={() => onToolChange('mindmap')}
+              icon={<Network className="w-5 h-5" />}
+              label="Mind Map"
+              shortcut="M"
+            />
+            
+            {/* YouTube Tool */}
+            <ToolbarButton
+              active={activeTool === 'youtube'}
+              onClick={() => onOpenMediaModal?.('youtube')}
+              icon={<Youtube className="w-5 h-5" />}
+              label="Video"
+              shortcut="Y"
+            />
+            
+            {/* Image Tool */}
+            <ToolbarButton
+              active={activeTool === 'image'}
+              onClick={() => onOpenMediaModal?.('image')}
+              icon={<ImageIcon className="w-5 h-5" />}
+              label="Image"
+              shortcut="I"
+            />
+            
+            {/* Table Tool */}
+            <ToolbarButton
+              active={activeTool === 'table'}
+              onClick={() => onToolChange('table')}
+              icon={<Table2 className="w-5 h-5" />}
+              label="Table"
+              shortcut="B"
+            />
+            
+            {/* Photo Bucket Tool */}
+            <ToolbarButton
+              active={activeTool === 'bucket'}
+              onClick={() => onToolChange('bucket')}
+              icon={<Inbox className="w-5 h-5" />}
+              label="Bucket"
+              shortcut="U"
+            />
+            
+            {/* Link List Tool */}
+            <ToolbarButton
+              active={activeTool === 'linklist'}
+              onClick={() => onToolChange('linklist')}
+              icon={<Link className="w-5 h-5" />}
+              label="Links"
+              shortcut="L"
             />
           </div>
           

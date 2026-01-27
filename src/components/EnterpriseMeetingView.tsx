@@ -11,7 +11,7 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Users, Share2, MoreHorizontal, Maximize2, Map as MapIcon, Eye, EyeOff, Wifi, WifiOff } from 'lucide-react';
+import { ArrowLeft, Users, Share2, MoreHorizontal, Maximize2, Map as MapIcon, Eye, EyeOff, Wifi, WifiOff, Youtube, Image, X, Upload, Table2, Plus, Link as LinkIcon, ExternalLink, FolderOpen } from 'lucide-react';
 import type { Board, VisualNode } from '../types/board';
 import type { ConnectorPath, Waypoint } from '../lib/connector-engine';
 import { EnterpriseCanvas, EnterpriseCanvasRef } from './EnterpriseCanvas';
@@ -70,6 +70,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   const [facilitatorMode, setFacilitatorMode] = useState(false);
   const [showPropertyPanel, setShowPropertyPanel] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showMediaModal, setShowMediaModal] = useState<'youtube' | 'image' | null>(null);
   const [showCursors, setShowCursors] = useState(true);
   
   // Collaboration state
@@ -235,13 +236,25 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   
   // Node operations
   const handleAddNode = useCallback((type: VisualNode['type'], x: number, y: number, options: any = {}) => {
+    // Set default dimensions based on type
+    let defaultWidth = 200;
+    let defaultHeight = 150;
+    
+    if (type === 'youtube') {
+      defaultWidth = 480;
+      defaultHeight = 270;
+    } else if (type === 'image') {
+      defaultWidth = 300;
+      defaultHeight = 200;
+    }
+    
     const baseNode = {
       id: generateId(),
       type,
       x,
       y,
-      width: 200,
-      height: 150,
+      width: options.width || defaultWidth,
+      height: options.height || defaultHeight,
       content: '',
       color: options.color || '#fef3c7',
       rotation: 0,
@@ -299,6 +312,58 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
         });
         setActiveTool('select');
         break;
+      case 'youtube':
+        // YouTube tool opens modal, so clicking on canvas just opens the modal
+        setShowMediaModal('youtube');
+        break;
+      case 'image':
+        // Image tool opens modal, so clicking on canvas just opens the modal
+        setShowMediaModal('image');
+        break;
+      case 'table':
+        handleAddNode('table', worldX - 175, worldY - 100, {
+          color: '#ffffff',
+          width: 350,
+          height: 200,
+          content: 'Table',
+          tableData: {
+            headers: ['Column 1', 'Column 2', 'Column 3'],
+            rows: [['', '', ''], ['', '', '']]
+          }
+        });
+        setActiveTool('select');
+        break;
+      case 'bucket':
+        handleAddNode('bucket', worldX - 150, worldY - 150, {
+          color: '#f0f9ff',
+          width: 300,
+          height: 300,
+          content: 'Photo Bucket',
+          bucketId: generateId(),
+          bucketImages: []
+        });
+        setActiveTool('select');
+        break;
+      case 'linklist':
+        handleAddNode('linklist', worldX - 125, worldY - 100, {
+          color: '#f0fdf4',
+          width: 300,
+          height: 200,
+          content: 'Links',
+          links: []
+        });
+        setActiveTool('select');
+        break;
+      case 'mindmap':
+        handleAddNode('mindmap', worldX - 100, worldY - 40, {
+          color: '#dbeafe',
+          width: 200,
+          height: 80,
+          content: 'Central Idea',
+          isRootNode: true
+        });
+        setActiveTool('select');
+        break;
       default:
         setSelectedNodeIds([]);
     }
@@ -324,6 +389,20 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       setConnectorStart(null);
     }
   }, []);
+  
+  // Handle media embedding (YouTube/Image)
+  const handleEmbedMedia = useCallback((url: string, mediaType: 'youtube' | 'image') => {
+    // Get canvas center or a reasonable default position
+    const x = (canvasSize.width / 2) - (mediaType === 'youtube' ? 240 : 150);
+    const y = (canvasSize.height / 2) - (mediaType === 'youtube' ? 135 : 100);
+    
+    handleAddNode(mediaType, x, y, {
+      content: url,
+      width: mediaType === 'youtube' ? 480 : 300,
+      height: mediaType === 'youtube' ? 270 : 200,
+      color: 'transparent'
+    });
+  }, [canvasSize, handleAddNode]);
   
   // Create connector between two nodes
   const createConnector = useCallback((fromId: string, toId: string) => {
@@ -529,6 +608,44 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     setSelectedNodeIds(duplicated.map(n => n.id));
   }, [selectedNodeIds, nodes, onUpdateBoard, pushHistory]);
 
+  // Add mindmap child node
+  const handleAddMindmapChild = useCallback((parentId: string) => {
+    const parentNode = nodes.find(n => n.id === parentId);
+    if (!parentNode) return;
+    
+    // Count existing children to position new child
+    const existingChildren = nodes.filter(n => n.parentNodeId === parentId);
+    const childIndex = existingChildren.length;
+    
+    // Position child below and slightly offset based on child count
+    const offsetX = (childIndex % 3 - 1) * 120; // Spread horizontally
+    const offsetY = 120 + Math.floor(childIndex / 3) * 100; // Stack rows
+    
+    const childNode: VisualNode = {
+      id: generateId(),
+      type: 'mindmap',
+      x: parentNode.x + parentNode.width / 2 - 80 + offsetX,
+      y: parentNode.y + parentNode.height + offsetY,
+      width: 160,
+      height: 60,
+      content: 'New idea',
+      color: '#e0e7ff', // Slightly lighter than parent
+      rotation: 0,
+      locked: false,
+      votes: 0,
+      votedBy: [],
+      createdBy: userName,
+      comments: [],
+      parentNodeId: parentId,
+      isRootNode: false
+    };
+    
+    const newNodes = [...nodes, childNode];
+    onUpdateBoard({ visualNodes: newNodes });
+    pushHistory(newNodes);
+    setSelectedNodeIds([childNode.id]);
+  }, [nodes, userName, onUpdateBoard, pushHistory]);
+
   return (
     <div className="flex flex-col h-full flex-1 bg-gray-50" onMouseMove={handleCursorMove}>
       {/* Main Content - Full screen canvas */}
@@ -593,6 +710,38 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           gridSnap={gridSnap}
           showGrid={true}
         >
+          {/* Render mindmap connector lines */}
+          <svg 
+            className="absolute inset-0 pointer-events-none" 
+            style={{ overflow: 'visible', zIndex: 5 }}
+          >
+            {nodes.filter(n => n.type === 'mindmap' && n.parentNodeId).map(childNode => {
+              const parentNode = nodes.find(n => n.id === childNode.parentNodeId);
+              if (!parentNode) return null;
+              
+              // Calculate connection points (center of each node)
+              const startX = parentNode.x + parentNode.width / 2;
+              const startY = parentNode.y + parentNode.height / 2;
+              const endX = childNode.x + childNode.width / 2;
+              const endY = childNode.y + childNode.height / 2;
+              
+              // Create a curved path
+              const midX = (startX + endX) / 2;
+              
+              return (
+                <path
+                  key={`mindmap-conn-${childNode.id}`}
+                  d={`M ${startX} ${startY} Q ${midX} ${startY} ${midX} ${(startY + endY) / 2} Q ${midX} ${endY} ${endX} ${endY}`}
+                  stroke={parentNode.color || '#8b5cf6'}
+                  strokeWidth="3"
+                  fill="none"
+                  strokeLinecap="round"
+                  opacity="0.6"
+                />
+              );
+            })}
+          </svg>
+          
           {/* Render non-connector nodes */}
           {nodes
             .filter(n => !(n.type === 'connector' && n.connectorFrom && n.connectorTo))
@@ -618,6 +767,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
                   handleUpdateNodes(newNodes);
                 }}
                 onDelete={() => handleDeleteNodes([node.id])}
+                onAddMindmapChild={node.type === 'mindmap' ? handleAddMindmapChild : undefined}
               />
             ))}
         </EnterpriseCanvas>
@@ -702,6 +852,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           onToggleFacilitatorMode={() => setFacilitatorMode(!facilitatorMode)}
           boardName={board.name}
           onBoardNameChange={(name) => onUpdateBoard({ name })}
+          onOpenMediaModal={(type) => setShowMediaModal(type)}
         />
         
         {/* Minimap */}
@@ -748,7 +899,183 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
         isConnected={isConnected}
         connectedUsers={[currentUser, ...otherUsers.map(u => ({ id: u.id, name: u.name, color: u.color }))]}
       />
+      
+      {/* Media Modal (YouTube/Image) */}
+      {showMediaModal && (
+        <MediaModal
+          type={showMediaModal}
+          onClose={() => setShowMediaModal(null)}
+          onEmbed={handleEmbedMedia}
+        />
+      )}
     </div>
+  );
+};
+
+// Media Modal Component for YouTube and Image embedding
+const MediaModal = ({ type, onClose, onEmbed }: { 
+  type: 'youtube' | 'image'; 
+  onClose: () => void; 
+  onEmbed: (url: string, mediaType: 'youtube' | 'image') => void 
+}) => {
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = () => {
+    if (preview) {
+      onEmbed(preview, 'image');
+      onClose();
+      return;
+    }
+    if (!url.trim()) { 
+      setError('Please enter a URL or upload a file'); 
+      return; 
+    }
+    if (type === 'youtube') {
+      const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+      if (!match) { 
+        setError('Invalid YouTube URL'); 
+        return; 
+      }
+      onEmbed(`https://www.youtube.com/embed/${match[1]}`, 'youtube');
+    } else {
+      onEmbed(url, 'image');
+    }
+    onClose();
+  };
+
+  const handleFileChange = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPreview(e.target?.result as string);
+      setError('');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileChange(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => { 
+    e.preventDefault(); 
+    setIsDragging(true); 
+  };
+  
+  const handleDragLeave = () => setIsDragging(false);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
+      onClick={onClose}
+    >
+      <motion.div 
+        initial={{ scale: 0.9 }} 
+        animate={{ scale: 1 }} 
+        className="bg-white rounded-2xl p-6 w-[500px]" 
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            {type === 'youtube' ? (
+              <Youtube className="w-6 h-6 text-red-500" />
+            ) : (
+              <Image className="w-6 h-6 text-indigo-500" />
+            )}
+            <h2 className="text-xl font-bold text-gray-900">
+              {type === 'youtube' ? 'Embed YouTube Video' : 'Embed Image'}
+            </h2>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+        
+        <div className="space-y-4">
+          {type === 'image' && (
+            <div
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+                isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'
+              }`}
+            >
+              <input 
+                ref={fileInputRef} 
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])} 
+              />
+              {preview ? (
+                <div className="space-y-3">
+                  <img src={preview} alt="Preview" className="max-h-40 mx-auto rounded-lg" />
+                  <p className="text-sm text-gray-500">Click or drag to replace</p>
+                </div>
+              ) : (
+                <>
+                  <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                  <p className="font-medium text-gray-700">Drop an image here or click to browse</p>
+                  <p className="text-sm text-gray-500 mt-1">PNG, JPG, GIF up to 10MB</p>
+                </>
+              )}
+            </div>
+          )}
+          
+          <div className="relative">
+            {type === 'image' && (
+              <div className="flex items-center gap-3 my-4">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-sm text-gray-500">or paste URL</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+            )}
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {type === 'youtube' ? 'YouTube URL' : 'Image URL'}
+            </label>
+            <input 
+              type="text" 
+              value={url} 
+              onChange={(e) => { setUrl(e.target.value); setError(''); setPreview(null); }} 
+              placeholder={type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com/image.jpg'} 
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+            />
+            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+          </div>
+          
+          <div className="flex gap-3">
+            <motion.button 
+              whileHover={{ scale: 1.02 }} 
+              onClick={handleSubmit} 
+              className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-medium"
+            >
+              Embed
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.02 }} 
+              onClick={onClose} 
+              className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium"
+            >
+              Cancel
+            </motion.button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
@@ -762,6 +1089,7 @@ interface NodeComponentProps {
   onSelect: () => void;
   onUpdate: (updates: Partial<VisualNode>) => void;
   onDelete: () => void;
+  onAddMindmapChild?: (parentId: string) => void;
 }
 
 const NodeComponent: React.FC<NodeComponentProps> = ({
@@ -772,7 +1100,8 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
   zoom,
   onSelect,
   onUpdate,
-  onDelete
+  onDelete,
+  onAddMindmapChild
 }) => {
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
@@ -918,6 +1247,370 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
               placeholder="Frame title..."
               onClick={(e) => e.stopPropagation()}
             />
+          </div>
+        );
+      
+      case 'table':
+        if (!node.tableData) {
+          return (
+            <div className="w-full h-full rounded-xl p-4 bg-white border border-gray-200 flex items-center justify-center text-gray-400">
+              No table data
+            </div>
+          );
+        }
+        return (
+          <div className="p-3 h-full flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
+              <Table2 className="w-4 h-4 text-blue-500" />
+              <input
+                type="text"
+                value={node.content}
+                onChange={(e) => onUpdate({ content: e.target.value })}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 font-semibold text-sm text-gray-700 bg-transparent border-none outline-none"
+                placeholder="Table name"
+              />
+            </div>
+            <div className="flex-1 overflow-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr>
+                    {node.tableData.headers?.map((header, i) => (
+                      <th key={i} className="border border-gray-200 bg-gray-50 px-2 py-1.5 text-left font-medium text-gray-600">
+                        <input
+                          type="text"
+                          value={header}
+                          onChange={(e) => {
+                            const newHeaders = [...(node.tableData?.headers || [])];
+                            newHeaders[i] = e.target.value;
+                            onUpdate({ tableData: { ...node.tableData!, headers: newHeaders } });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full bg-transparent border-none outline-none"
+                        />
+                      </th>
+                    ))}
+                    <th className="border border-gray-200 bg-gray-50 px-1 py-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newHeaders = [...(node.tableData?.headers || []), 'New'];
+                          const newRows = node.tableData?.rows.map(row => [...row, '']) || [];
+                          onUpdate({ tableData: { headers: newHeaders, rows: newRows } });
+                        }}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {node.tableData.rows.map((row, rowIndex) => (
+                    <tr key={rowIndex}>
+                      {row.map((cell, cellIndex) => (
+                        <td key={cellIndex} className="border border-gray-200 px-2 py-1">
+                          <input
+                            type="text"
+                            value={cell}
+                            onChange={(e) => {
+                              const newRows = [...node.tableData!.rows];
+                              newRows[rowIndex] = [...newRows[rowIndex]];
+                              newRows[rowIndex][cellIndex] = e.target.value;
+                              onUpdate({ tableData: { ...node.tableData!, rows: newRows } });
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full bg-transparent border-none outline-none text-gray-700"
+                          />
+                        </td>
+                      ))}
+                      <td className="border border-gray-200 px-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newRows = node.tableData?.rows.filter((_, i) => i !== rowIndex) || [];
+                            onUpdate({ tableData: { ...node.tableData!, rows: newRows } });
+                          }}
+                          className="text-red-300 hover:text-red-500"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newRow = Array(node.tableData?.headers?.length || 3).fill('');
+                  onUpdate({ tableData: { ...node.tableData!, rows: [...(node.tableData?.rows || []), newRow] } });
+                }}
+                className="w-full mt-2 py-1 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded border border-dashed border-gray-200 flex items-center justify-center gap-1"
+              >
+                <Plus className="w-3 h-3" /> Add Row
+              </button>
+            </div>
+          </div>
+        );
+      
+      case 'youtube':
+        return (
+          <div className="w-full h-full rounded-xl overflow-hidden shadow-lg bg-black">
+            {node.content ? (
+              <iframe
+                src={node.content}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title="YouTube video"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                <div className="text-center text-gray-500">
+                  <Youtube className="w-12 h-12 mx-auto mb-2 text-red-500" />
+                  <p>No video URL</p>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      
+      case 'image':
+        return (
+          <div className="w-full h-full rounded-xl overflow-hidden shadow-lg bg-gray-100">
+            {node.content ? (
+              <img
+                src={node.content}
+                alt="Embedded image"
+                className="w-full h-full object-cover"
+                draggable={false}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="text-center text-gray-500">
+                  <Image className="w-12 h-12 mx-auto mb-2 text-indigo-500" />
+                  <p>No image URL</p>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      
+      case 'mindmap':
+        return (
+          <div 
+            className="relative w-full h-full rounded-full p-4 shadow-md flex items-center justify-center"
+            style={{ 
+              backgroundColor: node.color,
+              border: `2px solid ${node.isRootNode ? '#3b82f6' : '#93c5fd'}`
+            }}
+          >
+            <textarea
+              value={node.content}
+              onChange={(e) => onUpdate({ content: e.target.value })}
+              className="w-full h-full bg-transparent resize-none border-none outline-none text-gray-800 text-center flex items-center justify-center"
+              style={{ textAlign: 'center' }}
+              placeholder={node.isRootNode ? "Central Idea" : "Branch..."}
+              onClick={(e) => e.stopPropagation()}
+            />
+            {/* Add child button - visible when selected */}
+            {isSelected && onAddMindmapChild && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddMindmapChild(node.id);
+                }}
+                className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+                title="Add child node"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        );
+      
+      case 'bucket':
+        return (
+          <div 
+            className="w-full h-full rounded-xl p-3 flex flex-col border border-gray-200 shadow-sm"
+            style={{ backgroundColor: node.color }}
+          >
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-200">
+              <FolderOpen className="w-4 h-4 text-indigo-500" />
+              <input
+                type="text"
+                value={node.content}
+                onChange={(e) => onUpdate({ content: e.target.value })}
+                className="flex-1 text-sm font-bold text-gray-700 bg-transparent border-none outline-none"
+                placeholder="Bucket title..."
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+            {node.bucketImages && node.bucketImages.length > 0 ? (
+              <div className="flex-1 grid grid-cols-2 gap-2 overflow-auto">
+                {node.bucketImages.map((img: string, idx: number) => (
+                  <div key={idx} className="aspect-square rounded-lg overflow-hidden bg-gray-100 relative group">
+                    <img src={img} alt={`Upload ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newImages = node.bucketImages?.filter((_: string, i: number) => i !== idx);
+                        onUpdate({ bucketImages: newImages });
+                      }}
+                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div 
+                className="flex-1 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'image/*';
+                  input.multiple = true;
+                  input.onchange = async (ev) => {
+                    const files = (ev.target as HTMLInputElement).files;
+                    if (files) {
+                      const newImages: string[] = [];
+                      for (const file of Array.from(files)) {
+                        const reader = new FileReader();
+                        const dataUrl = await new Promise<string>((resolve) => {
+                          reader.onload = () => resolve(reader.result as string);
+                          reader.readAsDataURL(file);
+                        });
+                        newImages.push(dataUrl);
+                      }
+                      onUpdate({ bucketImages: [...(node.bucketImages || []), ...newImages] });
+                    }
+                  };
+                  input.click();
+                }}
+              >
+                <div className="text-center">
+                  <Upload className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-xs">Click to upload images</p>
+                </div>
+              </div>
+            )}
+            {node.bucketImages && node.bucketImages.length > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'image/*';
+                  input.multiple = true;
+                  input.onchange = async (ev) => {
+                    const files = (ev.target as HTMLInputElement).files;
+                    if (files) {
+                      const newImages: string[] = [];
+                      for (const file of Array.from(files)) {
+                        const reader = new FileReader();
+                        const dataUrl = await new Promise<string>((resolve) => {
+                          reader.onload = () => resolve(reader.result as string);
+                          reader.readAsDataURL(file);
+                        });
+                        newImages.push(dataUrl);
+                      }
+                      onUpdate({ bucketImages: [...(node.bucketImages || []), ...newImages] });
+                    }
+                  };
+                  input.click();
+                }}
+                className="mt-2 w-full py-1.5 text-xs text-gray-500 hover:text-indigo-600 hover:bg-white/50 rounded border border-dashed border-gray-300 flex items-center justify-center gap-1"
+              >
+                <Plus className="w-3 h-3" /> Add Images
+              </button>
+            )}
+          </div>
+        );
+      
+      case 'linklist':
+        return (
+          <div 
+            className="w-full h-full rounded-xl p-3 flex flex-col overflow-hidden border border-gray-200 shadow-sm"
+            style={{ backgroundColor: node.color }}
+          >
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-200/50">
+              <LinkIcon className="w-4 h-4 text-green-600" />
+              <input
+                type="text"
+                value={node.content}
+                onChange={(e) => onUpdate({ content: e.target.value })}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 font-semibold text-sm text-gray-700 bg-transparent border-none outline-none"
+                placeholder="List title"
+              />
+            </div>
+            <div className="flex-1 overflow-auto space-y-1.5">
+              {node.links?.map((link: { id: string; title: string; url: string }, i: number) => (
+                <div key={link.id} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-100 group">
+                  <ExternalLink className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={link.title}
+                      onChange={(e) => {
+                        const newLinks = [...(node.links || [])];
+                        newLinks[i] = { ...newLinks[i], title: e.target.value };
+                        onUpdate({ links: newLinks });
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full text-xs font-medium text-gray-700 bg-transparent border-none outline-none truncate"
+                      placeholder="Link title"
+                    />
+                    <input
+                      type="url"
+                      value={link.url}
+                      onChange={(e) => {
+                        const newLinks = [...(node.links || [])];
+                        newLinks[i] = { ...newLinks[i], url: e.target.value };
+                        onUpdate({ links: newLinks });
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full text-[10px] text-blue-500 bg-transparent border-none outline-none truncate"
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-1 hover:bg-gray-100 rounded text-blue-500"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUpdate({ links: node.links?.filter((_: { id: string; title: string; url: string }, idx: number) => idx !== i) });
+                      }}
+                      className="p-1 hover:bg-red-50 rounded text-red-400"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newLink = { id: `link-${Date.now()}`, title: 'New Link', url: '' };
+                  onUpdate({ links: [...(node.links || []), newLink] });
+                }}
+                className="w-full py-1.5 text-xs text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded border border-dashed border-gray-300 flex items-center justify-center gap-1"
+              >
+                <Plus className="w-3 h-3" /> Add Link
+              </button>
+            </div>
           </div>
         );
       
