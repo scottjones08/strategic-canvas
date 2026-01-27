@@ -95,7 +95,21 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase: SupabaseClient | null =
   supabaseUrl && supabaseKey
-    ? createClient(supabaseUrl, supabaseKey)
+    ? createClient(supabaseUrl, supabaseKey, {
+        auth: {
+          // Use localStorage instead of lock-based storage to avoid AbortError in React StrictMode
+          storageKey: 'strategic-canvas-auth',
+          storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true,
+          // Disable lock to prevent AbortError from navigator.locks
+          lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => {
+            // Simply execute the function without locking
+            return await fn();
+          },
+        },
+      })
     : null;
 
 // Check if Supabase is configured
