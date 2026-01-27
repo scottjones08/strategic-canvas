@@ -11,7 +11,7 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Users, Share2, MoreHorizontal, Maximize2 } from 'lucide-react';
+import { ArrowLeft, Users, Share2, MoreHorizontal, Maximize2, Map, Eye, EyeOff } from 'lucide-react';
 import type { Board, VisualNode } from '../types/board';
 import type { ConnectorPath, Waypoint } from '../lib/connector-engine';
 import { EnterpriseCanvas, EnterpriseCanvasRef } from './EnterpriseCanvas';
@@ -57,6 +57,10 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   const [showMinimap, setShowMinimap] = useState(true);
   const [facilitatorMode, setFacilitatorMode] = useState(false);
   const [showPropertyPanel, setShowPropertyPanel] = useState(false);
+  
+  // Viewport state for minimap
+  const [viewportState, setViewportState] = useState({ zoom: 1, panX: 0, panY: 0 });
+  const [canvasSize, setCanvasSize] = useState({ width: 1000, height: 800 });
   
   // Connector tool state
   const [connectorStart, setConnectorStart] = useState<string | null>(null);
@@ -414,6 +418,14 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           onUpdateNodes={handleUpdateNodes}
           onDeleteNodes={handleDeleteNodes}
           onCanvasClick={handleCanvasClick}
+          onViewportChange={(vp) => {
+            setViewportState(vp);
+            // Also update canvas size
+            const view = canvasRef.current?.getViewport();
+            if (view) {
+              setCanvasSize({ width: view.width, height: view.height });
+            }
+          }}
           gridEnabled={gridEnabled}
           gridSnap={gridSnap}
           showGrid={true}
@@ -528,6 +540,31 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           boardName={board.name}
           onBoardNameChange={(name) => onUpdateBoard({ name })}
         />
+        
+        {/* Minimap */}
+        {showMinimap && (
+          <Minimap
+            nodes={nodes}
+            zoom={viewportState.zoom}
+            panX={viewportState.panX}
+            panY={viewportState.panY}
+            canvasWidth={canvasSize.width}
+            canvasHeight={canvasSize.height}
+            onPan={(x, y) => canvasRef.current?.setPan(x, y)}
+            onClose={() => setShowMinimap(false)}
+          />
+        )}
+        
+        {/* Minimap toggle button when hidden */}
+        {!showMinimap && (
+          <button
+            onClick={() => setShowMinimap(true)}
+            className="absolute bottom-4 right-4 z-40 flex items-center gap-2 px-3 py-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+          >
+            <Map className="w-4 h-4" />
+            <span className="text-sm">Show Minimap</span>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -792,6 +829,185 @@ const getShapeStyle = (shapeType?: string): React.CSSProperties => {
     default:
       return { borderRadius: '8px' };
   }
+};
+
+// Minimap Component
+interface MinimapProps {
+  nodes: VisualNode[];
+  zoom: number;
+  panX: number;
+  panY: number;
+  canvasWidth: number;
+  canvasHeight: number;
+  onPan: (x: number, y: number) => void;
+  onClose: () => void;
+}
+
+const Minimap: React.FC<MinimapProps> = ({
+  nodes,
+  zoom,
+  panX,
+  panY,
+  canvasWidth,
+  canvasHeight,
+  onPan,
+  onClose
+}) => {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // Calculate bounds of all nodes
+  const bounds = nodes.length > 0 ? {
+    minX: Math.min(...nodes.map(n => n.x)) - 200,
+    maxX: Math.max(...nodes.map(n => n.x + n.width)) + 200,
+    minY: Math.min(...nodes.map(n => n.y)) - 200,
+    maxY: Math.max(...nodes.map(n => n.y + n.height)) + 200,
+  } : { minX: -500, maxX: 1500, minY: -500, maxY: 1500 };
+
+  const contentWidth = Math.max(bounds.maxX - bounds.minX, 1000);
+  const contentHeight = Math.max(bounds.maxY - bounds.minY, 800);
+  const minimapWidth = 200;
+  const minimapHeight = 140;
+  const scale = Math.min(minimapWidth / contentWidth, minimapHeight / contentHeight, 0.15);
+
+  // Viewport rectangle
+  const viewportWidth = Math.max((canvasWidth / zoom) * scale, 10);
+  const viewportHeight = Math.max((canvasHeight / zoom) * scale, 10);
+  const viewportX = ((-panX / zoom) - bounds.minX) * scale;
+  const viewportY = ((-panY / zoom) - bounds.minY) * scale;
+
+  const handleViewportMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDragging(true);
+    if (svgRef.current) {
+      const rect = svgRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      setDragOffset({
+        x: mouseX - viewportX - viewportWidth / 2,
+        y: mouseY - viewportY - viewportHeight / 2
+      });
+    }
+  };
+
+  const handleMinimapClick = (e: React.MouseEvent) => {
+    if (isDragging) return;
+    if (!svgRef.current) return;
+
+    const rect = svgRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const canvasX = (x / scale) + bounds.minX;
+    const canvasY = (y / scale) + bounds.minY;
+
+    const newPanX = -(canvasX - (canvasWidth / zoom / 2)) * zoom;
+    const newPanY = -(canvasY - (canvasHeight / zoom / 2)) * zoom;
+
+    onPan(newPanX, newPanY);
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging || !svgRef.current) return;
+
+    const rect = svgRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left - dragOffset.x;
+    const mouseY = e.clientY - rect.top - dragOffset.y;
+
+    const canvasX = (mouseX / scale) + bounds.minX;
+    const canvasY = (mouseY / scale) + bounds.minY;
+
+    const newPanX = -(canvasX - (canvasWidth / zoom / 2)) * zoom;
+    const newPanY = -(canvasY - (canvasHeight / zoom / 2)) * zoom;
+
+    onPan(newPanX, newPanY);
+  }, [isDragging, dragOffset, scale, bounds, canvasWidth, canvasHeight, zoom, onPan]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  return (
+    <div
+      className="absolute bottom-4 right-4 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-2 z-40"
+      style={{ width: minimapWidth + 16, height: minimapHeight + 40 }}
+    >
+      <div className="flex items-center justify-between mb-1 px-1">
+        <span className="text-[10px] font-medium text-gray-500 flex items-center gap-1">
+          <Map className="w-3 h-3" /> Minimap
+        </span>
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-600 p-0.5"
+        >
+          <EyeOff className="w-3 h-3" />
+        </button>
+      </div>
+      <svg
+        ref={svgRef}
+        width={minimapWidth}
+        height={minimapHeight}
+        className="cursor-pointer rounded"
+        onClick={handleMinimapClick}
+      >
+        {/* Grid background */}
+        <rect x="0" y="0" width={minimapWidth} height={minimapHeight} fill="#f3f4f6" rx="4" />
+
+        {/* Grid lines */}
+        {Array.from({ length: 10 }).map((_, i) => (
+          <g key={i}>
+            <line x1={i * minimapWidth / 10} y1="0" x2={i * minimapWidth / 10} y2={minimapHeight} stroke="#e5e7eb" strokeWidth="0.5" />
+            <line x1="0" y1={i * minimapHeight / 10} x2={minimapWidth} y2={i * minimapHeight / 10} stroke="#e5e7eb" strokeWidth="0.5" />
+          </g>
+        ))}
+
+        {/* Nodes */}
+        {nodes.filter(n => !(n.type === 'connector' && n.connectorFrom && n.connectorTo)).map(node => (
+          <rect
+            key={node.id}
+            x={(node.x - bounds.minX) * scale}
+            y={(node.y - bounds.minY) * scale}
+            width={Math.max(node.width * scale, 3)}
+            height={Math.max(node.height * scale, 3)}
+            fill={node.color || '#dbeafe'}
+            stroke="#9ca3af"
+            strokeWidth="0.5"
+            rx="1"
+          />
+        ))}
+
+        {/* Viewport indicator - draggable */}
+        <rect
+          x={viewportX}
+          y={viewportY}
+          width={viewportWidth}
+          height={viewportHeight}
+          fill="rgba(99, 102, 241, 0.15)"
+          stroke="#6366f1"
+          strokeWidth="2"
+          rx="3"
+          className={`cursor-grab ${isDragging ? 'cursor-grabbing' : ''}`}
+          style={{ pointerEvents: 'all' }}
+          onMouseDown={handleViewportMouseDown}
+        />
+      </svg>
+      <div className="text-[9px] text-gray-400 text-center mt-1">
+        {Math.round(zoom * 100)}% • Drag viewport to pan
+      </div>
+    </div>
+  );
 };
 
 export default EnterpriseMeetingView;

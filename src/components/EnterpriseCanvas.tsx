@@ -137,6 +137,7 @@ interface EnterpriseCanvasProps {
   onDeleteNodes: (ids: string[]) => void;
   onCanvasClick?: (worldX: number, worldY: number, e: React.MouseEvent) => void;
   onCanvasDoubleClick?: (worldX: number, worldY: number) => void;
+  onViewportChange?: (viewport: { zoom: number; panX: number; panY: number }) => void;
   gridEnabled?: boolean;
   gridSnap?: boolean;
   showGrid?: boolean;
@@ -152,6 +153,8 @@ export interface EnterpriseCanvasRef {
   getWorldCoordinates: (screenX: number, screenY: number) => { x: number; y: number };
   getScreenCoordinates: (worldX: number, worldY: number) => { x: number; y: number };
   panTo: (worldX: number, worldY: number) => void;
+  setPan: (panX: number, panY: number) => void;
+  getViewport: () => { zoom: number; panX: number; panY: number; width: number; height: number };
   zoomTo: (zoom: number) => void;
 }
 
@@ -170,6 +173,7 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
   onDeleteNodes,
   onCanvasClick,
   onCanvasDoubleClick,
+  onViewportChange,
   gridEnabled = true,
   gridSnap = false,
   showGrid = true,
@@ -369,8 +373,25 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
         y: rect.height / 2 - worldY * viewport.zoom
       });
     },
+    setPan: (panX: number, panY: number) => {
+      dispatch({ type: 'SET_PAN', x: panX, y: panY });
+    },
+    getViewport: () => ({
+      zoom: viewport.zoom,
+      panX: viewport.panX,
+      panY: viewport.panY,
+      width: containerRef.current?.clientWidth || 0,
+      height: containerRef.current?.clientHeight || 0
+    }),
     zoomTo: (zoom: number) => dispatch({ type: 'SET_ZOOM', zoom })
-  }), [viewport.zoom, nodes, getWorldCoordinates, getScreenCoordinates]);
+  }), [viewport.zoom, viewport.panX, viewport.panY, nodes, getWorldCoordinates, getScreenCoordinates]);
+  
+  // Notify parent of viewport changes
+  useEffect(() => {
+    if (onViewportChange) {
+      onViewportChange({ zoom: viewport.zoom, panX: viewport.panX, panY: viewport.panY });
+    }
+  }, [viewport.zoom, viewport.panX, viewport.panY, onViewportChange]);
 
   // Keyboard shortcuts
   useEffect(() => {
