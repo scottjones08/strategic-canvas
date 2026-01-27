@@ -8203,6 +8203,11 @@ export default function App() {
             try {
               await notesApi.update(note.id, supabaseNote);
             } catch (updateError: any) {
+              // Ignore AbortError - happens when request is cancelled during navigation
+              if (updateError?.name === 'AbortError' || updateError?.message?.includes('AbortError')) {
+                console.log('Note save aborted (likely navigation) - will retry on next save');
+                continue;
+              }
               // Check if table doesn't exist
               if (updateError?.code === 'PGRST205') {
                 console.warn('Supabase tables not set up. Run database/supabase_setup.sql in your Supabase SQL Editor.');
@@ -8213,6 +8218,11 @@ export default function App() {
               try {
                 await notesApi.create(supabaseNote);
               } catch (createError: any) {
+                // Ignore AbortError
+                if (createError?.name === 'AbortError' || createError?.message?.includes('AbortError')) {
+                  console.log('Note create aborted - will retry on next save');
+                  continue;
+                }
                 if (createError?.code === 'PGRST205') {
                   console.warn('Supabase tables not set up. Run database/supabase_setup.sql in your Supabase SQL Editor.');
                   setSupabaseTablesExist(false);
@@ -8226,6 +8236,11 @@ export default function App() {
             console.log('Auto-saved notes to Supabase');
           }
         } catch (error: any) {
+          // Ignore AbortError at top level too
+          if (error?.name === 'AbortError' || error?.message?.includes('AbortError')) {
+            console.log('Notes auto-save aborted - will retry on next save');
+            return;
+          }
           if (error?.code === 'PGRST205') {
             console.warn('Supabase tables not set up. Run database/supabase_setup.sql in your Supabase SQL Editor.');
             setSupabaseTablesExist(false);
