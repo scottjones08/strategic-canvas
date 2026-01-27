@@ -8246,6 +8246,10 @@ export default function App() {
                   setSupabaseTablesExist(false);
                   break;
                 }
+                // Ignore 409 conflict (duplicate key) - note already exists
+                if (createError?.message?.includes('409') || createError?.code === '23505') {
+                  continue;
+                }
                 console.error('Failed to save note to Supabase:', createError);
               }
             }
