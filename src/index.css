@@ -561,6 +561,16 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Custom scrollbar for desktop */
 @media (min-width: 769px) {
   .custom-scrollbar::-webkit-scrollbar {

@@ -259,8 +259,8 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
           </button>
         </div>
         
-        {/* Tools row */}
-        <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-2 pointer-events-auto">
+        {/* Tools row - responsive with horizontal scroll on small screens */}
+        <div className="flex items-center gap-1 sm:gap-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-1.5 sm:p-2 pointer-events-auto max-w-[95vw] overflow-x-auto scrollbar-hide">
           {/* Primary Tools */}
           <div className="flex items-center gap-1">
             {/* Select Tool */}
@@ -690,7 +690,7 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
     onContextMenu={onRightClick}
     disabled={disabled}
     className={`
-      relative flex flex-col items-center justify-center w-12 h-12 rounded-xl transition-all
+      relative flex flex-col items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl transition-all flex-shrink-0
       ${active 
         ? 'bg-indigo-100 text-indigo-600' 
         : 'hover:bg-gray-100 text-gray-600'
@@ -700,7 +700,7 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
     title={`${label}${shortcut ? ` (${shortcut})` : ''}`}
   >
     {icon}
-    <span className="text-[10px] font-medium mt-0.5">{label}</span>
+    <span className="text-[9px] sm:text-[10px] font-medium mt-0.5 hidden sm:block">{label}</span>
     {badge}
   </button>
 );

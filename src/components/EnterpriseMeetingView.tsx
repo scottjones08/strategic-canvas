@@ -61,6 +61,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   // Refs
   const canvasRef = useRef<EnterpriseCanvasRef>(null);
   const collaborationRef = useRef<CollaborationManager | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   // State
   const [activeTool, setActiveTool] = useState<ToolType>('select');
@@ -380,8 +381,108 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     });
   }, [handleAddNode]);
   
-  // Tool change handler
+  // Helper to get viewport center in world coordinates
+  const getViewportCenter = useCallback(() => {
+    if (!canvasRef.current) {
+      return { x: 400, y: 300 }; // Fallback
+    }
+    const vp = canvasRef.current.getViewport();
+    // Convert viewport center to world coordinates
+    const centerScreenX = vp.width / 2;
+    const centerScreenY = vp.height / 2;
+    return canvasRef.current.getWorldCoordinates(
+      centerScreenX + (containerRef?.current?.getBoundingClientRect?.()?.left || 0),
+      centerScreenY + (containerRef?.current?.getBoundingClientRect?.()?.top || 0)
+    );
+  }, []);
+  
+  // Tool change handler - immediately add nodes for content tools
   const handleToolChange = useCallback((tool: ToolType, options?: { shapeType?: ShapeType; color?: string }) => {
+    // For content creation tools, immediately add the element to viewport center
+    const contentTools: ToolType[] = ['sticky', 'text', 'shape', 'frame', 'table', 'bucket', 'linklist', 'mindmap'];
+    
+    if (contentTools.includes(tool)) {
+      const center = getViewportCenter();
+      const mergedOptions = { ...toolOptions, ...options };
+      
+      switch (tool) {
+        case 'sticky':
+          handleAddNode('sticky', center.x - 100, center.y - 75, { 
+            color: mergedOptions.color || '#fef3c7',
+            width: 200,
+            height: 150
+          });
+          break;
+        case 'text':
+          handleAddNode('text', center.x - 100, center.y - 25, {
+            color: 'transparent',
+            width: 200,
+            height: 50,
+            fontSize: 24
+          });
+          break;
+        case 'shape':
+          handleAddNode('shape', center.x - 75, center.y - 75, {
+            shapeType: mergedOptions.shapeType || 'rectangle',
+            color: mergedOptions.color || '#dbeafe',
+            width: 150,
+            height: 150
+          });
+          break;
+        case 'frame':
+          handleAddNode('frame', center.x - 200, center.y - 150, {
+            color: '#f3f4f6',
+            width: 400,
+            height: 300
+          });
+          break;
+        case 'table':
+          handleAddNode('table', center.x - 175, center.y - 100, {
+            color: '#ffffff',
+            width: 350,
+            height: 200,
+            content: 'Table',
+            tableData: {
+              headers: ['Column 1', 'Column 2', 'Column 3'],
+              rows: [['', '', ''], ['', '', '']]
+            }
+          });
+          break;
+        case 'bucket':
+          handleAddNode('bucket', center.x - 150, center.y - 150, {
+            color: '#f0f9ff',
+            width: 300,
+            height: 300,
+            content: 'Photo Bucket',
+            bucketId: generateId(),
+            bucketImages: []
+          });
+          break;
+        case 'linklist':
+          handleAddNode('linklist', center.x - 125, center.y - 100, {
+            color: '#f0fdf4',
+            width: 300,
+            height: 200,
+            content: 'Links',
+            links: []
+          });
+          break;
+        case 'mindmap':
+          handleAddNode('mindmap', center.x - 100, center.y - 40, {
+            color: '#dbeafe',
+            width: 200,
+            height: 80,
+            content: 'Central Idea',
+            isRootNode: true
+          });
+          break;
+      }
+      // Stay on select tool after adding
+      setActiveTool('select');
+      return;
+    }
+    
+    // For non-content tools, just set the active tool
     setActiveTool(tool);
     if (options) {
       setToolOptions(prev => ({ ...prev, ...options }));
@@ -390,7 +491,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     if (tool !== 'connector') {
       setConnectorStart(null);
     }
-  }, []);
+  }, [getViewportCenter, toolOptions, handleAddNode]);
   
   // Handle media embedding (YouTube/Image)
   const handleEmbedMedia = useCallback((url: string, mediaType: 'youtube' | 'image') => {
@@ -666,7 +767,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       )}
       
       {/* Main Content - Full screen canvas */}
-      <div className="flex-1 relative overflow-hidden">
+      <div ref={containerRef} className="flex-1 relative overflow-hidden">
         {/* Back button - positioned in top left */}
         <button
           onClick={onBack}
