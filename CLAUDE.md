@@ -181,6 +181,10 @@ Appears when a single node is selected. Features:
 | 2026-01-27 | Fixed toolbar dropdowns - use fixed positioning to avoid overflow clipping | EnterpriseToolbar.tsx |
 | 2026-01-27 | Fixed sticky button - adds sticky immediately on click | EnterpriseToolbar.tsx |
 | 2026-01-27 | Fixed property panel scrollbars - hidden with scrollbar-hide | FloatingPropertyPanel.tsx |
+| 2026-01-27 | Major connector improvements - pivot points, styling, mobile responsive | Multiple files |
+| 2026-01-27 | Connection dots visible on selected nodes, better connector UX | EnterpriseMeetingView.tsx |
+| 2026-01-27 | Mobile bottom toolbar, floating action button, responsive layout | EnterpriseMeetingView.tsx |
+| 2026-01-27 | Connector control points - double-click to add, drag to route | EnhancedConnector.tsx |
 
 ---
 
