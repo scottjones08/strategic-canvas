@@ -105,46 +105,48 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
 
   // Handle double-click to add waypoint
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
-    if (readOnly || !svgRef.current) return;
-    
+    if (readOnly || !svgRef.current || !pathBounds) return;
+
     e.stopPropagation();
-    
-    // Get click position relative to SVG
+
+    // Get click position relative to SVG, then convert to world coordinates
     const rect = svgRef.current.getBoundingClientRect();
-    const clickX = (e.clientX - rect.left) / zoom;
-    const clickY = (e.clientY - rect.top) / zoom;
-    
+    // First get position relative to SVG in screen units, then divide by zoom to get SVG-local coords
+    // Then add pathBounds offset to get world coordinates
+    const clickX = (e.clientX - rect.left) / zoom + pathBounds.minX;
+    const clickY = (e.clientY - rect.top) / zoom + pathBounds.minY;
+
     // Find the nearest segment on the path
     let nearestSegment = 0;
     let minDist = Infinity;
-    
+
     for (let i = 0; i < path.waypoints.length - 1; i++) {
       const p1 = path.waypoints[i];
       const p2 = path.waypoints[i + 1];
-      
+
       // Project point onto line segment
       const dx = p2.x - p1.x;
       const dy = p2.y - p1.y;
       const len = Math.sqrt(dx * dx + dy * dy);
-      
+
       if (len === 0) continue;
-      
+
       const t = Math.max(0, Math.min(1, ((clickX - p1.x) * dx + (clickY - p1.y) * dy) / (len * len)));
       const projX = p1.x + t * dx;
       const projY = p1.y + t * dy;
-      
+
       const dist = Math.sqrt((clickX - projX) ** 2 + (clickY - projY) ** 2);
-      
+
       if (dist < minDist) {
         minDist = dist;
         nearestSegment = i;
       }
     }
-    
-    // Add new waypoint at the click position
+
+    // Add new waypoint at the click position (now in world coordinates)
     const newPath = addWaypoint(path, nearestSegment + 1, { x: clickX, y: clickY });
     onUpdate(newPath);
-  }, [path, zoom, onUpdate, readOnly]);
+  }, [path, zoom, onUpdate, readOnly, pathBounds]);
 
   // Handle waypoint drag start
   const handleWaypointMouseDown = useCallback((e: React.MouseEvent, waypoint: Waypoint) => {
@@ -261,41 +263,44 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
           ))}
         </defs>
 
-        {/* Invisible wider path for easier clicking */}
-        <path
-          d={pathD}
-          fill="none"
-          stroke="transparent"
-          strokeWidth="20"
-          className="cursor-pointer"
-        />
+        {/* Translate all path content to account for SVG positioning */}
+        <g transform={`translate(${-pathBounds.minX}, ${-pathBounds.minY})`}>
+          {/* Invisible wider path for easier clicking */}
+          <path
+            d={pathD}
+            fill="none"
+            stroke="transparent"
+            strokeWidth="20"
+            className="cursor-pointer"
+          />
 
-        {/* Shadow path */}
-        <path
-          d={pathD}
-          fill="none"
-          stroke="rgba(0,0,0,0.1)"
-          strokeWidth={(path.strokeWidth || 2) + 2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+          {/* Shadow path */}
+          <path
+            d={pathD}
+            fill="none"
+            stroke="rgba(0,0,0,0.1)"
+            strokeWidth={(path.strokeWidth || 2) + 2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
 
-        {/* Main visible path */}
-        <path
-          d={pathD}
-          fill="none"
-          stroke={path.color}
-          strokeWidth={path.strokeWidth}
-          strokeDasharray={
-            path.strokeStyle === 'dashed' ? '8,4' :
-            path.strokeStyle === 'dotted' ? '2,4' : undefined
-          }
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          markerStart={path.arrowStart ? getArrowMarker(path.color) : undefined}
-          markerEnd={path.arrowEnd ? getArrowMarker(path.color) : undefined}
-          className={`transition-all duration-200 ${isSelected ? 'filter drop-shadow-md' : ''}`}
-        />
+          {/* Main visible path */}
+          <path
+            d={pathD}
+            fill="none"
+            stroke={path.color}
+            strokeWidth={path.strokeWidth}
+            strokeDasharray={
+              path.strokeStyle === 'dashed' ? '8,4' :
+              path.strokeStyle === 'dotted' ? '2,4' : undefined
+            }
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            markerStart={path.arrowStart ? getArrowMarker(path.color) : undefined}
+            markerEnd={path.arrowEnd ? getArrowMarker(path.color) : undefined}
+            className={`transition-all duration-200 ${isSelected ? 'filter drop-shadow-md' : ''}`}
+          />
+        </g>
 
         {/* Waypoints (only visible when selected) */}
         <AnimatePresence>

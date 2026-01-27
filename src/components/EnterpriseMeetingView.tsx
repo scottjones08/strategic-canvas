@@ -1823,24 +1823,40 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
       {isConnectorMode && (
         <>
           {/* Top */}
-          <div 
-            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-125 transition-transform shadow-sm"
+          <div
+            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-150 hover:bg-blue-600 transition-all shadow-md z-10"
             title="Connect from top"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }}
           />
           {/* Right */}
-          <div 
-            className="absolute top-1/2 right-0 translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-125 transition-transform shadow-sm"
+          <div
+            className="absolute top-1/2 right-0 translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-150 hover:bg-blue-600 transition-all shadow-md z-10"
             title="Connect from right"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }}
           />
           {/* Bottom */}
-          <div 
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-125 transition-transform shadow-sm"
+          <div
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-150 hover:bg-blue-600 transition-all shadow-md z-10"
             title="Connect from bottom"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }}
           />
           {/* Left */}
-          <div 
-            className="absolute top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-125 transition-transform shadow-sm"
+          <div
+            className="absolute top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-crosshair hover:scale-150 hover:bg-blue-600 transition-all shadow-md z-10"
             title="Connect from left"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }}
           />
         </>
       )}
