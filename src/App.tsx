@@ -124,6 +124,7 @@ import DocumentsView from './components/DocumentsView';
 import PDFEditor from './components/PDFEditor';
 import { documentsApi, uploadDocumentFile, getDocumentShareUrl } from './lib/documents-api';
 import AutosaveIndicator, { type SaveStatus } from './components/AutosaveIndicator';
+import WorldClassConnector from './components/WorldClassConnector';
 import type { ClientDocument } from './components/DocumentsView';
 import type { PDFAnnotation, PDFComment } from './lib/pdf-utils';
 
@@ -2908,103 +2909,67 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
         }} 
       />
 
-      {/* SVG Layer for Connectors and Drawings */}
-      <svg className="absolute inset-0 pointer-events-none" style={{ transform: `translate(${panX}px, ${panY}px) scale(${zoom})`, transformOrigin: 'top left', overflow: 'visible' }}>
-        <defs>
-          {/* Arrow markers with different colors */}
-          <marker id="arrowhead-gray" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
-            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#6b7280" />
-          </marker>
-          <marker id="arrowhead-blue" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
-            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#3b82f6" />
-          </marker>
-          <marker id="arrowhead-green" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
-            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#22c55e" />
-          </marker>
-          <marker id="arrowhead-red" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
-            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#ef4444" />
-          </marker>
-          <marker id="arrowhead-purple" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
-            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#8b5cf6" />
-          </marker>
-          <marker id="arrowhead-orange" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
-            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#f97316" />
-          </marker>
-          <marker id="arrowhead-teal" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
-            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#14b8a6" />
-          </marker>
-          <marker id="arrowhead-pink" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
-            <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#ec4899" />
-          </marker>
-        </defs>
-        {/* Connector lines with arrows - curved bezier paths */}
+      {/* World-Class Connectors Layer */}
+      <div 
+        className="absolute inset-0 pointer-events-none" 
+        style={{ 
+          transform: `translate(${panX}px, ${panY}px) scale(${zoom})`, 
+          transformOrigin: 'top left',
+        }}
+      >
         {connectorLines.map((line: any) => {
-          // Calculate control points for smooth bezier curve
-          const dx = line.x2 - line.x1;
-          const dy = line.y2 - line.y1;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-
-          // Determine curve direction based on relative positions
-          const isHorizontal = Math.abs(dx) > Math.abs(dy);
-          const curveStrength = Math.min(distance * 0.4, 100);
-
-          let cx1, cy1, cx2, cy2;
-          if (isHorizontal) {
-            // Horizontal flow - control points extend in the direction of travel
-            // cx1 moves away from start in the direction of dx
-            // cx2 moves back from end in the direction opposite to dx (so arrow points correctly)
-            cx1 = line.x1 + (dx > 0 ? curveStrength : -curveStrength);
-            cy1 = line.y1;
-            cx2 = line.x2 + (dx > 0 ? -curveStrength : curveStrength);
-            cy2 = line.y2;
-          } else {
-            // Vertical flow - control points extend in the direction of travel
-            cx1 = line.x1;
-            cy1 = line.y1 + (dy > 0 ? curveStrength : -curveStrength);
-            cx2 = line.x2;
-            cy2 = line.y2 + (dy > 0 ? -curveStrength : curveStrength);
-          }
-
-          const pathD = `M ${line.x1} ${line.y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${line.x2} ${line.y2}`;
-
-          // Get arrow color marker
-          const getMarker = (color: string) => {
-            if (color?.includes('3b82f6') || color?.includes('blue')) return 'url(#arrowhead-blue)';
-            if (color?.includes('22c55e') || color?.includes('green')) return 'url(#arrowhead-green)';
-            if (color?.includes('ef4444') || color?.includes('red')) return 'url(#arrowhead-red)';
-            if (color?.includes('8b5cf6') || color?.includes('purple')) return 'url(#arrowhead-purple)';
-            if (color?.includes('f97316') || color?.includes('orange')) return 'url(#arrowhead-orange)';
-            if (color?.includes('14b8a6') || color?.includes('teal')) return 'url(#arrowhead-teal)';
-            if (color?.includes('ec4899') || color?.includes('pink')) return 'url(#arrowhead-pink)';
-            return 'url(#arrowhead-gray)';
-          };
-
-          // Label position is calculated in the overlay div below
-
+          const connector = board.visualNodes.find(n => n.id === line.id);
+          const fromNode = board.visualNodes.find(n => n.id === connector?.connectorFrom);
+          const toNode = board.visualNodes.find(n => n.id === connector?.connectorTo);
+          
+          if (!fromNode || !toNode) return null;
+          
           return (
-            <g key={line.id}>
-              {/* Shadow path */}
-              <path
-                d={pathD}
-                fill="none"
-                stroke="rgba(0,0,0,0.08)"
-                strokeWidth="4"
-                strokeLinecap="round"
-              />
-              {/* Main curved path */}
-              <path
-                d={pathD}
-                fill="none"
-                stroke={line.color || '#6b7280'}
-                strokeWidth="2"
-                strokeDasharray={line.style === 'dashed' ? '8,4' : line.style === 'dotted' ? '2,4' : undefined}
-                strokeLinecap="round"
-                markerEnd={getMarker(line.color)}
-              />
-              {/* Label is rendered in the overlay div below for interactivity */}
-            </g>
+            <WorldClassConnector
+              key={line.id}
+              id={line.id}
+              fromNode={{ x: fromNode.x, y: fromNode.y, width: fromNode.width, height: fromNode.height }}
+              toNode={{ x: toNode.x, y: toNode.y, width: toNode.width, height: toNode.height }}
+              fromNodeId={connector?.connectorFrom || ''}
+              toNodeId={connector?.connectorTo || ''}
+              color={line.color || '#6b7280'}
+              strokeStyle={line.style || 'solid'}
+              label={line.label}
+              isSelected={selectedNodeIds.includes(line.id)}
+              zoom={zoom}
+              onSelect={() => onSelectNodes([line.id])}
+              onDelete={() => {
+                onUpdateWithHistory({ visualNodes: board.visualNodes.filter(n => n.id !== line.id) }, 'Delete connector');
+                onSelectNodes([]);
+              }}
+              onUpdateLabel={(label) => {
+                onUpdateWithHistory({
+                  visualNodes: board.visualNodes.map(n => 
+                    n.id === line.id ? { ...n, connectorLabel: label } : n
+                  )
+                }, 'Update connector label');
+              }}
+              onUpdateColor={(color) => {
+                onUpdateWithHistory({
+                  visualNodes: board.visualNodes.map(n => 
+                    n.id === line.id ? { ...n, color } : n
+                  )
+                }, 'Update connector color');
+              }}
+              onUpdateStyle={(style) => {
+                onUpdateWithHistory({
+                  visualNodes: board.visualNodes.map(n => 
+                    n.id === line.id ? { ...n, connectorStyle: style } : n
+                  )
+                }, 'Update connector style');
+              }}
+            />
           );
         })}
+      </div>
+      
+      {/* SVG Layer for Mind Map Connections and Drawings */}
+      <svg className="absolute inset-0 pointer-events-none" style={{ transform: `translate(${panX}px, ${panY}px) scale(${zoom})`, transformOrigin: 'top left', overflow: 'visible' }}>
         {/* Mind map connections */}
         {board.visualNodes.filter(n => n.type === 'mindmap' && n.parentNodeId).map(childNode => {
           const parentNode = board.visualNodes.find(n => n.id === childNode.parentNodeId);
@@ -3039,164 +3004,6 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
           />
         )}
       </svg>
-
-      {/* Connector interactive overlays for labels and handles */}
-      <div className="absolute inset-0 pointer-events-none" style={{ transform: `translate(${panX}px, ${panY}px) scale(${zoom})`, transformOrigin: 'top left' }}>
-        {connectorLines.map((line: any) => {
-          const connector = board.visualNodes.find(n => n.id === line.id);
-          const isConnectorSelected = selectedNodeIds.includes(line.id);
-          
-          return (
-            <div key={`connector-overlay-${line.id}`}>
-              {/* Clickable area along the connector path for selection */}
-              <div
-                className="absolute pointer-events-auto cursor-pointer"
-                style={{
-                  left: Math.min(line.x1, line.x2) - 10,
-                  top: Math.min(line.y1, line.y2) - 10,
-                  width: Math.abs(line.x2 - line.x1) + 20,
-                  height: Math.abs(line.y2 - line.y1) + 20,
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectNodes([line.id]);
-                }}
-              />
-              
-              {/* Label input at midpoint */}
-              <div
-                className="absolute pointer-events-auto"
-                style={{
-                  left: line.midX - 50,
-                  top: line.midY - 12,
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <input
-                  type="text"
-                  value={connector?.connectorLabel || ''}
-                  onChange={(e) => {
-                    onUpdateWithHistory({
-                      visualNodes: board.visualNodes.map(n => 
-                        n.id === line.id ? { ...n, connectorLabel: e.target.value } : n
-                      )
-                    }, 'Update connector label');
-                  }}
-                  placeholder="Label..."
-                  className={`w-24 text-center text-xs px-2 py-1 rounded border bg-white/90 backdrop-blur-sm transition-all ${
-                    isConnectorSelected || connector?.connectorLabel 
-                      ? 'opacity-100 border-gray-300' 
-                      : 'opacity-0 hover:opacity-100 border-transparent'
-                  }`}
-                  style={{ color: line.color || '#6b7280' }}
-                />
-              </div>
-              
-              {/* Control handles when selected */}
-              {isConnectorSelected && (
-                <>
-                  {/* Start handle */}
-                  <div
-                    className="absolute w-3 h-3 bg-indigo-500 rounded-full border-2 border-white shadow-md pointer-events-auto cursor-move"
-                    style={{
-                      left: line.x1 - 6,
-                      top: line.y1 - 6,
-                    }}
-                    title="Start point"
-                  />
-                  {/* End handle */}
-                  <div
-                    className="absolute w-3 h-3 bg-indigo-500 rounded-full border-2 border-white shadow-md pointer-events-auto cursor-move"
-                    style={{
-                      left: line.x2 - 6,
-                      top: line.y2 - 6,
-                    }}
-                    title="End point"
-                  />
-                  {/* Midpoint control for curve */}
-                  <div
-                    className="absolute w-4 h-4 bg-white border-2 border-indigo-500 rounded-full shadow-md pointer-events-auto cursor-move flex items-center justify-center"
-                    style={{
-                      left: line.midX - 8,
-                      top: line.midY - 8,
-                    }}
-                    title="Drag to adjust curve"
-                  >
-                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
-                  </div>
-                  
-                  {/* Connector toolbar */}
-                  <div
-                    className="absolute bg-white rounded-lg shadow-lg border border-gray-200 p-1.5 flex items-center gap-1 pointer-events-auto"
-                    style={{
-                      left: line.midX - 160,
-                      top: line.midY + 20,
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {/* Line style */}
-                    <button
-                      onClick={() => onUpdateWithHistory({
-                        visualNodes: board.visualNodes.map(n => 
-                          n.id === line.id ? { ...n, connectorStyle: 'solid' } : n
-                        )
-                      }, 'Solid line')}
-                      className={`p-1.5 rounded ${connector?.connectorStyle !== 'dashed' && connector?.connectorStyle !== 'dotted' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
-                      title="Solid"
-                    >
-                      <Minus className="w-4 h-4 text-gray-600" />
-                    </button>
-                    <button
-                      onClick={() => onUpdateWithHistory({
-                        visualNodes: board.visualNodes.map(n => 
-                          n.id === line.id ? { ...n, connectorStyle: 'dashed' } : n
-                        )
-                      }, 'Dashed line')}
-                      className={`p-1.5 rounded ${connector?.connectorStyle === 'dashed' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
-                      title="Dashed"
-                    >
-                      <span className="text-xs font-mono text-gray-600">- -</span>
-                    </button>
-                    <button
-                      onClick={() => onUpdateWithHistory({
-                        visualNodes: board.visualNodes.map(n => 
-                          n.id === line.id ? { ...n, connectorStyle: 'dotted' } : n
-                        )
-                      }, 'Dotted line')}
-                      className={`p-1.5 rounded ${connector?.connectorStyle === 'dotted' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
-                      title="Dotted"
-                    >
-                      <span className="text-xs font-mono text-gray-600">···</span>
-                    </button>
-                    <div className="w-px h-5 bg-gray-200" />
-                    {/* Colors */}
-                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#6b7280' } : n) }, 'Gray')} className={`w-5 h-5 rounded bg-gray-500 hover:ring-2 ring-gray-300 ${connector?.color === '#6b7280' ? 'ring-2 ring-indigo-500' : ''}`} title="Gray" />
-                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#3b82f6' } : n) }, 'Blue')} className={`w-5 h-5 rounded bg-blue-500 hover:ring-2 ring-gray-300 ${connector?.color === '#3b82f6' ? 'ring-2 ring-indigo-500' : ''}`} title="Blue" />
-                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#22c55e' } : n) }, 'Green')} className={`w-5 h-5 rounded bg-green-500 hover:ring-2 ring-gray-300 ${connector?.color === '#22c55e' ? 'ring-2 ring-indigo-500' : ''}`} title="Green" />
-                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#ef4444' } : n) }, 'Red')} className={`w-5 h-5 rounded bg-red-500 hover:ring-2 ring-gray-300 ${connector?.color === '#ef4444' ? 'ring-2 ring-indigo-500' : ''}`} title="Red" />
-                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#8b5cf6' } : n) }, 'Purple')} className={`w-5 h-5 rounded bg-purple-500 hover:ring-2 ring-gray-300 ${connector?.color === '#8b5cf6' ? 'ring-2 ring-indigo-500' : ''}`} title="Purple" />
-                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#f97316' } : n) }, 'Orange')} className={`w-5 h-5 rounded bg-orange-500 hover:ring-2 ring-gray-300 ${connector?.color === '#f97316' ? 'ring-2 ring-indigo-500' : ''}`} title="Orange" />
-                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#14b8a6' } : n) }, 'Teal')} className={`w-5 h-5 rounded bg-teal-500 hover:ring-2 ring-gray-300 ${connector?.color === '#14b8a6' ? 'ring-2 ring-indigo-500' : ''}`} title="Teal" />
-                    <button onClick={() => onUpdateWithHistory({ visualNodes: board.visualNodes.map(n => n.id === line.id ? { ...n, color: '#ec4899' } : n) }, 'Pink')} className={`w-5 h-5 rounded bg-pink-500 hover:ring-2 ring-gray-300 ${connector?.color === '#ec4899' ? 'ring-2 ring-indigo-500' : ''}`} title="Pink" />
-                    <div className="w-px h-5 bg-gray-200" />
-                    {/* Delete */}
-                    <button
-                      onClick={() => {
-                        onUpdateWithHistory({ visualNodes: board.visualNodes.filter(n => n.id !== line.id) }, 'Delete connector');
-                        onSelectNodes([]);
-                      }}
-                      className="p-1.5 rounded hover:bg-red-100"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
 
       {/* Selection Rectangle (Marquee) */}
       {isLassoing && lassoStart && lassoEnd && (

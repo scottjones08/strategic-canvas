@@ -119,3 +119,6 @@ export type { OfficeDocumentModalProps } from './OfficeDocumentModal';
 // Autosave Indicator
 export { default as AutosaveIndicator } from './AutosaveIndicator';
 export type { SaveStatus } from './AutosaveIndicator';
+
+// World-Class Connector
+export { default as WorldClassConnector } from './WorldClassConnector';
