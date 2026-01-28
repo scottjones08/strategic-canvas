@@ -66,7 +66,7 @@ export const angle = (p1: Point, p2: Point): number => {
 export const getNearestEdgePoint = (
   rect: { x: number; y: number; width: number; height: number },
   fromPoint: Point,
-  padding: number = 8
+  padding: number = 0
 ): Point => {
   const centerX = rect.x + rect.width / 2;
   const centerY = rect.y + rect.height / 2;
@@ -521,8 +521,9 @@ export const nodeToConnectorPath = (
   const toCenter = { x: toNode.x + toNode.width / 2, y: toNode.y + toNode.height / 2 };
   
   // Always recalculate start and end points based on current node positions
-  const startPoint = getNearestEdgePoint(fromNode, toCenter, 5);
-  const endPoint = getNearestEdgePoint(toNode, fromCenter, 5);
+  // Use minimal padding (0) so connectors touch the node edges
+  const startPoint = getNearestEdgePoint(fromNode, toCenter, 0);
+  const endPoint = getNearestEdgePoint(toNode, fromCenter, 0);
   
   // Build waypoints with NEW IDs for start and end (always recalculated)
   const waypoints: Waypoint[] = [
