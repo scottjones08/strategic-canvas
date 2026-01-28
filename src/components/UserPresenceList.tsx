@@ -26,6 +26,7 @@ interface UserPresenceListProps {
   connectionError?: string | null;
   editingNodes?: Map<string, { userId: string; userName: string; color: string }>;
   onFollowUser?: (userId: string) => void;
+  isDemoMode?: boolean;
 }
 
 // Individual user avatar with status
@@ -86,7 +87,18 @@ const UserAvatar = memo(({
 UserAvatar.displayName = 'UserAvatar';
 
 // Connection status badge
-const ConnectionBadge = memo(({ isConnected, error }: { isConnected: boolean; error?: string | null }) => {
+const ConnectionBadge = memo(({ isConnected, error, isDemoMode }: { isConnected: boolean; error?: string | null; isDemoMode?: boolean }) => {
+  if (isDemoMode) {
+    return (
+      <div 
+        className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700"
+        title="Demo Mode - Local storage only"
+      >
+        <span>✨ Demo</span>
+      </div>
+    );
+  }
+  
   return (
     <div 
       className={`
@@ -232,7 +244,8 @@ export const UserPresenceList: React.FC<UserPresenceListProps> = memo(({
   isConnected,
   connectionError,
   editingNodes,
-  onFollowUser
+  onFollowUser,
+  isDemoMode = false
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
@@ -248,7 +261,7 @@ export const UserPresenceList: React.FC<UserPresenceListProps> = memo(({
         className="flex items-center gap-2 bg-white rounded-full shadow-lg px-3 py-2 border border-gray-200"
       >
         {/* Connection status */}
-        <ConnectionBadge isConnected={isConnected} error={connectionError} />
+        <ConnectionBadge isConnected={isConnected} error={connectionError} isDemoMode={isDemoMode} />
         
         {/* Separator */}
         <div className="w-px h-5 bg-gray-200" />

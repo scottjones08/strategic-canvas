@@ -209,7 +209,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
   return (
     <>
       {/* Main Toolbar */}
-      <div className="absolute top-2 sm:top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1.5 sm:gap-2 pointer-events-none w-[98vw] sm:w-auto">
+      <div className="absolute top-2 sm:top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1.5 sm:gap-2 pointer-events-none w-[98vw] sm:w-auto overflow-visible">
         {/* Top row - Board name and participants */}
         <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto px-2">
           {/* Board Name */}
@@ -260,7 +260,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
         </div>
         
         {/* Tools row - responsive with horizontal scroll on small screens */}
-        <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-1 sm:p-1.5 md:p-2 pointer-events-auto max-w-[98vw] overflow-x-auto scrollbar-hide">
+        <div className={`flex items-center gap-0.5 sm:gap-1 md:gap-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-1 sm:p-1.5 md:p-2 pointer-events-auto max-w-[98vw] scrollbar-hide ${showShapePicker || showStickyPicker ? 'overflow-visible' : 'overflow-x-auto'}`}>
           {/* Primary Tools */}
           <div className="flex items-center gap-1">
             {/* Select Tool */}
@@ -306,20 +306,14 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
                 badge={<div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-yellow-400 border border-white" />}
               />
               
-              {/* Sticky Color Picker - positioned fixed to avoid overflow clipping */}
+              {/* Sticky Color Picker - positioned absolute relative to parent */}
               <AnimatePresence>
                 {showStickyPicker && (
                   <motion.div
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="fixed mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-[100]"
-                    style={{ 
-                      top: '140px',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      marginLeft: '-120px'
-                    }}
+                    className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-[100]"
                   >
                     <div className="text-xs text-gray-500 mb-2 text-center">Right-click Sticky for color</div>
                     <div className="grid grid-cols-4 gap-2">
@@ -368,20 +362,14 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
                 shortcut="S"
               />
               
-              {/* Shape Picker - positioned fixed to avoid overflow clipping */}
+              {/* Shape Picker - positioned absolute relative to parent */}
               <AnimatePresence>
                 {showShapePicker && (
                   <motion.div
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="fixed mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-[100]"
-                    style={{ 
-                      top: '140px',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      marginLeft: '-80px'
-                    }}
+                    className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-[100]"
                   >
                     <div className="grid grid-cols-2 gap-1 min-w-[160px]">
                       {SHAPE_OPTIONS.map((shape) => (
@@ -572,7 +560,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="flex items-center gap-2 bg-indigo-600 text-white rounded-xl shadow-lg px-3 py-2 pointer-events-auto"
+              className="flex items-center gap-2 bg-indigo-600 text-white rounded-xl shadow-lg px-3 py-2 pointer-events-auto shrink-0"
             >
               <span className="text-sm font-medium px-2">
                 {selectedCount} selected

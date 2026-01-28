@@ -43,6 +43,7 @@ interface EnterpriseMeetingViewProps {
   participantCount?: number;
   onOpenShare?: () => void;
   userId?: string;
+  isDemoMode?: boolean;
 }
 
 // Generate unique ID
@@ -56,7 +57,8 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   userColor,
   participantCount = 1,
   onOpenShare,
-  userId = `user-${Date.now()}`
+  userId = `user-${Date.now()}`,
+  isDemoMode = false
 }) => {
   // Refs
   const canvasRef = useRef<EnterpriseCanvasRef>(null);
@@ -75,6 +77,10 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   const [showMediaModal, setShowMediaModal] = useState<'youtube' | 'image' | null>(null);
   const [showCursors, setShowCursors] = useState(true);
   const [showLeftPanel, setShowLeftPanel] = useState(true);
+  const [showTimerModal, setShowTimerModal] = useState(false);
+  const [isPresentationMode, setIsPresentationMode] = useState(false);
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [timerRunning, setTimerRunning] = useState(false);
   
   // Collaboration state
   const [isConnected, setIsConnected] = useState(false);
@@ -237,6 +243,77 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     }
   }, [canRedo, history, historyIndex, onUpdateBoard]);
   
+  // Timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (timerRunning && timerSeconds > 0) {
+      interval = setInterval(() => {
+        setTimerSeconds(prev => {
+          if (prev <= 1) {
+            setTimerRunning(false);
+            // Play a sound or show notification when timer ends
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [timerRunning, timerSeconds]);
+  
+  // Presentation mode: hide UI and fit content
+  const handleStartPresentation = useCallback(() => {
+    setIsPresentationMode(true);
+    setShowLeftPanel(false);
+    setShowMinimap(false);
+    // Fit all content
+    canvasRef.current?.fitToContent();
+    // Request fullscreen if available
+    if (containerRef.current?.requestFullscreen) {
+      containerRef.current.requestFullscreen().catch(() => {});
+    }
+  }, []);
+  
+  const handleExitPresentation = useCallback(() => {
+    setIsPresentationMode(false);
+    setShowLeftPanel(true);
+    setShowMinimap(true);
+    // Exit fullscreen
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+  
+  // Listen for fullscreen exit and ESC key
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && isPresentationMode) {
+        setIsPresentationMode(false);
+        setShowLeftPanel(true);
+        setShowMinimap(true);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isPresentationMode) {
+          handleExitPresentation();
+        } else if (activeTool === 'connector') {
+          // ESC cancels connector mode
+          setActiveTool('select');
+          setConnectorStart(null);
+        }
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isPresentationMode, handleExitPresentation, activeTool]);
+  
   // Node operations
   const handleAddNode = useCallback((type: VisualNode['type'], x: number, y: number, options: any = {}) => {
     // Set default dimensions based on type
@@ -367,6 +444,14 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
         });
         setActiveTool('select');
         break;
+      case 'connector':
+        // Connector tool - clicking on empty canvas cancels current connection attempt
+        // but stays in connector mode for the next attempt
+        if (connectorStart) {
+          setConnectorStart(null); // Cancel current connection
+        }
+        // Don't switch to select tool - stay in connector mode
+        break;
       default:
         setSelectedNodeIds([]);
     }
@@ -398,23 +483,28 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   
   // Tool change handler - immediately add nodes for content tools
   const handleToolChange = useCallback((tool: ToolType, options?: { shapeType?: ShapeType; color?: string }) => {
-    // For content creation tools, immediately add the element to viewport center
+    // For content creation tools, immediately add the element to viewport center with slight offset
     const contentTools: ToolType[] = ['sticky', 'text', 'shape', 'frame', 'table', 'bucket', 'linklist', 'mindmap'];
     
     if (contentTools.includes(tool)) {
       const center = getViewportCenter();
+      // Add random offset to prevent items stacking on top of each other
+      const offsetX = (Math.random() - 0.5) * 200;
+      const offsetY = (Math.random() - 0.5) * 200;
       const mergedOptions = { ...toolOptions, ...options };
+      const finalX = center.x + offsetX;
+      const finalY = center.y + offsetY;
       
       switch (tool) {
         case 'sticky':
-          handleAddNode('sticky', center.x - 100, center.y - 75, { 
+          handleAddNode('sticky', finalX - 100, finalY - 75, { 
             color: mergedOptions.color || '#fef3c7',
             width: 200,
             height: 150
           });
           break;
         case 'text':
-          handleAddNode('text', center.x - 100, center.y - 25, {
+          handleAddNode('text', finalX - 100, finalY - 25, {
             color: 'transparent',
             width: 200,
             height: 50,
@@ -422,7 +512,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           });
           break;
         case 'shape':
-          handleAddNode('shape', center.x - 75, center.y - 75, {
+          handleAddNode('shape', finalX - 75, finalY - 75, {
             shapeType: mergedOptions.shapeType || 'rectangle',
             color: mergedOptions.color || '#dbeafe',
             width: 150,
@@ -430,14 +520,14 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           });
           break;
         case 'frame':
-          handleAddNode('frame', center.x - 200, center.y - 150, {
+          handleAddNode('frame', finalX - 200, finalY - 150, {
             color: '#f3f4f6',
             width: 400,
             height: 300
           });
           break;
         case 'table':
-          handleAddNode('table', center.x - 175, center.y - 100, {
+          handleAddNode('table', finalX - 175, finalY - 100, {
             color: '#ffffff',
             width: 350,
             height: 200,
@@ -449,7 +539,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           });
           break;
         case 'bucket':
-          handleAddNode('bucket', center.x - 150, center.y - 150, {
+          handleAddNode('bucket', finalX - 150, finalY - 150, {
             color: '#f0f9ff',
             width: 300,
             height: 300,
@@ -459,7 +549,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           });
           break;
         case 'linklist':
-          handleAddNode('linklist', center.x - 125, center.y - 100, {
+          handleAddNode('linklist', finalX - 125, finalY - 100, {
             color: '#f0fdf4',
             width: 300,
             height: 200,
@@ -468,7 +558,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           });
           break;
         case 'mindmap':
-          handleAddNode('mindmap', center.x - 100, center.y - 40, {
+          handleAddNode('mindmap', finalX - 100, finalY - 40, {
             color: '#dbeafe',
             width: 200,
             height: 80,
@@ -544,7 +634,8 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       // Second click - create connector
       createConnector(connectorStart, nodeId);
       setConnectorStart(null);
-      setActiveTool('select');
+      // Stay in connector mode so user can create more connectors
+      // Press Escape or click Select to exit connector mode
     }
   }, [activeTool, connectorStart, createConnector]);
   
@@ -790,14 +881,22 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
             </button>
           )}
           <div className={`flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
-            isConnected 
-              ? 'bg-green-100 text-green-700' 
-              : 'bg-yellow-100 text-yellow-700'
+            isDemoMode
+              ? 'bg-purple-100 text-purple-700'
+              : isConnected 
+                ? 'bg-green-100 text-green-700' 
+                : 'bg-yellow-100 text-yellow-700'
           }`}>
-            {isConnected ? <Wifi className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <WifiOff className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
-            <span className="hidden sm:inline">{isConnected ? 'Live' : 'Connecting...'}</span>
+            {isDemoMode ? (
+              <span className="hidden sm:inline">✨ Demo Mode</span>
+            ) : (
+              <>
+                {isConnected ? <Wifi className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <WifiOff className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+                <span className="hidden sm:inline">{isConnected ? 'Live' : 'Connecting...'}</span>
+              </>
+            )}
           </div>
-          {connectionError && (
+          {connectionError && !isDemoMode && (
             <div className="hidden sm:block px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs">
               {connectionError}
             </div>
@@ -809,9 +908,10 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           <UserPresenceList
             users={otherUsers}
             currentUser={currentUser}
-            isConnected={isConnected}
-            connectionError={connectionError}
+            isConnected={isDemoMode ? true : isConnected}
+            connectionError={isDemoMode ? null : connectionError}
             editingNodes={editingNodes}
+            isDemoMode={isDemoMode}
           />
         </div>
         
@@ -972,9 +1072,9 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           onDuplicateSelected={handleDuplicateSelected}
           onGroupSelected={handleGroupSelected}
           onUngroupSelected={handleUngroupSelected}
-          onStartPresentation={() => {}}
+          onStartPresentation={handleStartPresentation}
           onOpenShare={() => setShowShareModal(true)}
-          onOpenTimer={() => {}}
+          onOpenTimer={() => setShowTimerModal(true)}
           participantCount={participantCount}
           facilitatorMode={facilitatorMode}
           onToggleFacilitatorMode={() => setFacilitatorMode(!facilitatorMode)}
@@ -1007,6 +1107,32 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
             <span className="text-xs sm:text-sm hidden sm:inline">Show Minimap</span>
           </button>
         )}
+        
+        {/* Connector Mode Status Indicator */}
+        <AnimatePresence>
+          {activeTool === 'connector' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="absolute bottom-20 sm:bottom-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-full shadow-lg"
+            >
+              <GitBranch className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                {connectorStart 
+                  ? 'Click another element to connect' 
+                  : 'Click an element to start connecting'}
+              </span>
+              <button 
+                onClick={() => { setActiveTool('select'); setConnectorStart(null); }}
+                className="ml-2 p-1 hover:bg-indigo-700 rounded-full transition-colors"
+                title="Cancel (ESC)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
         
         {/* Mobile Quick Action FAB */}
         <div className="sm:hidden absolute bottom-4 right-2 z-40 flex flex-col gap-2">
@@ -1102,6 +1228,103 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           onEmbed={handleEmbedMedia}
         />
       )}
+      
+      {/* Timer Modal */}
+      <AnimatePresence>
+        {showTimerModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200]"
+            onClick={() => setShowTimerModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl p-6 w-80"
+            >
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Session Timer</h3>
+              
+              {/* Timer Display */}
+              <div className="text-center mb-6">
+                <div className="text-5xl font-mono font-bold text-gray-900">
+                  {Math.floor(timerSeconds / 60).toString().padStart(2, '0')}:
+                  {(timerSeconds % 60).toString().padStart(2, '0')}
+                </div>
+              </div>
+              
+              {/* Quick Time Buttons */}
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                {[5, 10, 15, 30].map(mins => (
+                  <button
+                    key={mins}
+                    onClick={() => { setTimerSeconds(mins * 60); setTimerRunning(false); }}
+                    className="py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+                  >
+                    {mins}m
+                  </button>
+                ))}
+              </div>
+              
+              {/* Controls */}
+              <div className="flex gap-2">
+                {!timerRunning ? (
+                  <button
+                    onClick={() => { if (timerSeconds > 0) setTimerRunning(true); }}
+                    disabled={timerSeconds === 0}
+                    className="flex-1 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white rounded-xl font-semibold transition-colors"
+                  >
+                    Start
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setTimerRunning(false)}
+                    className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold transition-colors"
+                  >
+                    Pause
+                  </button>
+                )}
+                <button
+                  onClick={() => { setTimerSeconds(0); setTimerRunning(false); }}
+                  className="py-3 px-4 bg-gray-200 hover:bg-gray-300 rounded-xl font-semibold text-gray-700 transition-colors"
+                >
+                  Reset
+                </button>
+              </div>
+              
+              <button
+                onClick={() => setShowTimerModal(false)}
+                className="w-full mt-4 py-2 text-gray-500 hover:text-gray-700 text-sm font-medium"
+              >
+                Close
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Presentation Mode Overlay */}
+      <AnimatePresence>
+        {isPresentationMode && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed top-4 right-4 z-[300]"
+          >
+            <button
+              onClick={handleExitPresentation}
+              className="px-4 py-2 bg-black/70 hover:bg-black/80 text-white rounded-full text-sm font-medium flex items-center gap-2 transition-colors"
+            >
+              <X className="w-4 h-4" />
+              Exit Presentation (ESC)
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -1301,11 +1524,28 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [startPos, setStartPos] = useState({ x: 0, y: 0, width: 0, height: 0, nodeX: 0, nodeY: 0 });
   
+  // Track drag start position for real-time updates
+  const dragStartPos = useRef({ x: node.x, y: node.y });
+  
+  const handleDragStart = () => {
+    dragStartPos.current = { x: node.x, y: node.y };
+  };
+  
+  const handleDrag = (_: any, info: any) => {
+    if (!isResizing) {
+      // Update position in real-time for connector tracking
+      onUpdate({
+        x: dragStartPos.current.x + info.offset.x,
+        y: dragStartPos.current.y + info.offset.y
+      });
+    }
+  };
+  
   const handleDragEnd = (_: any, info: any) => {
     if (!isResizing) {
       onUpdate({
-        x: node.x + info.offset.x,
-        y: node.y + info.offset.y
+        x: dragStartPos.current.x + info.offset.x,
+        y: dragStartPos.current.y + info.offset.y
       });
     }
   };
@@ -1863,6 +2103,8 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
     <motion.div
       drag={!isResizing && !isConnectorMode}
       dragMomentum={false}
+      onDragStart={handleDragStart}
+      onDrag={handleDrag}
       onDragEnd={handleDragEnd}
       onClick={(e) => {
         e.stopPropagation();

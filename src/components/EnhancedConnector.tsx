@@ -280,14 +280,14 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
             <marker
               key={marker.id}
               id={marker.id}
-              markerWidth="10"
-              markerHeight="10"
-              refX="9"
-              refY="3"
+              markerWidth="8"
+              markerHeight="8"
+              refX="0"
+              refY="4"
               orient="auto"
               markerUnits="strokeWidth"
             >
-              <path d="M0,0 L0,6 L9,3 z" fill={marker.fill} />
+              <path d="M0,4 L8,0 L8,8 z" fill={marker.fill} />
             </marker>
           ))}
         </defs>
@@ -430,10 +430,10 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-2 flex items-center gap-1 pointer-events-auto z-[200] flex-wrap max-w-[90vw]"
+            className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-2 flex items-center gap-1 pointer-events-auto z-[200]"
             style={{
-              left: labelPoint ? Math.min(labelPoint.x - 140, window.innerWidth - 300) : 20,
-              top: labelPoint ? labelPoint.y + 40 : 20,
+              left: labelPoint ? Math.max(10, Math.min(labelPoint.x - 140, window.innerWidth - 520)) : 20,
+              top: labelPoint ? Math.min(labelPoint.y + 40, window.innerHeight - 80) : 20,
             }}
             onClick={(e) => e.stopPropagation()}
           >

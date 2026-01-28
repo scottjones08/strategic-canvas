@@ -421,7 +421,11 @@ export default function LoginPage() {
             <motion.button
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
-              onClick={() => navigate('/')}
+              onClick={() => {
+                // Set demo mode flag to bypass ProtectedRoute
+                localStorage.setItem('strategic-canvas-demo-mode', 'true');
+                navigate('/');
+              }}
               className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
             >
               Continue with Demo

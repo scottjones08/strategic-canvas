@@ -33,6 +33,11 @@ function hasGuestCollaboratorSession(): boolean {
   }
 }
 
+// Check if user is in demo mode (clicked "Continue with Demo")
+function isDemoMode(): boolean {
+  return localStorage.getItem('strategic-canvas-demo-mode') === 'true';
+}
+
 export default function ProtectedRoute({
   children,
   requireFanWorksTeam = false,
@@ -43,13 +48,14 @@ export default function ProtectedRoute({
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
-  // Check for guest collaborator access
+  // Check for guest collaborator access or demo mode
   const collaboratorName = searchParams.get('collaborator');
   const boardId = searchParams.get('board');
   const isGuestCollaborator = (collaboratorName && boardId) || hasGuestCollaboratorSession();
+  const isDemo = isDemoMode();
 
-  // Show loading state while checking auth (but not for guest collaborators)
-  if (loading && !isGuestCollaborator) {
+  // Show loading state while checking auth (but not for guest collaborators or demo mode)
+  if (loading && !isGuestCollaborator && !isDemo) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <motion.div
@@ -68,6 +74,11 @@ export default function ProtectedRoute({
 
   // Allow guest collaborators through (they have limited access via URL params)
   if (isGuestCollaborator) {
+    return <>{children}</>;
+  }
+
+  // Allow demo mode through (localStorage flag set by "Continue with Demo" button)
+  if (isDemo) {
     return <>{children}</>;
   }
 

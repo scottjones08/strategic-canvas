@@ -638,7 +638,7 @@ const Sidebar = ({
           </div>
           {(!isCollapsed || isMobileOpen) && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 min-w-0">
-              <h1 className="font-bold text-gray-900">Fan Canvas</h1>
+              <h1 className="font-bold text-gray-900">Strategic Canvas</h1>
               <p className="text-xs text-gray-500">Collaborative Whiteboard</p>
             </motion.div>
           )}
@@ -6371,7 +6371,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
               exit={{ scale: 0.9, opacity: 0 }}
               className="bg-white rounded-2xl p-6 w-96 shadow-2xl"
             >
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Welcome to Fan Canvas!</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Welcome to Strategic Canvas!</h2>
               <p className="text-sm text-gray-500 mb-4">Enter your name so collaborators can identify you.</p>
               <input
                 type="text"
@@ -8775,6 +8775,7 @@ ${transcriptContent}`;
       userColor="#3b82f6"
       participantCount={1}
       onOpenShare={() => alert('Share functionality - integrate with ShareBoardModal')}
+      isDemoMode={localStorage.getItem('strategic-canvas-demo-mode') === 'true'}
     />
   ) : (
     <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} onCreateTranscriptNote={handleCreateTranscriptNote} />

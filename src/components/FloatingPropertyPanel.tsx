@@ -203,8 +203,11 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
       >
         <div className="flex items-center gap-2">
           <GripVertical className="w-4 h-4 text-gray-400" />
-          <span className="text-sm font-semibold text-gray-700 capitalize">
-            {node.type} Properties
+          <span className="text-sm font-semibold text-gray-700">
+            {node.type === 'mindmap' ? 'Mind Map' : 
+             node.type === 'youtube' ? 'YouTube' :
+             node.type === 'linklist' ? 'Link List' :
+             node.type.charAt(0).toUpperCase() + node.type.slice(1)} Properties
           </span>
         </div>
         <button
@@ -218,7 +221,7 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
       {/* Scrollable Content - no scrollbar visible */}
       <div className="max-h-[70vh] overflow-y-auto scrollbar-hide">
         {/* Quick Actions */}
-        <div className="flex items-center gap-1 p-2 border-b border-gray-100">
+        <div className="flex items-center justify-between gap-1 p-2 border-b border-gray-100">
           <ActionButton
             icon={<Copy className="w-4 h-4" />}
             label="Duplicate"
@@ -499,7 +502,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({ icon, label, onClick, activ
   <button
     onClick={onClick}
     className={`
-      flex flex-col items-center gap-1 p-2 rounded-lg min-w-[60px] transition-colors
+      flex flex-col items-center gap-0.5 p-1.5 rounded-lg min-w-[48px] transition-colors
       ${danger 
         ? 'text-red-600 hover:bg-red-50' 
         : active 
