@@ -865,30 +865,30 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
       onDrop={handleDrop}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <FileText size={24} className="text-red-500" />
-          <h2 className="text-xl font-semibold text-gray-800">Documents</h2>
-          <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-sm rounded-full">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white border-b border-gray-200">
+        <div className="flex items-center gap-3 pl-10 sm:pl-0">
+          <FileText size={24} className="text-red-500 flex-shrink-0" />
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Documents</h2>
+          <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs sm:text-sm rounded-full">
             {filteredDocuments.length}
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Search */}
-          <div className="relative">
+          <div className="relative flex-1 sm:flex-none min-w-[150px]">
             <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search documents..."
-              className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none 
-                focus:ring-2 focus:ring-blue-500 w-64"
+              placeholder="Search..."
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none 
+                focus:ring-2 focus:ring-blue-500 sm:w-48 md:w-64"
             />
           </div>
 
-          {/* Sort */}
+          {/* Sort - hidden on mobile, shown in dropdown */}
           <select
             value={`${sortBy}-${sortOrder}`}
             onChange={e => {
@@ -896,7 +896,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
               setSortBy(by as any);
               setSortOrder(order as any);
             }}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none 
+            className="hidden sm:block px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none 
               focus:ring-2 focus:ring-blue-500"
           >
             <option value="date-desc">Newest first</option>
@@ -923,15 +923,16 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
             </button>
           </div>
 
-          {/* Create Folder button */}
+          {/* Create Folder button - icon only on mobile */}
           {onCreateFolder && (
             <button
               onClick={() => setShowNewFolderInput(true)}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg 
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 border border-gray-200 text-gray-700 rounded-lg 
                 hover:bg-gray-50 transition-colors"
+              title="New Folder"
             >
               <FolderPlus size={18} />
-              New Folder
+              <span className="hidden sm:inline">New Folder</span>
             </button>
           )}
 
@@ -946,7 +947,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
               }
             }}
             disabled={isUploading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg 
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg 
               hover:bg-blue-600 transition-colors disabled:opacity-50"
           >
             {isUploading ? (
@@ -954,7 +955,8 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
             ) : (
               <Upload size={18} />
             )}
-            Upload Document
+            <span className="hidden sm:inline">Upload Document</span>
+            <span className="sm:hidden">Upload</span>
           </button>
         </div>
       </div>
@@ -992,7 +994,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
         ) : selectedClientId ? (
           // Single client view
           <div className={viewMode === 'grid' 
-            ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4'
+            ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4'
             : 'flex flex-col gap-2'
           }>
             {filteredDocuments.map(doc => (
@@ -1056,9 +1058,9 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                       >
-                        <div className={`p-4 pt-0 ${
+                        <div className={`p-3 sm:p-4 pt-0 ${
                           viewMode === 'grid'
-                            ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4'
+                            ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4'
                             : 'flex flex-col gap-2'
                         }`}>
                           {docs.map(doc => (

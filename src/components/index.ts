@@ -115,3 +115,7 @@ export type {
 // Office Document Modal - Modal wrapper for OfficeViewer
 export { OfficeDocumentModal, useOfficeDocumentModal } from './OfficeDocumentModal';
 export type { OfficeDocumentModalProps } from './OfficeDocumentModal';
+
+// Autosave Indicator
+export { default as AutosaveIndicator } from './AutosaveIndicator';
+export type { SaveStatus } from './AutosaveIndicator';

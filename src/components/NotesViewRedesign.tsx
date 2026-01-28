@@ -363,12 +363,12 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
   );
 
   return (
-    <div className="flex-1 flex bg-gradient-to-br from-gray-50 to-white">
+    <div className="flex-1 flex flex-col sm:flex-row bg-gradient-to-br from-gray-50 to-white">
       {/* Sidebar - Notes Tree */}
-      <div className="w-80 border-r border-gray-200 flex flex-col bg-white/80 backdrop-blur-sm">
+      <div className="w-full sm:w-72 md:w-80 border-b sm:border-b-0 sm:border-r border-gray-200 flex flex-col bg-white/80 backdrop-blur-sm max-h-[40vh] sm:max-h-none overflow-hidden">
         {/* Header */}
         <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 pl-10 sm:pl-0">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
                 <BookOpen className="w-4 h-4 text-white" />

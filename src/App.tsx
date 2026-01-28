@@ -123,6 +123,7 @@ import NotesViewRedesigned from './components/NotesViewRedesign';
 import DocumentsView from './components/DocumentsView';
 import PDFEditor from './components/PDFEditor';
 import { documentsApi, uploadDocumentFile, getDocumentShareUrl } from './lib/documents-api';
+import AutosaveIndicator, { type SaveStatus } from './components/AutosaveIndicator';
 import type { ClientDocument } from './components/DocumentsView';
 import type { PDFAnnotation, PDFComment } from './lib/pdf-utils';
 
@@ -5210,12 +5211,14 @@ const AISparkleMenu = ({
 };
 
 // Meeting View
-const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreateTranscriptNote }: {
+const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreateTranscriptNote, saveStatus = 'idle', lastSaved = null }: {
   board: Board;
   onUpdateBoard: (updates: Partial<Board>) => void;
   onBack: () => void;
   onCreateAISummary?: (boardId: string, boardName: string, summary: string) => void;
   onCreateTranscriptNote?: (boardId: string, boardName: string, transcriptContent: string, startTime: Date, endTime: Date) => void;
+  saveStatus?: SaveStatus;
+  lastSaved?: Date | null;
 }) => {
   // Get authenticated user (if logged in)
   const auth = useAuthOptional();
@@ -6443,6 +6446,10 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             )}
             <span className="text-xs sm:text-sm text-gray-500 hidden sm:block">Whiteboard</span>
           </div>
+          {/* Autosave indicator */}
+          <div className="hidden sm:block">
+            <AutosaveIndicator status={saveStatus} lastSaved={lastSaved} compact />
+          </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-3">
           {/* Recording indicator - always visible */}
@@ -7385,13 +7392,13 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange, documents,
   const getBoardCountForClient = (clientId: string) => boards.filter(b => b.clientId === clientId).length;
 
   return (
-    <div className="flex-1 flex bg-gray-50">
+    <div className="flex-1 flex flex-col sm:flex-row bg-gray-50">
       {/* Clients List */}
-      <div className={`${selectedClientId ? 'w-80' : 'flex-1'} border-r border-gray-200 bg-white flex flex-col transition-all`}>
+      <div className={`${selectedClientId ? 'hidden sm:flex sm:w-72 md:w-80' : 'flex-1'} border-b sm:border-b-0 sm:border-r border-gray-200 bg-white flex flex-col transition-all`}>
         <header className="border-b border-gray-200 px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 pl-10 sm:pl-0">
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Clients</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">Clients</h1>
               <p className="text-xs text-gray-500">{clients.length} total</p>
             </div>
             <button onClick={() => setShowAddModal(true)} className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
@@ -7487,7 +7494,7 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange, documents,
                 <UserCircle className="w-4 h-4 text-gray-400" />
                 Contact Information
               </h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-center gap-3">
                   <Mail className="w-4 h-4 text-gray-400" />
                   <div>
@@ -7744,6 +7751,8 @@ export default function App() {
   const [isLoadingClients, setIsLoadingClients] = useState(true);
   const [supabaseConnected, setSupabaseConnected] = useState(false);
   const [supabaseTablesExist, setSupabaseTablesExist] = useState(true); // Assume true, set false on first error
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Check if current user is a guest collaborator
   const guestCollaboratorInfo = useMemo(() => {
@@ -7867,18 +7876,19 @@ export default function App() {
       setActiveBoard(updatedBoard);
       setBoards(prev => {
         const newBoards = prev.map(b => b.id === activeBoard.id ? updatedBoard : b);
-        // Auto-save with debounce
+        // Auto-save with debounce (1.5s after changes stop)
         if (autoSaveTimeoutRef.current) {
           clearTimeout(autoSaveTimeoutRef.current);
         }
+        setSaveStatus('saving');
         autoSaveTimeoutRef.current = setTimeout(async () => {
-          // Save to localStorage
-          localStorage.setItem('fan-canvas-boards', JSON.stringify(newBoards));
-          console.log('Auto-saved board to localStorage:', updatedBoard.name);
+          try {
+            // Save to localStorage
+            localStorage.setItem('fan-canvas-boards', JSON.stringify(newBoards));
+            console.log('Auto-saved board to localStorage:', updatedBoard.name);
 
-          // Save to Supabase if configured and tables exist
-          if (isSupabaseConfigured() && supabaseTablesExist) {
-            try {
+            // Save to Supabase if configured and tables exist
+            if (isSupabaseConfigured() && supabaseTablesExist) {
               await boardsApi.update(updatedBoard.id, {
                 name: updatedBoard.name,
                 visual_nodes: updatedBoard.visualNodes,
@@ -7888,17 +7898,30 @@ export default function App() {
                 last_activity: new Date().toISOString()
               });
               console.log('Auto-saved board to Supabase:', updatedBoard.name);
-            } catch (error: any) {
-              // Check if table doesn't exist (PGRST205 error)
-              if (error?.code === 'PGRST205') {
-                console.warn('Supabase tables not set up. Run database/supabase_setup.sql in your Supabase SQL Editor.');
-                setSupabaseTablesExist(false);
-              } else {
-                console.error('Failed to save board to Supabase:', error);
-              }
             }
+            
+            // Update save status
+            setSaveStatus('saved');
+            setLastSaved(new Date());
+            
+            // Reset to idle after 3 seconds
+            setTimeout(() => setSaveStatus('idle'), 3000);
+          } catch (error: any) {
+            // Check if table doesn't exist (PGRST205 error)
+            if (error?.code === 'PGRST205') {
+              console.warn('Supabase tables not set up. Run database/supabase_setup.sql in your Supabase SQL Editor.');
+              setSupabaseTablesExist(false);
+              // Still saved locally
+              setSaveStatus('offline');
+              setLastSaved(new Date());
+            } else {
+              console.error('Failed to save board to Supabase:', error);
+              setSaveStatus('error');
+            }
+            // Reset to idle after 5 seconds
+            setTimeout(() => setSaveStatus('idle'), 5000);
           }
-        }, 500);
+        }, 1500); // 1.5s debounce
         return newBoards;
       });
     }
@@ -8778,7 +8801,7 @@ ${transcriptContent}`;
       isDemoMode={localStorage.getItem('strategic-canvas-demo-mode') === 'true'}
     />
   ) : (
-    <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} onCreateTranscriptNote={handleCreateTranscriptNote} />
+    <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} onCreateTranscriptNote={handleCreateTranscriptNote} saveStatus={saveStatus} lastSaved={lastSaved} />
   )
 )}
       {currentView === 'meeting' && !activeBoard && (
