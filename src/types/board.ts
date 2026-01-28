@@ -1,4 +1,4 @@
-// Board and VisualNode type definitions for Strategic Canvas
+// Board and VisualNode type definitions for Fan Canvas
 
 export interface Board {
   id: string;

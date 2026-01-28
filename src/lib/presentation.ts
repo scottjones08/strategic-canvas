@@ -1,4 +1,4 @@
-// Presentation utilities for Strategic Canvas
+// Presentation utilities for Fan Canvas
 import type { VisualNode, Board } from '../types/board';
 
 export interface Slide {

@@ -21,7 +21,7 @@ function LoadingScreen() {
           <div className="w-16 h-16 border-4 border-indigo-500/30 rounded-full" />
           <div className="absolute inset-0 w-16 h-16 border-4 border-indigo-500 rounded-full border-t-transparent animate-spin" />
         </div>
-        <p className="mt-4 text-white/60 text-sm font-medium">Loading Strategic Canvas...</p>
+        <p className="mt-4 text-white/60 text-sm font-medium">Loading Fan Canvas...</p>
       </div>
     </div>
   )

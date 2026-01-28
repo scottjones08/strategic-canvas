@@ -1,5 +1,5 @@
 /**
- * Login Page for Strategic Canvas
+ * Login Page for Fan Canvas
  * Beautiful, modern authentication with Supabase
  */
 
@@ -71,7 +71,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Authentication Not Configured</h1>
           <p className="text-gray-600 mb-6">
-            Supabase authentication is not configured. You can continue using Strategic Canvas in demo mode.
+            Supabase authentication is not configured. You can continue using Fan Canvas in demo mode.
           </p>
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -79,7 +79,7 @@ export default function LoginPage() {
             onClick={() => navigate('/')}
             className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
           >
-            Continue to Strategic Canvas
+            Continue to Fan Canvas
             <ArrowRight className="w-4 h-4" />
           </motion.button>
         </motion.div>
@@ -175,7 +175,7 @@ export default function LoginPage() {
               <Layers className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Strategic Canvas</h1>
+              <h1 className="text-2xl font-bold text-white">Fan Canvas</h1>
               <p className="text-white/50 text-sm">Visual Strategy Platform</p>
             </div>
           </div>
@@ -210,7 +210,7 @@ export default function LoginPage() {
           className="relative z-10 p-6 bg-white/5 rounded-2xl border border-white/10 backdrop-blur"
         >
           <p className="text-white/80 italic">
-            "Strategic Canvas transformed how our team collaborates on strategy. The visual approach makes complex planning intuitive."
+            "Fan Canvas transformed how our team collaborates on strategy. The visual approach makes complex planning intuitive."
           </p>
           <div className="mt-4 flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
@@ -236,7 +236,7 @@ export default function LoginPage() {
             <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/30 mb-4">
               <Layers className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-xl font-bold text-white">Strategic Canvas</h1>
+            <h1 className="text-xl font-bold text-white">Fan Canvas</h1>
           </div>
 
           {/* Form Card */}
@@ -250,7 +250,7 @@ export default function LoginPage() {
                 {mode === 'login'
                   ? 'Sign in to continue to your workspace'
                   : mode === 'signup'
-                  ? 'Get started with Strategic Canvas'
+                  ? 'Get started with Fan Canvas'
                   : 'Enter your email to reset password'}
               </p>
             </div>
