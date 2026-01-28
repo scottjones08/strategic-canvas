@@ -508,6 +508,8 @@ export const nodeToConnectorPath = (
     connectorLabel?: string;
     connectorControlPoint?: { x: number; y: number };
     connectorWaypoints?: Waypoint[];
+    connectorArrowStart?: boolean;
+    connectorArrowEnd?: boolean;
     color?: string;
   },
   fromNode?: { x: number; y: number; width: number; height: number },
