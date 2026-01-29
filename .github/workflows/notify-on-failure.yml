@@ -1,0 +1,27 @@
+name: Notify on Build Failure
+
+on:
+  workflow_run:
+    workflows: ["*"]
+    types: [completed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - name: Send Telegram Notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            🚨 *Build Failed*
+            
+            *Repo:* ${{ github.repository }}
+            *Branch:* ${{ github.event.workflow_run.head_branch }}
+            *Workflow:* ${{ github.event.workflow_run.name }}
+            *Commit:* ${{ github.event.workflow_run.head_sha }}
+            
+            [View Run](${{ github.event.workflow_run.html_url }})
+          format: markdown
