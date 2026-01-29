@@ -158,6 +158,22 @@ export default function UnifiedSidebar({
   const [newAction, setNewAction] = useState('');
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile and auto-collapse
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // Auto-collapse on mobile on initial load
+      if (mobile && !isCollapsed && onToggleCollapse) {
+        onToggleCollapse();
+      }
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Auto-switch to transcript tab when recording starts
   useEffect(() => {

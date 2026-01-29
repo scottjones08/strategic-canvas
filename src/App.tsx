@@ -3242,7 +3242,30 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
         {(onSetSelectMode || onSetPanMode) && <div className="hidden sm:block w-px h-6 bg-gray-200 mx-1" />}
         {/* Zoom Controls */}
         <button onClick={() => setZoom(z => Math.max(z * 0.8, 0.1))} className="p-2 active:bg-gray-100 sm:hover:bg-gray-100 rounded-lg text-gray-600" title="Zoom out (-)"><ZoomOut className="w-4 h-4" /></button>
-        <span className="text-xs sm:text-sm font-medium w-10 sm:w-14 text-center text-gray-700">{Math.round(zoom * 100)}%</span>
+        <div className="relative group">
+          <input
+            type="text"
+            value={`${Math.round(zoom * 100)}%`}
+            onChange={(e) => {
+              const val = parseInt(e.target.value.replace('%', ''));
+              if (!isNaN(val) && val >= 10 && val <= 500) {
+                setZoom(val / 100);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            className="text-xs sm:text-sm font-medium w-12 sm:w-16 text-center text-gray-700 bg-transparent hover:bg-gray-100 focus:bg-white focus:ring-2 focus:ring-indigo-500 rounded-lg py-1 cursor-pointer focus:cursor-text transition-all"
+            title="Click to edit zoom level (10-500%)"
+          />
+          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+              Click to edit
+            </div>
+          </div>
+        </div>
         <button onClick={() => setZoom(z => Math.min(z * 1.2, 5))} className="p-2 active:bg-gray-100 sm:hover:bg-gray-100 rounded-lg text-gray-600" title="Zoom in (+)"><ZoomIn className="w-4 h-4" /></button>
         <div className="w-px h-5 sm:h-6 bg-gray-200 mx-0.5 sm:mx-1" />
         <button onClick={() => { setZoom(1); setPanX(0); setPanY(0); }} className="p-2 active:bg-gray-100 sm:hover:bg-gray-100 rounded-lg text-gray-600" title="Reset view (0)"><Maximize2 className="w-4 h-4" /></button>

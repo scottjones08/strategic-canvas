@@ -189,8 +189,8 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
       animate={{ opacity: 1, x: isMobile ? 0 : 0, y: 0 }}
       exit={{ opacity: 0, x: isMobile ? 0 : -20, y: isMobile ? 20 : 0 }}
       className={`
-        fixed bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden
-        ${isMobile ? 'w-[90vw] max-w-[360px]' : 'w-72'}
+        fixed bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-gray-200/80 z-50 overflow-hidden
+        ${isMobile ? 'w-[90vw] max-w-[320px]' : 'w-64'}
         ${isDragging ? 'cursor-grabbing select-none' : ''}
       `}
       style={isMobile ? mobileStyle : { left: panelPos.x, top: panelPos.y }}
@@ -218,8 +218,8 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
         </button>
       </div>
 
-      {/* Scrollable Content - no scrollbar visible */}
-      <div className="max-h-[70vh] overflow-y-auto scrollbar-hide">
+      {/* Scrollable Content - compact height */}
+      <div className="max-h-[50vh] overflow-y-auto scrollbar-hide">
         {/* Quick Actions */}
         <div className="flex items-center justify-between gap-1 p-2 border-b border-gray-100">
           <ActionButton
