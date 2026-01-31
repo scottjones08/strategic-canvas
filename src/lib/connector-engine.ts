@@ -68,23 +68,42 @@ export const getNearestEdgePoint = (
   fromPoint: Point,
   padding: number = 0
 ): Point => {
+  // Handle invalid rectangles
+  if (!rect || rect.width <= 0 || rect.height <= 0) {
+    return { x: rect?.x || 0, y: rect?.y || 0 };
+  }
+
   const centerX = rect.x + rect.width / 2;
   const centerY = rect.y + rect.height / 2;
   const dx = fromPoint.x - centerX;
   const dy = fromPoint.y - centerY;
-  
+
   const halfW = rect.width / 2 + padding;
   const halfH = rect.height / 2 + padding;
-  
-  // Determine which edge is closest
-  const scaleX = Math.abs(dx) > 0 ? halfW / Math.abs(dx) : Infinity;
-  const scaleY = Math.abs(dy) > 0 ? halfH / Math.abs(dy) : Infinity;
-  const scale = Math.min(scaleX, scaleY);
-  
-  return {
-    x: centerX + dx * scale,
-    y: centerY + dy * scale
-  };
+
+  // If the fromPoint is at the center, default to right edge
+  if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
+    return { x: centerX + halfW, y: centerY };
+  }
+
+  // Determine which edge to use based on angle
+  const angle = Math.atan2(dy, dx);
+  const rectAngle = Math.atan2(halfH, halfW);
+
+  // Use cardinal direction approach for more predictable results
+  if (Math.abs(angle) < rectAngle) {
+    // Right edge
+    return { x: rect.x + rect.width + padding, y: centerY + dx !== 0 ? (dy / dx) * halfW : 0 };
+  } else if (Math.abs(angle) > Math.PI - rectAngle) {
+    // Left edge
+    return { x: rect.x - padding, y: centerY - (dx !== 0 ? (dy / dx) * halfW : 0) };
+  } else if (angle > 0) {
+    // Bottom edge
+    return { x: centerX + (dy !== 0 ? (dx / dy) * halfH : 0), y: rect.y + rect.height + padding };
+  } else {
+    // Top edge
+    return { x: centerX - (dy !== 0 ? (dx / dy) * halfH : 0), y: rect.y - padding };
+  }
 };
 
 /**
