@@ -154,7 +154,7 @@ interface Board {
 
 // Safe localStorage helpers
 const safeLocalStorage = {
-  get: <T>(key: string, defaultValue: T): T => {
+  get<T>(key: string, defaultValue: T): T {
     try {
       const item = localStorage.getItem(key);
       if (!item) return defaultValue;
@@ -164,14 +164,14 @@ const safeLocalStorage = {
       return defaultValue;
     }
   },
-  set: <T>(key: string, value: T): void => {
+  set<T>(key: string, value: T): void {
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch (e) {
       console.warn(`localStorage write error for ${key}:`, e);
     }
   },
-  getString: (key: string, defaultValue: string = ''): string => {
+  getString(key: string, defaultValue = ''): string {
     try {
       return localStorage.getItem(key) || defaultValue;
     } catch (e) {
@@ -5131,14 +5131,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   // Load saved transcripts from localStorage first, then fall back to board.transcripts
   const [savedTranscripts, setSavedTranscripts] = useState<SavedTranscript[]>(() => {
     const stored = safeLocalStorage.get<SavedTranscript[]>(`board-transcripts-${board.id}`, []);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.error('Error loading saved transcripts from localStorage:', e);
+    if (stored && stored.length > 0) {
+      return stored;
     }
     return board.transcripts || [];
   });
