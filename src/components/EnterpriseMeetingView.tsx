@@ -21,6 +21,7 @@ import { CollaborationOverlay } from './CollaborationOverlay';
 import { UserPresenceList } from './UserPresenceList';
 import ShareBoardModal from './ShareBoardModal';
 import UnifiedLeftPanel from './UnifiedLeftPanel';
+import { FacilitationTimer } from './FacilitationTimer';
 import { createConnectorPath, nodeToConnectorPath } from '../lib/connector-engine';
 import { 
   UserPresence, 
@@ -78,10 +79,10 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   const [showCursors, setShowCursors] = useState(true);
   const [showLeftPanel, setShowLeftPanel] = useState(true);
   const [showTimerModal, setShowTimerModal] = useState(false);
-  const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
-  
+  const [isPresentationMode, setIsPresentationMode] = useState(false);
+
   // Collaboration state
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -242,26 +243,6 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       onUpdateBoard({ visualNodes: history[newIndex] });
     }
   }, [canRedo, history, historyIndex, onUpdateBoard]);
-  
-  // Timer effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (timerRunning && timerSeconds > 0) {
-      interval = setInterval(() => {
-        setTimerSeconds(prev => {
-          if (prev <= 1) {
-            setTimerRunning(false);
-            // Play a sound or show notification when timer ends
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [timerRunning, timerSeconds]);
   
   // Presentation mode: hide UI and fit content
   const handleStartPresentation = useCallback(() => {
@@ -1229,83 +1210,12 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
         />
       )}
       
-      {/* Timer Modal */}
-      <AnimatePresence>
-        {showTimerModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200]"
-            onClick={() => setShowTimerModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl shadow-2xl p-6 w-80"
-            >
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Session Timer</h3>
-              
-              {/* Timer Display */}
-              <div className="text-center mb-6">
-                <div className="text-5xl font-mono font-bold text-gray-900">
-                  {Math.floor(timerSeconds / 60).toString().padStart(2, '0')}:
-                  {(timerSeconds % 60).toString().padStart(2, '0')}
-                </div>
-              </div>
-              
-              {/* Quick Time Buttons */}
-              <div className="grid grid-cols-4 gap-2 mb-4">
-                {[5, 10, 15, 30].map(mins => (
-                  <button
-                    key={mins}
-                    onClick={() => { setTimerSeconds(mins * 60); setTimerRunning(false); }}
-                    className="py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
-                  >
-                    {mins}m
-                  </button>
-                ))}
-              </div>
-              
-              {/* Controls */}
-              <div className="flex gap-2">
-                {!timerRunning ? (
-                  <button
-                    onClick={() => { if (timerSeconds > 0) setTimerRunning(true); }}
-                    disabled={timerSeconds === 0}
-                    className="flex-1 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white rounded-xl font-semibold transition-colors"
-                  >
-                    Start
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setTimerRunning(false)}
-                    className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold transition-colors"
-                  >
-                    Pause
-                  </button>
-                )}
-                <button
-                  onClick={() => { setTimerSeconds(0); setTimerRunning(false); }}
-                  className="py-3 px-4 bg-gray-200 hover:bg-gray-300 rounded-xl font-semibold text-gray-700 transition-colors"
-                >
-                  Reset
-                </button>
-              </div>
-              
-              <button
-                onClick={() => setShowTimerModal(false)}
-                className="w-full mt-4 py-2 text-gray-500 hover:text-gray-700 text-sm font-medium"
-              >
-                Close
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
+      {/* Facilitation Timer */}
+      <FacilitationTimer
+        isOpen={showTimerModal}
+        onClose={() => setShowTimerModal(false)}
+      />
+
       {/* Presentation Mode Overlay */}
       <AnimatePresence>
         {isPresentationMode && (

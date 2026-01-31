@@ -15,3 +15,5 @@ export * from './useOfficeDocument';
 export * from './usePDFDocument';
 export * from './useTouchGestures';
 export * from './useEnhancedCollaboration';
+export * from './useOnboarding';
+export * from './useTimer';

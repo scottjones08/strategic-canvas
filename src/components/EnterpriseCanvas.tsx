@@ -713,9 +713,10 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
   return (
     <div
       ref={containerRef}
+      data-onboarding="canvas"
       className="relative w-full h-full overflow-hidden bg-gray-50"
       style={{
-        cursor: viewport.isPanning || spacePressed ? 'grabbing' : 
+        cursor: viewport.isPanning || spacePressed ? 'grabbing' :
                 activeTool === 'pan' ? 'grab' :
                 activeTool === 'hand' ? 'grab' : 'default',
         touchAction: 'none',

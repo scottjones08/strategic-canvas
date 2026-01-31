@@ -61,7 +61,10 @@ import {
   Network,
   Link,
   FolderOpen,
-  Inbox
+  Inbox,
+  Keyboard,
+  Pencil,
+  HelpCircle
 } from 'lucide-react';
 
 export type ToolType = 
@@ -120,6 +123,8 @@ interface EnterpriseToolbarProps {
   boardName: string;
   onBoardNameChange: (name: string) => void;
   onOpenMediaModal?: (type: 'youtube' | 'image') => void;
+  onOpenKeyboardShortcuts?: () => void;
+  onStartTour?: () => void;
 }
 
 // Sticky note colors
@@ -179,7 +184,9 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
   onToggleFacilitatorMode,
   boardName,
   onBoardNameChange,
-  onOpenMediaModal
+  onOpenMediaModal,
+  onOpenKeyboardShortcuts,
+  onStartTour
 }) => {
   const [showStickyPicker, setShowStickyPicker] = useState(false);
   const [showShapePicker, setShowShapePicker] = useState(false);
@@ -243,6 +250,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
           {/* Participants - simplified on mobile */}
           <button
             onClick={onOpenShare}
+            data-onboarding="share-button"
             className="flex items-center gap-1.5 sm:gap-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 hover:bg-gray-50 transition-colors"
           >
             <div className="flex -space-x-1.5 sm:-space-x-2">
@@ -260,7 +268,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
         </div>
         
         {/* Tools row - responsive with horizontal scroll on small screens */}
-        <div className={`flex items-center gap-0.5 sm:gap-1 md:gap-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-1 sm:p-1.5 md:p-2 pointer-events-auto max-w-[98vw] scrollbar-hide ${showShapePicker || showStickyPicker ? 'overflow-visible' : 'overflow-x-auto'}`}>
+        <div data-onboarding="toolbar" className={`flex items-center gap-0.5 sm:gap-1 md:gap-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-1 sm:p-1.5 md:p-2 pointer-events-auto max-w-[98vw] scrollbar-hide ${showShapePicker || showStickyPicker ? 'overflow-visible' : 'overflow-x-auto'}`}>
           {/* Primary Tools */}
           <div className="flex items-center gap-1">
             {/* Select Tool */}
@@ -287,7 +295,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
           {/* Content Tools */}
           <div className="flex items-center gap-1">
             {/* Sticky Note - adds immediately with default color, right-click for color picker */}
-            <div className="relative">
+            <div className="relative" data-onboarding="sticky-tool">
               <ToolbarButton
                 active={activeTool === 'sticky' || showStickyPicker}
                 onClick={() => {
@@ -391,6 +399,15 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
               </AnimatePresence>
             </div>
             
+            {/* Pen/Drawing Tool */}
+            <ToolbarButton
+              active={activeTool === 'pen'}
+              onClick={() => onToolChange('pen')}
+              icon={<Pencil className="w-5 h-5" />}
+              label="Pen"
+              shortcut="P"
+            />
+
             {/* Connector Tool */}
             <ToolbarButton
               active={activeTool === 'connector'}
@@ -542,10 +559,28 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
                   <MenuItem icon={<Download className="w-4 h-4" />} label="Export board" />
                   <MenuItem icon={<Copy className="w-4 h-4" />} label="Duplicate board" />
                   <div className="h-px bg-gray-200 my-1" />
-                  <MenuItem 
-                    icon={facilitatorMode ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />} 
+                  <MenuItem
+                    icon={facilitatorMode ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                     label={facilitatorMode ? "Exit facilitator mode" : "Facilitator mode"}
                     onClick={onToggleFacilitatorMode}
+                  />
+                  <div className="h-px bg-gray-200 my-1" />
+                  <MenuItem
+                    icon={<Keyboard className="w-4 h-4" />}
+                    label="Keyboard shortcuts"
+                    shortcut="Cmd+?"
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      onOpenKeyboardShortcuts?.();
+                    }}
+                  />
+                  <MenuItem
+                    icon={<HelpCircle className="w-4 h-4" />}
+                    label="Take a tour"
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      onStartTour?.();
+                    }}
                   />
                 </motion.div>
               )}

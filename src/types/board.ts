@@ -1,5 +1,15 @@
 // Board and VisualNode type definitions for Fan Canvas
 
+// Voting settings for the board
+export interface VotingSettings {
+  enabled: boolean;
+  anonymous: boolean;
+  maxVotesPerPerson: number | 'unlimited';
+  hideCountsUntilReveal: boolean;
+  isRevealed: boolean;
+  isLocked: boolean;
+}
+
 export interface Board {
   id: string;
   name: string;
@@ -31,6 +41,8 @@ export interface Board {
     snap: boolean;
     showDots: boolean;
   };
+  // Voting settings
+  votingSettings?: VotingSettings;
 }
 
 // Waypoint for connector routing

@@ -122,3 +122,6 @@ export type { SaveStatus } from './AutosaveIndicator';
 
 // World-Class Connector
 export { default as WorldClassConnector } from './WorldClassConnector';
+
+// Onboarding Tour
+export { default as OnboardingTour } from './OnboardingTour';

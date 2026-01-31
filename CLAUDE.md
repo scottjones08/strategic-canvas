@@ -40,9 +40,11 @@ src/
 │   ├── DocumentPortal.tsx        # Full document portal with sharing
 │   ├── PDFEditor.tsx             # PDF viewer/annotator
 │   ├── SignatureWorkflow.tsx     # Document signing flow
+│   ├── DrawingCanvas.tsx        # SVG-based freehand drawing layer
 │   └── ... (many more)
 ├── lib/                  # Utilities and APIs
 │   ├── supabase.ts              # Supabase client + APIs (boards, notes, orgs)
+│   ├── shape-recognition.ts     # Shape detection from hand-drawn strokes
 │   ├── documents-api.ts         # Document CRUD + file upload
 │   ├── connector-engine.ts      # Smart connector routing
 │   ├── realtime-collaboration.ts # Live cursors, presence
@@ -80,6 +82,7 @@ All nodes have: `id, type, x, y, width, height, content, color, rotation, locked
 | `bucket` | Photo bucket | bucketId, bucketImages |
 | `linklist` | Link collection | links: [{ id, title, url }] |
 | `mindmap` | Mind map nodes | parentNodeId, isRootNode |
+| `drawing` | Freehand drawings | paths: [{points, color, width}], strokeColor, strokeWidth |
 
 ### 3. Toolbar (`EnterpriseToolbar.tsx`)
 **Tools:**
@@ -96,6 +99,7 @@ All nodes have: `id, type, x, y, width, height, content, color, rotation, locked
 - Table (B) - Add table
 - Bucket (U) - Add photo bucket
 - Links (L) - Add link list
+- Pen (P) - Freehand drawing with shape recognition
 
 **Behavior:** Clicking content tools (sticky, text, shape, etc.) immediately places the element at viewport center. No second click needed.
 
@@ -124,6 +128,17 @@ Appears when a single node is selected. Features:
 - Live cursors showing other users
 - Presence indicators
 - Real-time node updates via Supabase
+
+### 8. Facilitation Timer (`FacilitationTimer.tsx`, `useTimer.ts`)
+- Miro-style floating timer for facilitation sessions
+- Preset times (1, 2, 5, 10 minutes) + custom duration
+- Play/Pause/Reset controls with keyboard shortcuts (Space, Esc)
+- Visual progress ring with smooth countdown
+- Warning pulse animation in last 10 seconds
+- Sound effects: tick sounds during warning, completion chime
+- Draggable panel with glassmorphism design
+- Minimize to floating badge option
+- "Visible to all" toggle for participants
 
 ---
 
@@ -186,6 +201,9 @@ Appears when a single node is selected. Features:
 | 2026-01-27 | Mobile bottom toolbar, floating action button, responsive layout | EnterpriseMeetingView.tsx |
 | 2026-01-27 | Connector control points - double-click to add, drag to route | EnhancedConnector.tsx |
 | 2026-01-27 | Fixed connector not attaching to nodes - fresh start/end waypoints | connector-engine.ts |
+| 2026-01-31 | Added freehand drawing/pen tool with shape recognition | DrawingCanvas.tsx, shape-recognition.ts, EnterpriseMeetingView.tsx, EnterpriseToolbar.tsx |
+| 2026-01-31 | Enhanced facilitation timer with Miro-like design, progress ring, sounds, draggable panel | FacilitationTimer.tsx, useTimer.ts, EnterpriseMeetingView.tsx |
+| 2026-01-31 | Added anonymous voting system for sticky notes (Miro/Lucidspark style) | VotingControls.tsx, VotingSettingsModal.tsx, EnterpriseMeetingView.tsx, types/board.ts |
 
 ---
 
