@@ -207,6 +207,9 @@ Appears when a single node is selected. Features:
 | 2026-01-31 | Added freehand drawing/pen tool with shape recognition | DrawingCanvas.tsx, shape-recognition.ts, EnterpriseMeetingView.tsx, EnterpriseToolbar.tsx |
 | 2026-01-31 | Enhanced facilitation timer with Miro-like design, progress ring, sounds, draggable panel | FacilitationTimer.tsx, useTimer.ts, EnterpriseMeetingView.tsx |
 | 2026-01-31 | Added anonymous voting system for sticky notes (Miro/Lucidspark style) | VotingControls.tsx, VotingSettingsModal.tsx, EnterpriseMeetingView.tsx, types/board.ts |
+| 2026-01-31 | Fixed connector edge point calculation with line-rectangle intersection | connector-engine.ts, EnterpriseMeetingView.tsx, EnhancedConnector.tsx |
+| 2026-01-31 | Improved connector live preview - uses same edge logic as final connectors | EnterpriseMeetingView.tsx |
+| 2026-01-31 | Real-time node updates with requestAnimationFrame for smooth dragging | EnterpriseMeetingView.tsx |
 
 ---
 

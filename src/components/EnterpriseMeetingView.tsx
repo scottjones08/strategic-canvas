@@ -98,6 +98,12 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   const [connectorStart, setConnectorStart] = useState<string | null>(null);
   const [connectorPreviewPos, setConnectorPreviewPos] = useState<{ x: number; y: number } | null>(null);
   
+  // Alignment guides state
+  const SNAP_THRESHOLD = 10;
+  const [alignmentGuides, setAlignmentGuides] = useState<Array<{ type: 'horizontal' | 'vertical'; position: number }>>([]);
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [draggingNodePos, setDraggingNodePos] = useState<{ x: number; y: number } | null>(null);
+  
   // Current user info
   const currentUser = useMemo(() => ({
     id: userId,
@@ -632,6 +638,90 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     }
   }, [activeTool, connectorStart, createConnector]);
   
+  // Calculate alignment guides for a node at a given position
+  const calculateAlignmentGuides = useCallback((nodeId: string, x: number, y: number) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return [];
+    
+    const guides: Array<{ type: 'horizontal' | 'vertical'; position: number }> = [];
+    const nodeLeft = x;
+    const nodeRight = x + node.width;
+    const nodeCenterX = x + node.width / 2;
+    const nodeTop = y;
+    const nodeBottom = y + node.height;
+    const nodeCenterY = y + node.height / 2;
+    
+    nodes.forEach(otherNode => {
+      if (otherNode.id === nodeId) return;
+      
+      const otherLeft = otherNode.x;
+      const otherRight = otherNode.x + otherNode.width;
+      const otherCenterX = otherNode.x + otherNode.width / 2;
+      const otherTop = otherNode.y;
+      const otherBottom = otherNode.y + otherNode.height;
+      const otherCenterY = otherNode.y + otherNode.height / 2;
+      
+      // Check horizontal alignments (vertical guides)
+      if (Math.abs(nodeLeft - otherLeft) < SNAP_THRESHOLD) {
+        guides.push({ type: 'vertical', position: otherLeft });
+      }
+      if (Math.abs(nodeRight - otherRight) < SNAP_THRESHOLD) {
+        guides.push({ type: 'vertical', position: otherRight });
+      }
+      if (Math.abs(nodeCenterX - otherCenterX) < SNAP_THRESHOLD) {
+        guides.push({ type: 'vertical', position: otherCenterX });
+      }
+      if (Math.abs(nodeLeft - otherRight) < SNAP_THRESHOLD) {
+        guides.push({ type: 'vertical', position: otherRight });
+      }
+      if (Math.abs(nodeRight - otherLeft) < SNAP_THRESHOLD) {
+        guides.push({ type: 'vertical', position: otherLeft });
+      }
+      
+      // Check vertical alignments (horizontal guides)
+      if (Math.abs(nodeTop - otherTop) < SNAP_THRESHOLD) {
+        guides.push({ type: 'horizontal', position: otherTop });
+      }
+      if (Math.abs(nodeBottom - otherBottom) < SNAP_THRESHOLD) {
+        guides.push({ type: 'horizontal', position: otherBottom });
+      }
+      if (Math.abs(nodeCenterY - otherCenterY) < SNAP_THRESHOLD) {
+        guides.push({ type: 'horizontal', position: otherCenterY });
+      }
+      if (Math.abs(nodeTop - otherBottom) < SNAP_THRESHOLD) {
+        guides.push({ type: 'horizontal', position: otherBottom });
+      }
+      if (Math.abs(nodeBottom - otherTop) < SNAP_THRESHOLD) {
+        guides.push({ type: 'horizontal', position: otherTop });
+      }
+    });
+    
+    return guides;
+  }, [nodes]);
+  
+  // Handle node drag start
+  const handleNodeDragStart = useCallback((nodeId: string) => {
+    setDraggingNodeId(nodeId);
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setDraggingNodePos({ x: node.x, y: node.y });
+    }
+  }, [nodes]);
+  
+  // Handle node drag
+  const handleNodeDrag = useCallback((nodeId: string, x: number, y: number) => {
+    setDraggingNodePos({ x, y });
+    const guides = calculateAlignmentGuides(nodeId, x, y);
+    setAlignmentGuides(guides);
+  }, [calculateAlignmentGuides]);
+  
+  // Handle node drag end
+  const handleNodeDragEnd = useCallback(() => {
+    setDraggingNodeId(null);
+    setDraggingNodePos(null);
+    setAlignmentGuides([]);
+  }, []);
+  
   // Node updates
   const handleUpdateNodes = useCallback((updatedNodes: VisualNode[]) => {
     onUpdateBoard({ visualNodes: updatedNodes });
@@ -1070,6 +1160,31 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
             );
           })()}
 
+          {/* Render alignment guides */}
+          {alignmentGuides.map((guide, index) => (
+            <div
+              key={`${guide.type}-${guide.position}-${index}`}
+              className="absolute pointer-events-none z-50"
+              style={{
+                backgroundColor: '#ef4444',
+                ...(guide.type === 'horizontal' 
+                  ? {
+                      left: -10000,
+                      right: -10000,
+                      top: guide.position,
+                      height: 1,
+                    }
+                  : {
+                      top: -10000,
+                      bottom: -10000,
+                      left: guide.position,
+                      width: 1,
+                    }
+                ),
+              }}
+            />
+          ))}
+          
           {/* Render non-connector nodes */}
           {nodes
             .filter(n => !(n.type === 'connector' && n.connectorFrom && n.connectorTo))
@@ -1096,6 +1211,9 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
                 }}
                 onDelete={() => handleDeleteNodes([node.id])}
                 onAddMindmapChild={node.type === 'mindmap' ? handleAddMindmapChild : undefined}
+                onDragStart={() => handleNodeDragStart(node.id)}
+                onDrag={(x, y) => handleNodeDrag(node.id, x, y)}
+                onDragEnd={handleNodeDragEnd}
               />
             ))}
         </EnterpriseCanvas>
@@ -1536,6 +1654,9 @@ interface NodeComponentProps {
   onUpdate: (updates: Partial<VisualNode>) => void;
   onDelete: () => void;
   onAddMindmapChild?: (parentId: string) => void;
+  onDragStart?: () => void;
+  onDrag?: (x: number, y: number) => void;
+  onDragEnd?: () => void;
 }
 
 const NodeComponent: React.FC<NodeComponentProps> = ({
@@ -1547,7 +1668,10 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
   onSelect,
   onUpdate,
   onDelete,
-  onAddMindmapChild
+  onAddMindmapChild,
+  onDragStart,
+  onDrag,
+  onDragEnd
 }) => {
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
@@ -1559,6 +1683,7 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
   
   const handleDragStart = () => {
     dragStartPos.current = { x: node.x, y: node.y };
+    onDragStart?.();
   };
   
   const handleDrag = (_: any, info: any) => {
@@ -1575,6 +1700,9 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
           y: newY
         });
       });
+      
+      // Notify parent for alignment guides
+      onDrag?.(newX, newY);
     }
   };
   
@@ -1591,6 +1719,9 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
       
       // Update drag start position for next drag
       dragStartPos.current = { x: newX, y: newY };
+      
+      // Notify parent that drag ended
+      onDragEnd?.();
     }
   };
 
