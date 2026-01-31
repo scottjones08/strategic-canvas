@@ -627,7 +627,13 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   
   // Handle node click for connector tool
   const handleNodeClickForConnector = useCallback((nodeId: string, edge?: 'top' | 'right' | 'bottom' | 'left') => {
-    if (activeTool !== 'connector') return;
+    // If not in connector mode and no edge clicked, ignore
+    if (activeTool !== 'connector' && !edge) return;
+    
+    // If edge clicked but not in connector mode, auto-enable connector mode
+    if (edge && activeTool !== 'connector') {
+      setActiveTool('connector');
+    }
 
     if (!connectorStart) {
       // First click - set start node and edge
@@ -1235,7 +1241,8 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
                 isConnectorMode={activeTool === 'connector'}
                 zoom={viewportState.zoom}
                 onSelect={(edge) => {
-                  if (activeTool === 'connector') {
+                  if (edge || activeTool === 'connector') {
+                    // If edge clicked or in connector mode, start/connect connector
                     handleNodeClickForConnector(node.id, edge);
                   } else {
                     handleSelectNodes([node.id]);
@@ -2307,15 +2314,14 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
   // Determine border style for connector mode
   const getBorderClass = () => {
     if (isConnectorStart) return 'ring-2 ring-green-500 ring-offset-2';
-    if (isConnectorMode && isHovered) return 'ring-2 ring-dashed ring-indigo-400 ring-offset-1';
-    if (isConnectorMode) return 'ring-2 ring-dashed ring-indigo-200 ring-offset-1';
+    if (isConnectorStart && isHovered) return 'ring-2 ring-green-400 ring-offset-2';
     if (isSelected) return 'ring-2 ring-indigo-500 ring-offset-2';
     return '';
   };
 
   return (
     <motion.div
-      drag={!isResizing && !isConnectorMode}
+      drag={!isResizing && !isConnectorStart}
       dragMomentum={false}
       onDragStart={handleDragStart}
       onDrag={handleDrag}
@@ -2328,7 +2334,7 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
       onHoverEnd={() => setIsHovered(false)}
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ 
-        scale: isHovered && isConnectorMode ? 1.03 : 1, 
+        scale: isHovered && isConnectorStart ? 1.02 : 1, 
         opacity: 1
       }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
@@ -2338,15 +2344,15 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
         top: node.y,
         width: node.width,
         height: node.height,
-        cursor: isConnectorMode ? (isConnectorStart ? 'not-allowed' : 'crosshair') : (isResizing ? 'default' : 'grab'),
-        zIndex: isSelected || isHovered ? 100 : 10,
+        cursor: isConnectorStart ? 'not-allowed' : (isResizing ? 'default' : 'grab'),
+        zIndex: isSelected || isHovered || isConnectorStart ? 100 : 10,
         touchAction: 'none'
       }}
     >
       {renderContent()}
       
-      {/* Connection points - visible in connector mode, when node is selected, or on hover */}
-      {(isConnectorMode || isSelected || (isHovered && !isConnectorMode)) && (
+      {/* Connection points - always visible on hover, works with any tool */}
+      {(isSelected || isHovered) && (
         <>
           {/* Connection dot component helper */}
           {(['top', 'right', 'bottom', 'left'] as const).map((position) => {
@@ -2362,22 +2368,14 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
                 return {
                   bg: 'bg-green-500',
                   hover: 'hover:bg-green-400',
-                  ring: '0 0 0 8px rgba(34, 197, 94, 0.3), 0 0 20px rgba(34, 197, 94, 0.5)',
-                  scale: 'scale-125',
-                };
-              }
-              if (isConnectorMode) {
-                return {
-                  bg: 'bg-blue-500',
-                  hover: 'hover:bg-blue-400',
-                  ring: '0 0 0 6px rgba(59, 130, 246, 0.25)',
-                  scale: isHovered ? 'scale-125' : 'scale-100',
+                  ring: '0 0 0 6px rgba(34, 197, 94, 0.3), 0 0 15px rgba(34, 197, 94, 0.5)',
+                  scale: 'scale-110',
                 };
               }
               return {
                 bg: 'bg-indigo-500',
                 hover: 'hover:bg-indigo-400',
-                ring: '0 0 0 4px rgba(99, 102, 241, 0.2)',
+                ring: '0 0 0 3px rgba(99, 102, 241, 0.25)',
                 scale: 'scale-100',
               };
             };
@@ -2388,38 +2386,40 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
             return (
               <div
                 key={position}
-                className={`absolute ${pos.className} cursor-crosshair transition-all duration-200 ease-out z-30 group`}
+                className={`absolute ${pos.className} cursor-crosshair transition-all duration-200 ease-out z-30 group/dot`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelect(position);
                 }}
               >
+                {/* Tooltip - appears on dot hover */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover/dot:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                  Click to connect from here
+                  {/* Tooltip arrow */}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                </div>
+                
                 {/* Outer glow/pulse ring */}
-                {(isConnectorStart || (isConnectorMode && isHovered)) && (
+                {isConnectorStart && (
                   <div
-                    className={`absolute inset-0 w-8 h-8 -translate-x-1.5 -translate-y-1.5 rounded-full ${isConnectorStart ? 'bg-green-400' : 'bg-blue-400'} opacity-40 animate-ping`}
+                    className={`absolute inset-0 w-5 h-5 -translate-x-0.5 -translate-y-0.5 rounded-full bg-green-400 opacity-40 animate-ping`}
                     style={{ animationDuration: '1.5s' }}
                   />
                 )}
-                {/* Main dot */}
+                
+                {/* Main dot - 30% smaller (was w-4 h-4, now w-3 h-3) */}
                 <div
-                  className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-white ${colors.bg} ${colors.hover} ${colors.scale}
-                    shadow-lg transition-all duration-150 group-hover:scale-150 group-hover:shadow-xl`}
+                  className={`w-3 h-3 rounded-full border-2 border-white ${colors.bg} ${colors.hover} ${colors.scale}
+                    shadow-lg transition-all duration-150 group-hover/dot:scale-125 group-hover/dot:shadow-xl`}
                   style={{
                     boxShadow: colors.ring,
                   }}
-                  title={
-                    isConnectorStart
-                      ? 'Click another node to complete connection'
-                      : isConnectorMode
-                      ? 'Click to connect from here'
-                      : 'Click to start connecting'
-                  }
                 />
-                {/* Plus icon on hover (when in connector mode and not already started) */}
-                {isConnectorMode && !isConnectorStart && (
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                
+                {/* Plus icon on hover */}
+                {!isConnectorStart && (
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/dot:opacity-100 transition-opacity pointer-events-none">
+                    <svg className="w-2 h-2 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                       <path d="M12 5v14M5 12h14" />
                     </svg>
                   </div>
