@@ -22,7 +22,7 @@ import { UserPresenceList } from './UserPresenceList';
 import ShareBoardModal from './ShareBoardModal';
 import UnifiedLeftPanel from './UnifiedLeftPanel';
 import { FacilitationTimer } from './FacilitationTimer';
-import { createConnectorPath, nodeToConnectorPath } from '../lib/connector-engine';
+import { createConnectorPath, nodeToConnectorPath, getNearestEdgePoint } from '../lib/connector-engine';
 import { 
   UserPresence, 
   getUserColor, 
@@ -968,14 +968,29 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
             const startNode = nodes.find(n => n.id === connectorStart);
             if (!startNode) return null;
 
-            const startX = startNode.x + startNode.width / 2;
-            const startY = startNode.y + startNode.height / 2;
+            // Calculate edge point using the same logic as the connector engine
+            const fromCenter = { 
+              x: startNode.x + startNode.width / 2, 
+              y: startNode.y + startNode.height / 2 
+            };
+            const toPoint = connectorPreviewPos;
+            
+            // Use the same getNearestEdgePoint logic
+            const startPoint = getNearestEdgePoint(
+              { x: startNode.x, y: startNode.y, width: startNode.width, height: startNode.height },
+              toPoint,
+              0
+            );
+            
+            const startX = startPoint.x;
+            const startY = startPoint.y;
             const endX = connectorPreviewPos.x;
             const endY = connectorPreviewPos.y;
 
-            // Calculate control point for smooth curve
+            // Calculate control points for smooth curve (similar to generateCurvedPath)
             const midX = (startX + endX) / 2;
-            const midY = (startY + endY) / 2;
+            const controlX = midX + (endY - startY) * 0.2;
+            const controlY = midX - (endX - startX) * 0.2;
 
             return (
               <svg
@@ -984,7 +999,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
               >
                 {/* Animated dashed preview line */}
                 <path
-                  d={`M ${startX} ${startY} Q ${midX} ${startY} ${endX} ${endY}`}
+                  d={`M ${startX} ${startY} Q ${controlX} ${startY} ${endX} ${endY}`}
                   stroke="#3b82f6"
                   strokeWidth="3"
                   strokeDasharray="8 4"
@@ -997,7 +1012,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
                 />
                 {/* Animated glow effect */}
                 <path
-                  d={`M ${startX} ${startY} Q ${midX} ${startY} ${endX} ${endY}`}
+                  d={`M ${startX} ${startY} Q ${controlX} ${startY} ${endX} ${endY}`}
                   stroke="#3b82f6"
                   strokeWidth="8"
                   strokeLinecap="round"
@@ -1005,14 +1020,14 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
                   opacity="0.2"
                   filter="blur(4px)"
                 />
-                {/* Start point indicator */}
+                {/* Start point indicator - at edge */}
                 <circle
                   cx={startX}
                   cy={startY}
-                  r="8"
+                  r="6"
                   fill="#3b82f6"
                   stroke="white"
-                  strokeWidth="3"
+                  strokeWidth="2"
                   style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}
                 />
                 {/* End point cursor indicator */}
@@ -1065,7 +1080,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
                 isSelected={selectedNodeIds.includes(node.id)}
                 isConnectorStart={connectorStart === node.id}
                 isConnectorMode={activeTool === 'connector'}
-                zoom={1}
+                zoom={viewportState.zoom}
                 onSelect={() => {
                   if (activeTool === 'connector') {
                     handleNodeClickForConnector(node.id);
@@ -1537,6 +1552,7 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [startPos, setStartPos] = useState({ x: 0, y: 0, width: 0, height: 0, nodeX: 0, nodeY: 0 });
+  const [isHovered, setIsHovered] = useState(false);
   
   // Track drag start position for real-time updates
   const dragStartPos = useRef({ x: node.x, y: node.y });
@@ -1548,19 +1564,33 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
   const handleDrag = (_: any, info: any) => {
     if (!isResizing) {
       // Update position in real-time for connector tracking
-      onUpdate({
-        x: dragStartPos.current.x + info.offset.x,
-        y: dragStartPos.current.y + info.offset.y
+      // Use the offset from the drag start position
+      const newX = dragStartPos.current.x + info.offset.x;
+      const newY = dragStartPos.current.y + info.offset.y;
+      
+      // Update immediately for smooth connector following
+      requestAnimationFrame(() => {
+        onUpdate({
+          x: newX,
+          y: newY
+        });
       });
     }
   };
   
   const handleDragEnd = (_: any, info: any) => {
     if (!isResizing) {
+      // Final update to ensure position is correct
+      const newX = dragStartPos.current.x + info.offset.x;
+      const newY = dragStartPos.current.y + info.offset.y;
+      
       onUpdate({
-        x: dragStartPos.current.x + info.offset.x,
-        y: dragStartPos.current.y + info.offset.y
+        x: newX,
+        y: newY
       });
+      
+      // Update drag start position for next drag
+      dragStartPos.current = { x: newX, y: newY };
     }
   };
 
@@ -2108,7 +2138,8 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
   // Determine border style for connector mode
   const getBorderClass = () => {
     if (isConnectorStart) return 'ring-2 ring-green-500 ring-offset-2';
-    if (isConnectorMode) return 'ring-2 ring-dashed ring-indigo-300 ring-offset-1 hover:ring-indigo-500';
+    if (isConnectorMode && isHovered) return 'ring-2 ring-dashed ring-indigo-400 ring-offset-1';
+    if (isConnectorMode) return 'ring-2 ring-dashed ring-indigo-200 ring-offset-1';
     if (isSelected) return 'ring-2 ring-indigo-500 ring-offset-2';
     return '';
   };
@@ -2124,34 +2155,37 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
         e.stopPropagation();
         onSelect();
       }}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ 
-        scale: 1, 
+        scale: isHovered && isConnectorMode ? 1.03 : 1, 
         opacity: 1
       }}
-      whileHover={!isResizing ? { scale: isConnectorMode ? 1.05 : 1.02 } : undefined}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       className={`absolute ${getBorderClass()}`}
       style={{
         left: node.x,
         top: node.y,
         width: node.width,
         height: node.height,
-        cursor: isConnectorMode ? 'crosshair' : (isResizing ? 'default' : 'grab'),
-        zIndex: isSelected ? 100 : 10
+        cursor: isConnectorMode ? (isConnectorStart ? 'not-allowed' : 'crosshair') : (isResizing ? 'default' : 'grab'),
+        zIndex: isSelected || isHovered ? 100 : 10,
+        touchAction: 'none'
       }}
     >
       {renderContent()}
       
-      {/* Connection points - visible in connector mode or when node is selected */}
-      {(isConnectorMode || isSelected) && (
+      {/* Connection points - visible in connector mode, when node is selected, or on hover */}
+      {(isConnectorMode || isSelected || (isHovered && !isConnectorMode)) && (
         <>
           {/* Connection dot component helper */}
           {(['top', 'right', 'bottom', 'left'] as const).map((position) => {
             const positionStyles = {
-              top: 'top-0 left-1/2 -translate-x-1/2 -translate-y-1/2',
-              right: 'top-1/2 right-0 translate-x-1/2 -translate-y-1/2',
-              bottom: 'bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2',
-              left: 'top-1/2 left-0 -translate-x-1/2 -translate-y-1/2',
+              top: { className: 'top-0 left-1/2 -translate-x-1/2 -translate-y-1/2', offset: { x: 0, y: -1 } },
+              right: { className: 'top-1/2 right-0 translate-x-1/2 -translate-y-1/2', offset: { x: 1, y: 0 } },
+              bottom: { className: 'bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2', offset: { x: 0, y: 1 } },
+              left: { className: 'top-1/2 left-0 -translate-x-1/2 -translate-y-1/2', offset: { x: -1, y: 0 } },
             };
 
             const getColors = () => {
@@ -2159,47 +2193,48 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
                 return {
                   bg: 'bg-green-500',
                   hover: 'hover:bg-green-400',
-                  ring: '0 0 0 6px rgba(34, 197, 94, 0.4), 0 0 20px rgba(34, 197, 94, 0.6)',
-                  animation: 'animate-ping-slow',
+                  ring: '0 0 0 8px rgba(34, 197, 94, 0.3), 0 0 20px rgba(34, 197, 94, 0.5)',
+                  scale: 'scale-125',
                 };
               }
               if (isConnectorMode) {
                 return {
                   bg: 'bg-blue-500',
                   hover: 'hover:bg-blue-400',
-                  ring: '0 0 0 4px rgba(59, 130, 246, 0.3)',
-                  animation: 'animate-pulse',
+                  ring: '0 0 0 6px rgba(59, 130, 246, 0.25)',
+                  scale: isHovered ? 'scale-125' : 'scale-100',
                 };
               }
               return {
-                bg: 'bg-gray-400',
-                hover: 'hover:bg-blue-500',
-                ring: '0 2px 8px rgba(0,0,0,0.3)',
-                animation: '',
+                bg: 'bg-indigo-500',
+                hover: 'hover:bg-indigo-400',
+                ring: '0 0 0 4px rgba(99, 102, 241, 0.2)',
+                scale: 'scale-100',
               };
             };
 
             const colors = getColors();
+            const pos = positionStyles[position];
 
             return (
               <div
                 key={position}
-                className={`absolute ${positionStyles[position]} cursor-crosshair transition-all duration-200 ease-out z-20 group`}
+                className={`absolute ${pos.className} cursor-crosshair transition-all duration-200 ease-out z-30 group`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelect();
                 }}
               >
-                {/* Outer glow ring for connector start */}
-                {isConnectorStart && (
+                {/* Outer glow/pulse ring */}
+                {(isConnectorStart || (isConnectorMode && isHovered)) && (
                   <div
-                    className="absolute inset-0 w-8 h-8 -translate-x-1.5 -translate-y-1.5 rounded-full bg-green-400 opacity-30 animate-ping"
+                    className={`absolute inset-0 w-8 h-8 -translate-x-1.5 -translate-y-1.5 rounded-full ${isConnectorStart ? 'bg-green-400' : 'bg-blue-400'} opacity-40 animate-ping`}
                     style={{ animationDuration: '1.5s' }}
                   />
                 )}
                 {/* Main dot */}
                 <div
-                  className={`w-5 h-5 rounded-full border-2 border-white ${colors.bg} ${colors.hover} ${colors.animation}
+                  className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-white ${colors.bg} ${colors.hover} ${colors.scale}
                     shadow-lg transition-all duration-150 group-hover:scale-150 group-hover:shadow-xl`}
                   style={{
                     boxShadow: colors.ring,
@@ -2215,7 +2250,7 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
                 {/* Plus icon on hover (when in connector mode and not already started) */}
                 {isConnectorMode && !isConnectorStart && (
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                       <path d="M12 5v14M5 12h14" />
                     </svg>
                   </div>

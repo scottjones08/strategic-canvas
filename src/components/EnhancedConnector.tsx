@@ -63,18 +63,26 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
   // Generate SVG path
   const pathD = generatePath(path);
   
-  // Calculate path bounds for hit testing
+  // Calculate path bounds for hit testing - include padding for better hit detection
   const pathBounds = React.useMemo(() => {
     if (path.waypoints.length < 2) return null;
     const xs = path.waypoints.map(wp => wp.x);
     const ys = path.waypoints.map(wp => wp.y);
+    
+    // Add extra padding for better hit testing
+    const padding = 40;
+    const minX = Math.min(...xs) - padding;
+    const maxX = Math.max(...xs) + padding;
+    const minY = Math.min(...ys) - padding;
+    const maxY = Math.max(...ys) + padding;
+    
     return {
-      minX: Math.min(...xs) - 30,
-      maxX: Math.max(...xs) + 30,
-      minY: Math.min(...ys) - 30,
-      maxY: Math.max(...ys) + 30,
-      width: Math.max(...xs) - Math.min(...xs) + 60,
-      height: Math.max(...ys) - Math.min(...ys) + 60
+      minX,
+      maxX,
+      minY,
+      maxY,
+      width: Math.max(10, maxX - minX),
+      height: Math.max(10, maxY - minY)
     };
   }, [path.waypoints]);
 
@@ -236,7 +244,15 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
     }
   }, [isSelected]);
 
-  if (!pathBounds) return null;
+  if (!pathBounds || path.waypoints.length < 2) return null;
+  
+  // Validate waypoints have valid coordinates
+  const validWaypoints = path.waypoints.every(wp => 
+    typeof wp.x === 'number' && !isNaN(wp.x) && 
+    typeof wp.y === 'number' && !isNaN(wp.y)
+  );
+  
+  if (!validWaypoints) return null;
 
   // Calculate stroke dash array based on style
   const getStrokeDashArray = () => {
@@ -251,7 +267,7 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
     <>
       <svg
         ref={svgRef}
-        className="absolute pointer-events-none overflow-visible"
+        className="absolute overflow-visible"
         style={{
           left: pathBounds.minX,
           top: pathBounds.minY,
@@ -259,7 +275,8 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
           height: pathBounds.height,
           pointerEvents: 'auto',
           cursor: isSelected ? 'move' : 'pointer',
-          zIndex: isSelected ? 50 : 5
+          zIndex: isSelected ? 50 : 5,
+          overflow: 'visible'
         }}
         onClick={handlePathClick}
         onDoubleClick={handleDoubleClick}
@@ -394,7 +411,7 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
       </svg>
 
       {/* Label overlay */}
-      {labelPoint && (
+      {labelPoint && labelPoint.x && labelPoint.y && (
         <div
           className="absolute pointer-events-auto"
           style={{

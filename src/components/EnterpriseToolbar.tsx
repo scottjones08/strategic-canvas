@@ -216,9 +216,9 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
   return (
     <>
       {/* Main Toolbar */}
-      <div className="absolute top-2 sm:top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1.5 sm:gap-2 pointer-events-none w-[98vw] sm:w-auto overflow-visible">
+      <div className="absolute top-2 sm:top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1.5 sm:gap-2 pointer-events-none w-[95vw] sm:w-auto max-w-full">
         {/* Top row - Board name and participants */}
-        <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto px-2">
+        <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto px-2 overflow-hidden">
           {/* Board Name */}
           <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 px-4 py-2">
             {isEditingName ? (
@@ -268,7 +268,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
         </div>
         
         {/* Tools row - responsive with horizontal scroll on small screens */}
-        <div data-onboarding="toolbar" className={`flex items-center gap-0.5 sm:gap-1 md:gap-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-1 sm:p-1.5 md:p-2 pointer-events-auto max-w-[98vw] scrollbar-hide ${showShapePicker || showStickyPicker ? 'overflow-visible' : 'overflow-x-auto'}`}>
+        <div data-onboarding="toolbar" className={`flex items-center gap-0.5 sm:gap-1 md:gap-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-1 sm:p-1.5 md:p-2 pointer-events-auto max-w-full scrollbar-hide ${showShapePicker || showStickyPicker ? 'overflow-visible' : 'overflow-x-auto'}`}>
           {/* Primary Tools */}
           <div className="flex items-center gap-1">
             {/* Select Tool */}
@@ -668,21 +668,21 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
       </div>
       
       {/* Right side - Facilitator tools */}
-      <div className="absolute top-4 right-4 flex items-center gap-2">
+      <div className="absolute top-2 sm:top-4 right-2 sm:right-4 flex items-center gap-1.5 sm:gap-2 z-40">
         <button
           onClick={onOpenTimer}
-          className="flex items-center gap-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1.5 sm:gap-2 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl shadow-lg border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 hover:bg-gray-50 transition-colors"
         >
-          <Timer className="w-5 h-5 text-gray-600" />
-          <span className="text-sm text-gray-600 hidden sm:inline">Timer</span>
+          <Timer className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+          <span className="text-xs sm:text-sm text-gray-600 hidden sm:inline">Timer</span>
         </button>
         
         <button
           onClick={onStartPresentation}
-          className="flex items-center gap-2 bg-indigo-600 text-white rounded-xl shadow-lg px-4 py-2 hover:bg-indigo-700 transition-colors"
+          className="flex items-center gap-1.5 sm:gap-2 bg-indigo-600 text-white rounded-lg sm:rounded-xl shadow-lg px-2 sm:px-4 py-1.5 sm:py-2 hover:bg-indigo-700 transition-colors"
         >
-          <Presentation className="w-5 h-5" />
-          <span className="text-sm font-medium hidden sm:inline">Present</span>
+          <Presentation className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="text-xs sm:text-sm font-medium hidden sm:inline">Present</span>
         </button>
       </div>
       

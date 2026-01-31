@@ -170,17 +170,41 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
 
   // Mobile optimized position
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-  const mobileStyle = isMobile ? {
-    left: '50%',
-    top: 'auto',
-    bottom: '80px',
-    transform: 'translateX(-50%)',
-    width: '90vw',
-    maxWidth: '360px'
-  } : {
-    left: panelPos.x,
-    top: panelPos.y
+  const isTablet = typeof window !== 'undefined' && window.innerWidth >= 640 && window.innerWidth < 1024;
+  
+  const getPanelStyle = () => {
+    if (isMobile) {
+      return {
+        left: '50%',
+        top: 'auto',
+        bottom: '90px',
+        transform: 'translateX(-50%)',
+        width: 'calc(100vw - 24px)',
+        maxWidth: '380px',
+        maxHeight: '60vh'
+      };
+    }
+    if (isTablet) {
+      // Keep within bounds on tablet
+      const boundedX = Math.max(10, Math.min(panelPos.x, window.innerWidth - 280));
+      const boundedY = Math.max(10, Math.min(panelPos.y, window.innerHeight - 400));
+      return {
+        left: boundedX,
+        top: boundedY,
+        maxHeight: '70vh'
+      };
+    }
+    // Desktop - keep within viewport bounds
+    const boundedX = Math.max(10, Math.min(panelPos.x, window.innerWidth - 280));
+    const boundedY = Math.max(10, Math.min(panelPos.y, window.innerHeight - 500));
+    return {
+      left: boundedX,
+      top: boundedY,
+      maxHeight: '80vh'
+    };
   };
+  
+  const panelStyle = getPanelStyle();
 
   return (
     <motion.div
@@ -190,10 +214,10 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
       exit={{ opacity: 0, x: isMobile ? 0 : -20, y: isMobile ? 20 : 0 }}
       className={`
         fixed bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-gray-200/80 z-50 overflow-hidden
-        ${isMobile ? 'w-[90vw] max-w-[320px]' : 'w-64'}
+        ${isMobile ? 'w-[calc(100vw-24px)] max-w-[380px]' : 'w-64'}
         ${isDragging ? 'cursor-grabbing select-none' : ''}
       `}
-      style={isMobile ? mobileStyle : { left: panelPos.x, top: panelPos.y }}
+      style={panelStyle}
       onMouseDown={!isMobile ? handleMouseDown : undefined}
     >
       {/* Header */}
@@ -219,7 +243,7 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
       </div>
 
       {/* Scrollable Content - compact height */}
-      <div className="max-h-[50vh] overflow-y-auto scrollbar-hide">
+      <div className={`overflow-y-auto scrollbar-hide ${isMobile ? 'max-h-[50vh]' : 'max-h-[calc(100vh-200px)]'}`}>
         {/* Quick Actions */}
         <div className="flex items-center justify-between gap-1 p-2 border-b border-gray-100">
           <ActionButton

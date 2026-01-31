@@ -239,12 +239,44 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
     touches: number;
   } | null>(null);
 
+  // Clamp pan values to prevent getting lost in infinite canvas
+  const clampPan = useCallback((panX: number, panY: number) => {
+    if (!containerRef.current) return { x: panX, y: panY };
+    
+    const rect = containerRef.current.getBoundingClientRect();
+    // Allow some extra space beyond content bounds
+    const padding = 2000;
+    
+    // Get content bounds if there are nodes
+    let contentMinX = 0, contentMinY = 0, contentMaxX = 0, contentMaxY = 0;
+    if (nodes.length > 0) {
+      contentMinX = Math.min(...nodes.map(n => n.x)) - padding;
+      contentMinY = Math.min(...nodes.map(n => n.y)) - padding;
+      contentMaxX = Math.max(...nodes.map(n => n.x + n.width)) + padding;
+      contentMaxY = Math.max(...nodes.map(n => n.y + n.height)) + padding;
+    }
+    
+    // Clamp pan values
+    const minPanX = rect.width - contentMaxX * viewport.zoom;
+    const maxPanX = -contentMinX * viewport.zoom;
+    const minPanY = rect.height - contentMaxY * viewport.zoom;
+    const maxPanY = -contentMinY * viewport.zoom;
+    
+    // Only clamp if zoomed out enough to see beyond content
+    const clampedX = viewport.zoom < 0.5 ? Math.max(minPanX, Math.min(maxPanX, panX)) : panX;
+    const clampedY = viewport.zoom < 0.5 ? Math.max(minPanY, Math.min(maxPanY, panY)) : panY;
+    
+    return { x: clampedX, y: clampedY };
+  }, [nodes, viewport.zoom]);
+
   // Sync motion values with state
   useEffect(() => {
     motionZoom.set(viewport.zoom);
-    motionPanX.set(viewport.panX);
-    motionPanY.set(viewport.panY);
-  }, [viewport.zoom, viewport.panX, viewport.panY, motionZoom, motionPanX, motionPanY]);
+    // Clamp pan to prevent getting lost
+    const clamped = clampPan(viewport.panX, viewport.panY);
+    motionPanX.set(clamped.x);
+    motionPanY.set(clamped.y);
+  }, [viewport.zoom, viewport.panX, viewport.panY, motionZoom, motionPanX, motionPanY, clampPan]);
 
   // Coordinate conversion helpers
   const getWorldCoordinates = useCallback((screenX: number, screenY: number) => {

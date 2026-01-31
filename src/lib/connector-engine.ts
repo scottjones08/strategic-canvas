@@ -62,6 +62,7 @@ export const angle = (p1: Point, p2: Point): number => {
 
 /**
  * Get the nearest point on a rectangle edge from an external point
+ * Uses proper line-rectangle intersection for accurate edge detection
  */
 export const getNearestEdgePoint = (
   rect: { x: number; y: number; width: number; height: number },
@@ -75,35 +76,115 @@ export const getNearestEdgePoint = (
 
   const centerX = rect.x + rect.width / 2;
   const centerY = rect.y + rect.height / 2;
+  
+  // If the fromPoint is inside the rectangle or very close to center,
+  // return a point on the right edge as default
+  const isInsideRect = fromPoint.x >= rect.x && fromPoint.x <= rect.x + rect.width &&
+                       fromPoint.y >= rect.y && fromPoint.y <= rect.y + rect.height;
+  
+  if (isInsideRect) {
+    return { x: rect.x + rect.width + padding, y: centerY };
+  }
+
+  // Rectangle boundaries with padding
+  const left = rect.x - padding;
+  const right = rect.x + rect.width + padding;
+  const top = rect.y - padding;
+  const bottom = rect.y + rect.height + padding;
+
+  // Calculate intersection with each edge
+  // Line from center to fromPoint
   const dx = fromPoint.x - centerX;
   const dy = fromPoint.y - centerY;
 
-  const halfW = rect.width / 2 + padding;
-  const halfH = rect.height / 2 + padding;
-
-  // If the fromPoint is at the center, default to right edge
-  if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
-    return { x: centerX + halfW, y: centerY };
+  // If very close to center, default to right edge
+  if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {
+    return { x: right, y: centerY };
   }
 
-  // Determine which edge to use based on angle
-  const angle = Math.atan2(dy, dx);
-  const rectAngle = Math.atan2(halfH, halfW);
+  // Calculate intersection points with all four edges
+  const intersections: Point[] = [];
 
-  // Use cardinal direction approach for more predictable results
-  if (Math.abs(angle) < rectAngle) {
-    // Right edge
-    return { x: rect.x + rect.width + padding, y: centerY + dx !== 0 ? (dy / dx) * halfW : 0 };
-  } else if (Math.abs(angle) > Math.PI - rectAngle) {
-    // Left edge
-    return { x: rect.x - padding, y: centerY - (dx !== 0 ? (dy / dx) * halfW : 0) };
-  } else if (angle > 0) {
-    // Bottom edge
-    return { x: centerX + (dy !== 0 ? (dx / dy) * halfH : 0), y: rect.y + rect.height + padding };
-  } else {
-    // Top edge
-    return { x: centerX - (dy !== 0 ? (dx / dy) * halfH : 0), y: rect.y - padding };
+  // Check intersection with left edge (x = left)
+  if (dx !== 0) {
+    const t = (left - centerX) / dx;
+    if (t >= 0) {
+      const y = centerY + t * dy;
+      if (y >= top && y <= bottom) {
+        intersections.push({ x: left, y });
+      }
+    }
   }
+
+  // Check intersection with right edge (x = right)
+  if (dx !== 0) {
+    const t = (right - centerX) / dx;
+    if (t >= 0) {
+      const y = centerY + t * dy;
+      if (y >= top && y <= bottom) {
+        intersections.push({ x: right, y });
+      }
+    }
+  }
+
+  // Check intersection with top edge (y = top)
+  if (dy !== 0) {
+    const t = (top - centerY) / dy;
+    if (t >= 0) {
+      const x = centerX + t * dx;
+      if (x >= left && x <= right) {
+        intersections.push({ x, y: top });
+      }
+    }
+  }
+
+  // Check intersection with bottom edge (y = bottom)
+  if (dy !== 0) {
+    const t = (bottom - centerY) / dy;
+    if (t >= 0) {
+      const x = centerX + t * dx;
+      if (x >= left && x <= right) {
+        intersections.push({ x, y: bottom });
+      }
+    }
+  }
+
+  // Find the closest intersection point to the fromPoint
+  if (intersections.length > 0) {
+    let closest = intersections[0];
+    let minDist = distance(fromPoint, closest);
+    
+    for (let i = 1; i < intersections.length; i++) {
+      const dist = distance(fromPoint, intersections[i]);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = intersections[i];
+      }
+    }
+    
+    return closest;
+  }
+
+  // Fallback: return the closest edge midpoint
+  const edges = [
+    { x: left, y: centerY }, // left
+    { x: right, y: centerY }, // right
+    { x: centerX, y: top }, // top
+    { x: centerX, y: bottom }, // bottom
+  ];
+  
+  let closest = edges[0];
+  let minDist = distance(fromPoint, closest);
+  
+  for (let i = 1; i < edges.length; i++) {
+    const dist = distance(fromPoint, edges[i]);
+    if (dist < minDist) {
+      minDist = dist;
+      closest = edges[i];
+    }
+  }
+  
+  return closest;
 };
 
 /**

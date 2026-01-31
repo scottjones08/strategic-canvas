@@ -676,10 +676,10 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
       initial={{ x: 380 }}
       animate={{ x: isExpanded ? 0 : 340 }}
       transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-      className="fixed right-0 top-20 bottom-4 w-[380px] z-[100]"
+      className="fixed right-0 top-16 sm:top-20 bottom-16 sm:bottom-4 w-[320px] sm:w-[360px] md:w-[380px] z-[100] max-w-[calc(100vw-16px)]"
     >
       {/* Panel content */}
-      <div className="h-full bg-white/95 backdrop-blur-xl rounded-l-2xl shadow-2xl border border-r-0 border-gray-200 flex flex-col overflow-hidden">
+      <div className="h-full bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-l-2xl rounded-r-none shadow-2xl border border-r-0 border-gray-200 flex flex-col overflow-hidden">
         {/* Header with recording status */}
         <div className={`p-4 border-b ${isRecording ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-indigo-500 to-purple-500'}`}>
           <div className="flex items-center justify-between">
