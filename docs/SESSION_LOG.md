@@ -80,6 +80,9 @@ npm run dev
 | 2026-01-31 | Connection dot hover states | ✅ Committed |
 | 2026-01-31 | Smart alignment guides when dragging | ✅ Committed & Pushed |
 | 2026-01-31 | Mobile toolbar v2 with tabs & haptics | ✅ Committed & Pushed |
+| 2026-01-31 | World-class connector improvements | ✅ Committed & Pushed |
+| 2026-01-31 | Fixed arrowhead positioning | ✅ Committed & Pushed |
+| 2026-01-31 | Clickable connection dots for instant connect | ✅ Committed & Pushed |
 
 ---
 

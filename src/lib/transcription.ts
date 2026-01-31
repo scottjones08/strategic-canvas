@@ -2,6 +2,8 @@
  * Professional Voice Transcription Service with Speaker Diarization
  * Supports AssemblyAI for high-quality transcription with speaker identification
  * Falls back to Web Speech API when no API key is configured
+ * 
+ * AI Meeting Assistant Integration - Enhanced with real-time processing pipeline
  */
 
 // ============================================
@@ -77,6 +79,110 @@ export interface TranscriptionSession {
   onSegment: (callback: (segment: TranscriptSegment) => void) => void;
   onStatusChange: (callback: (status: TranscriptionSession['status']) => void) => void;
   onError: (callback: (error: Error) => void) => void;
+}
+
+// ============================================
+// AI MEETING ASSISTANT TYPES
+// ============================================
+
+export interface ExtractedTask {
+  id: string;
+  text: string;
+  assignee?: string;
+  dueDate?: Date;
+  priority: 'low' | 'medium' | 'high';
+  confidence: number;
+  sourceSegmentId: string;
+  createdAt: Date;
+}
+
+export interface SentimentResult {
+  segmentId: string;
+  speaker: string;
+  sentiment: 'positive' | 'neutral' | 'negative';
+  score: number; // -1 to 1
+  emotions: {
+    enthusiasm?: number;
+    frustration?: number;
+    confusion?: number;
+    satisfaction?: number;
+  };
+  timestamp: number;
+}
+
+export interface KeyMoment {
+  id: string;
+  text: string;
+  reason: string;
+  type: 'decision' | 'insight' | 'action' | 'concern' | 'milestone';
+  timestamp: number;
+  speaker: string;
+  confidence: number;
+}
+
+export interface MeetingSentimentAnalysis {
+  overall: 'positive' | 'neutral' | 'negative';
+  averageScore: number;
+  timeline: Array<{
+    timestamp: number;
+    score: number;
+    speaker: string;
+  }>;
+  speakerBreakdown: Record<string, {
+    averageScore: number;
+    sentiment: 'positive' | 'neutral' | 'negative';
+  }>;
+}
+
+export interface MeetingContext {
+  meetingId: string;
+  title?: string;
+  participants: string[];
+  startTime: Date;
+  segments: TranscriptSegment[];
+  tasks: ExtractedTask[];
+  sentiments: SentimentResult[];
+  keyMoments: KeyMoment[];
+  metadata?: Record<string, any>;
+}
+
+export interface MeetingTranscript extends FullTranscript {
+  meetingId: string;
+  title?: string;
+  participants: Speaker[];
+  tasks: ExtractedTask[];
+  sentiments: SentimentResult[];
+  keyMoments: KeyMoment[];
+  summary?: string;
+}
+
+export interface MeetingInsights {
+  duration: number;
+  wordCount: number;
+  speakerStats: Record<string, { wordCount: number; speakingTime: number }>;
+  topTopics: string[];
+  sentiment: MeetingSentimentAnalysis;
+  actionItems: ExtractedTask[];
+  keyMoments: KeyMoment[];
+  engagementScore: number;
+}
+
+export interface RealtimeProcessingConfig {
+  enableSentimentAnalysis: boolean;
+  enableActionItemExtraction: boolean;
+  enableKeyMomentDetection: boolean;
+  sentimentBufferSize: number;
+  actionItemMinConfidence: number;
+  keyMomentMinConfidence: number;
+  processingIntervalMs: number;
+}
+
+export interface SegmentBuffer {
+  segments: TranscriptSegment[];
+  maxSize: number;
+  add: (segment: TranscriptSegment) => void;
+  flush: () => TranscriptSegment[];
+  clear: () => void;
 }
 
 // ============================================
@@ -1002,6 +1108,999 @@ export function startWebSpeechTranscription(): TranscriptionSession {
 }
 
 // ============================================
+// AI MEETING ASSISTANT - MEETING-AWARE TRANSCRIPTION
+// ============================================
+
+// In-memory storage for active meeting contexts
+const activeMeetings = new Map<string, MeetingContext>();
+
+/**
+ * Create a new meeting context for transcription
+ */
+export function createMeetingContext(
+  meetingId: string,
+  title?: string,
+  participants: string[] = []
+): MeetingContext {
+  const context: MeetingContext = {
+    meetingId,
+    title,
+    participants,
+    startTime: new Date(),
+    segments: [],
+    tasks: [],
+    sentiments: [],
+    keyMoments: [],
+  };
+  activeMeetings.set(meetingId, context);
+  return context;
+}
+
+/**
+ * Get an active meeting context
+ */
+export function getMeetingContext(meetingId: string): MeetingContext | undefined {
+  return activeMeetings.get(meetingId);
+}
+
+/**
+ * End a meeting and clean up context
+ */
+export function endMeetingContext(meetingId: string): MeetingContext | undefined {
+  const context = activeMeetings.get(meetingId);
+  if (context) {
+    activeMeetings.delete(meetingId);
+  }
+  return context;
+}
+
+/**
+ * Default configuration for real-time processing
+ */
+const DEFAULT_PROCESSING_CONFIG: RealtimeProcessingConfig = {
+  enableSentimentAnalysis: true,
+  enableActionItemExtraction: true,
+  enableKeyMomentDetection: true,
+  sentimentBufferSize: 5,
+  actionItemMinConfidence: 0.7,
+  keyMomentMinConfidence: 0.6,
+  processingIntervalMs: 5000,
+};
+
+/**
+ * Simple in-memory sentiment analyzer
+ * Uses keyword-based heuristics for real-time analysis
+ */
+function analyzeSentiment(segment: TranscriptSegment): SentimentResult {
+  const text = segment.text.toLowerCase();
+  
+  // Positive indicators
+  const positiveWords = ['great', 'excellent', 'awesome', 'perfect', 'love', 'happy', 'excited', 'agree', 'yes', 'good', 'amazing', 'wonderful', 'fantastic', 'best', 'successful', 'achieved', 'completed'];
+  
+  // Negative indicators
+  const negativeWords = ['bad', 'terrible', 'awful', 'hate', 'angry', 'frustrated', 'disappointed', 'wrong', 'no', 'problem', 'issue', 'concern', 'worried', 'difficult', 'impossible', 'failed', 'error', 'bug'];
+  
+  // Emotion indicators
+  const enthusiasmWords = ['excited', 'thrilled', 'enthusiastic', 'amazing', 'love', 'fantastic', 'can\'t wait'];
+  const frustrationWords = ['frustrated', 'annoying', 'difficult', 'problem', 'issue', 'wrong', 'not working'];
+  const confusionWords = ['confused', 'unclear', 'don\'t understand', 'not sure', 'what do you mean', 'how does'];
+  const satisfactionWords = ['satisfied', 'happy', 'good', 'perfect', 'exactly', 'works', 'solved'];
+  
+  let positiveScore = 0;
+  let negativeScore = 0;
+  
+  positiveWords.forEach(word => {
+    if (text.includes(word)) positiveScore++;
+  });
+  
+  negativeWords.forEach(word => {
+    if (text.includes(word)) negativeScore++;
+  });
+  
+  // Calculate emotions
+  const emotions: SentimentResult['emotions'] = {};
+  
+  enthusiasmWords.forEach(word => {
+    if (text.includes(word)) emotions.enthusiasm = (emotions.enthusiasm || 0) + 0.3;
+  });
+  
+  frustrationWords.forEach(word => {
+    if (text.includes(word)) emotions.frustration = (emotions.frustration || 0) + 0.3;
+  });
+  
+  confusionWords.forEach(word => {
+    if (text.includes(word)) emotions.confusion = (emotions.confusion || 0) + 0.3;
+  });
+  
+  satisfactionWords.forEach(word => {
+    if (text.includes(word)) emotions.satisfaction = (emotions.satisfaction || 0) + 0.3;
+  });
+  
+  // Normalize emotions
+  Object.keys(emotions).forEach(key => {
+    emotions[key as keyof typeof emotions] = Math.min(1, emotions[key as keyof typeof emotions]!);
+  });
+  
+  // Determine sentiment
+  let sentiment: SentimentResult['sentiment'] = 'neutral';
+  let score = 0;
+  
+  if (positiveScore > negativeScore) {
+    sentiment = 'positive';
+    score = Math.min(1, (positiveScore - negativeScore) * 0.2);
+  } else if (negativeScore > positiveScore) {
+    sentiment = 'negative';
+    score = Math.max(-1, -(negativeScore - positiveScore) * 0.2);
+  }
+  
+  return {
+    segmentId: segment.id,
+    speaker: segment.speaker,
+    sentiment,
+    score,
+    emotions,
+    timestamp: segment.startTime,
+  };
+}
+
+/**
+ * Extract action items from a transcript segment
+ */
+function extractActionItemsFromSegment(segment: TranscriptSegment): ExtractedTask | null {
+  const text = segment.text;
+  
+  // Action item patterns
+  const patterns = [
+    { regex: /I('ll| will)\s+(.{5,100}?)(?=\.|$|,|and|but)/i, priority: 'medium' as const },
+    { regex: /let's\s+(.{5,100}?)(?=\.|$|,|and|but)/i, priority: 'medium' as const },
+    { regex: /we\s+(should|need to|must|have to)\s+(.{5,100}?)(?=\.|$|,|and|but)/i, priority: 'high' as const },
+    { regex: /action item[\s:]+(.{5,100}?)(?=\.|$|,|and|but)/i, priority: 'high' as const },
+    { regex: /TODO[\s:]+(.{5,100}?)(?=\.|$|,|and|but)/i, priority: 'high' as const },
+    { regex: /follow up[\s:]+(.{5,100}?)(?=\.|$|,|and|but)/i, priority: 'medium' as const },
+    { regex: /can you\s+(.{5,100}?)(?=\.|$|,|and|but)/i, priority: 'medium' as const },
+    { regex: /please\s+(.{5,100}?)(?=\.|$|,|and|but)/i, priority: 'low' as const },
+    { regex: /remind me\s+(?:to|about)\s+(.{5,100}?)(?=\.|$|,|and|but)/i, priority: 'medium' as const },
+    { regex: /schedule\s+(.{5,100}?)(?=\.|$|,|and|but)/i, priority: 'high' as const },
+  ];
+  
+  for (const pattern of patterns) {
+    const match = text.match(pattern.regex);
+    if (match) {
+      // Get the last captured group
+      const actionText = match[match.length - 1].trim();
+      
+      // Check for assignee mentions
+      let assignee: string | undefined;
+      const assigneeMatch = text.match(/\b(John|Jane|Mike|Sarah|Alex|Chris|Dave|Emma|@\w+)\b/i);
+      if (assigneeMatch) {
+        assignee = assigneeMatch[1];
+      }
+      
+      // Check for due dates
+      let dueDate: Date | undefined;
+      const dueDateMatch = text.match(/\b(by|before|due)\s+(tomorrow|next week|Monday|Tuesday|Wednesday|Thursday|Friday|(?:\d{1,2}\/\d{1,2}(?:\/\d{2,4})?))\b/i);
+      if (dueDateMatch) {
+        const timeRef = dueDateMatch[2].toLowerCase();
+        if (timeRef === 'tomorrow') {
+          dueDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        } else if (timeRef === 'next week') {
+          dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        }
+      }
+      
+      return {
+        id: generateId(),
+        text: actionText.charAt(0).toUpperCase() + actionText.slice(1),
+        assignee,
+        dueDate,
+        priority: pattern.priority,
+        confidence: 0.7 + (match[0].length / text.length) * 0.3,
+        sourceSegmentId: segment.id,
+        createdAt: new Date(),
+      };
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Detect key moments in a transcript segment
+ */
+function detectKeyMoment(segment: TranscriptSegment): KeyMoment | null {
+  const text = segment.text.toLowerCase();
+  
+  // Key moment patterns
+  const patterns = [
+    { 
+      type: 'decision' as const, 
+      regex: /\b(decided|decision|agreed|consensus|let's go with|we'll use|final call)\b/i,
+      reason: 'Decision made'
+    },
+    { 
+      type: 'insight' as const, 
+      regex: /\b(realized|insight|discovered|found that|important|key point|critical)\b/i,
+      reason: 'Important insight shared'
+    },
+    { 
+      type: 'action' as const, 
+      regex: /\b(action item|next step|we need to|let's start|begin working|get started)\b/i,
+      reason: 'Action identified'
+    },
+    { 
+      type: 'concern' as const, 
+      regex: /\b(concerned|worried|risk|issue|problem|blocker|challenge)\b/i,
+      reason: 'Concern raised'
+    },
+    { 
+      type: 'milestone' as const, 
+      regex: /\b(complete|finished|done|shipped|launched|achieved|milestone|success)\b/i,
+      reason: 'Milestone reached'
+    },
+  ];
+  
+  for (const pattern of patterns) {
+    const match = text.match(pattern.regex);
+    if (match) {
+      const confidence = 0.6 + (match.index! / text.length) * 0.3;
+      
+      return {
+        id: generateId(),
+        text: segment.text,
+        reason: pattern.reason,
+        type: pattern.type,
+        timestamp: segment.startTime,
+        speaker: segment.speaker,
+        confidence: Math.min(0.95, confidence),
+      };
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Start meeting-aware transcription with real-time AI processing
+ */
+export function startMeetingTranscription(
+  meetingId: string,
+  callbacks: {
+    onTranscript: (segment: TranscriptSegment) => void;
+    onActionItem: (task: ExtractedTask) => void;
+    onSentiment: (sentiment: SentimentResult) => void;
+    onKeyMoment: (moment: KeyMoment) => void;
+  },
+  config: Partial<RealtimeProcessingConfig> = {}
+): { stop: () => void; pause: () => void; resume: () => void } {
+  const processingConfig = { ...DEFAULT_PROCESSING_CONFIG, ...config };
+  
+  // Get or create meeting context
+  let meetingContext = getMeetingContext(meetingId);
+  if (!meetingContext) {
+    meetingContext = createMeetingContext(meetingId);
+  }
+  
+  // Segment buffer for batch processing
+  const segmentBuffer: TranscriptSegment[] = [];
+  let isPaused = false;
+  let processingInterval: number | null = null;
+  
+  // Load transcription config
+  const transcriptionConfig = loadTranscriptionConfig();
+  
+  // Start the base transcription session
+  const baseSession = startRealtimeTranscription({
+    apiKey: transcriptionConfig?.apiKey || '',
+    enableDiarization: true,
+    speakersExpected: 4,
+    punctuate: true,
+    formatText: true,
+  });
+  
+  // Process segment through AI pipeline
+  const processSegment = (segment: TranscriptSegment) => {
+    if (isPaused) return;
+    
+    // Add to meeting context
+    meetingContext!.segments.push(segment);
+    
+    // Always call the transcript callback
+    callbacks.onTranscript(segment);
+    
+    // Sentiment analysis
+    if (processingConfig.enableSentimentAnalysis) {
+      const sentiment = analyzeSentiment(segment);
+      meetingContext!.sentiments.push(sentiment);
+      callbacks.onSentiment(sentiment);
+    }
+    
+    // Action item extraction
+    if (processingConfig.enableActionItemExtraction) {
+      const actionItem = extractActionItemsFromSegment(segment);
+      if (actionItem && actionItem.confidence >= processingConfig.actionItemMinConfidence) {
+        meetingContext!.tasks.push(actionItem);
+        callbacks.onActionItem(actionItem);
+      }
+    }
+    
+    // Key moment detection
+    if (processingConfig.enableKeyMomentDetection) {
+      const keyMoment = detectKeyMoment(segment);
+      if (keyMoment && keyMoment.confidence >= processingConfig.keyMomentMinConfidence) {
+        meetingContext!.keyMoments.push(keyMoment);
+        callbacks.onKeyMoment(keyMoment);
+      }
+    }
+  };
+  
+  // Set up segment processing
+  baseSession.onSegment((segment) => {
+    segmentBuffer.push(segment);
+    processSegment(segment);
+  });
+  
+  // Start the session
+  baseSession.start();
+  
+  // Return control interface
+  return {
+    stop: () => {
+      if (processingInterval) {
+        clearInterval(processingInterval);
+      }
+      baseSession.stop();
+    },
+    pause: () => {
+      isPaused = true;
+      baseSession.pause();
+    },
+    resume: () => {
+      isPaused = false;
+      baseSession.resume();
+    },
+  };
+}
+
+// ============================================
+// REAL-TIME PROCESSING PIPELINE
+// ============================================
+
+/**
+ * Create a segment buffer for batch processing
+ */
+export function createSegmentBuffer(maxSize: number = 10): SegmentBuffer {
+  const segments: TranscriptSegment[] = [];
+  
+  return {
+    segments,
+    maxSize,
+    
+    add(segment: TranscriptSegment) {
+      segments.push(segment);
+      if (segments.length > maxSize) {
+        segments.shift();
+      }
+    },
+    
+    flush(): TranscriptSegment[] {
+      const flushed = [...segments];
+      segments.length = 0;
+      return flushed;
+    },
+    
+    clear() {
+      segments.length = 0;
+    },
+  };
+}
+
+/**
+ * Process a batch of segments through the AI pipeline
+ */
+export function processSegmentBatch(
+  segments: TranscriptSegment[],
+  config: RealtimeProcessingConfig
+): {
+  sentiments: SentimentResult[];
+  actionItems: ExtractedTask[];
+  keyMoments: KeyMoment[];
+} {
+  const sentiments: SentimentResult[] = [];
+  const actionItems: ExtractedTask[] = [];
+  const keyMoments: KeyMoment[] = [];
+  
+  for (const segment of segments) {
+    if (config.enableSentimentAnalysis) {
+      sentiments.push(analyzeSentiment(segment));
+    }
+    
+    if (config.enableActionItemExtraction) {
+      const task = extractActionItemsFromSegment(segment);
+      if (task && task.confidence >= config.actionItemMinConfidence) {
+        actionItems.push(task);
+      }
+    }
+    
+    if (config.enableKeyMomentDetection) {
+      const moment = detectKeyMoment(segment);
+      if (moment && moment.confidence >= config.keyMomentMinConfidence) {
+        keyMoments.push(moment);
+      }
+    }
+  }
+  
+  return { sentiments, actionItems, keyMoments };
+}
+
+// ============================================
+// MEETING EXPORT FUNCTIONS
+// ============================================
+
+/**
+ * Export meeting transcript in various formats
+ */
+export async function exportMeetingTranscript(
+  meetingId: string,
+  format: 'json' | 'srt' | 'txt' | 'docx'
+): Promise<string> {
+  const meetingContext = getMeetingContext(meetingId);
+  if (!meetingContext) {
+    throw new Error(`Meeting ${meetingId} not found`);
+  }
+  
+  switch (format) {
+    case 'json':
+      return JSON.stringify({
+        meetingId: meetingContext.meetingId,
+        title: meetingContext.title,
+        startTime: meetingContext.startTime.toISOString(),
+        segments: meetingContext.segments,
+        tasks: meetingContext.tasks,
+        sentiments: meetingContext.sentiments,
+        keyMoments: meetingContext.keyMoments,
+        participants: meetingContext.participants,
+      }, null, 2);
+    
+    case 'srt':
+      return formatAsSRT(meetingContext.segments);
+    
+    case 'txt':
+      return formatAsText(meetingContext);
+    
+    case 'docx':
+      // For docx, we return HTML that can be converted by the caller
+      return formatAsDocxHTML(meetingContext);
+    
+    default:
+      throw new Error(`Unsupported format: ${format}`);
+  }
+}
+
+/**
+ * Format segments as SRT (SubRip Subtitle)
+ */
+function formatAsSRT(segments: TranscriptSegment[]): string {
+  return segments.map((segment, index) => {
+    const startTime = formatSRTTimestamp(segment.startTime);
+    const endTime = formatSRTTimestamp(segment.endTime);
+    return `${index + 1}\n${startTime} --> ${endTime}\n${segment.speakerLabel}: ${segment.text}\n`;
+  }).join('\n');
+}
+
+function formatSRTTimestamp(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const milliseconds = ms % 1000;
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')},${milliseconds.toString().padStart(3, '0')}`;
+}
+
+/**
+ * Format meeting as plain text
+ */
+function formatAsText(context: MeetingContext): string {
+  const lines: string[] = [];
+  
+  lines.push(`Meeting: ${context.title || 'Untitled'}`);
+  lines.push(`ID: ${context.meetingId}`);
+  lines.push(`Date: ${context.startTime.toLocaleString()}`);
+  lines.push(`Participants: ${context.participants.join(', ') || 'Unknown'}`);
+  lines.push('');
+  lines.push('='.repeat(50));
+  lines.push('');
+  
+  // Transcript
+  lines.push('TRANSCRIPT');
+  lines.push('-'.repeat(50));
+  context.segments.forEach(segment => {
+    const time = formatTimestamp(segment.startTime);
+    lines.push(`[${time}] ${segment.speakerLabel}: ${segment.text}`);
+  });
+  lines.push('');
+  
+  // Action Items
+  if (context.tasks.length > 0) {
+    lines.push('ACTION ITEMS');
+    lines.push('-'.repeat(50));
+    context.tasks.forEach((task, i) => {
+      lines.push(`${i + 1}. ${task.text}`);
+      if (task.assignee) lines.push(`   Assignee: ${task.assignee}`);
+      if (task.dueDate) lines.push(`   Due: ${task.dueDate.toLocaleDateString()}`);
+      lines.push(`   Priority: ${task.priority}`);
+      lines.push('');
+    });
+  }
+  
+  // Key Moments
+  if (context.keyMoments.length > 0) {
+    lines.push('KEY MOMENTS');
+    lines.push('-'.repeat(50));
+    context.keyMoments.forEach(moment => {
+      const time = formatTimestamp(moment.timestamp);
+      lines.push(`[${time}] ${moment.type.toUpperCase()}: ${moment.reason}`);
+      lines.push(`   "${moment.text}"`);
+      lines.push('');
+    });
+  }
+  
+  return lines.join('\n');
+}
+
+/**
+ * Format meeting as HTML for DOCX conversion
+ */
+function formatAsDocxHTML(context: MeetingContext): string {
+  const html = [
+    '<!DOCTYPE html>',
+    '<html>',
+    '<head>',
+    `<title>${context.title || 'Meeting Transcript'}</title>`,
+    '</head>',
+    '<body>',
+    `<h1>${context.title || 'Meeting Transcript'}</h1>`,
+    `<p><strong>Meeting ID:</strong> ${context.meetingId}</p>`,
+    `<p><strong>Date:</strong> ${context.startTime.toLocaleString()}</p>`,
+    `<p><strong>Participants:</strong> ${context.participants.join(', ') || 'Unknown'}</p>`,
+    '<hr>',
+    '<h2>Transcript</h2>',
+  ];
+  
+  context.segments.forEach(segment => {
+    const time = formatTimestamp(segment.startTime);
+    html.push(`<p><strong>[${time}] ${segment.speakerLabel}:</strong> ${escapeHtml(segment.text)}</p>`);
+  });
+  
+  if (context.tasks.length > 0) {
+    html.push('<h2>Action Items</h2>');
+    html.push('<ul>');
+    context.tasks.forEach(task => {
+      html.push(`<li><strong>${escapeHtml(task.text)}</strong>`);
+      if (task.assignee) html.push(` - Assignee: ${task.assignee}`);
+      html.push(` (${task.priority} priority)</li>`);
+    });
+    html.push('</ul>');
+  }
+  
+  if (context.keyMoments.length > 0) {
+    html.push('<h2>Key Moments</h2>');
+    html.push('<ul>');
+    context.keyMoments.forEach(moment => {
+      html.push(`<li><strong>${moment.type.toUpperCase()}:</strong> ${escapeHtml(moment.reason)}<br>`);
+      html.push(`<em>"${escapeHtml(moment.text)}"</em></li>`);
+    });
+    html.push('</ul>');
+  }
+  
+  html.push('</body>');
+  html.push('</html>');
+  
+  return html.join('\n');
+}
+
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/**
+ * Generate comprehensive meeting insights
+ */
+export async function generateMeetingInsights(meetingId: string): Promise<MeetingInsights> {
+  const meetingContext = getMeetingContext(meetingId);
+  if (!meetingContext) {
+    throw new Error(`Meeting ${meetingId} not found`);
+  }
+  
+  // Calculate duration
+  const lastSegment = meetingContext.segments[meetingContext.segments.length - 1];
+  const duration = lastSegment ? lastSegment.endTime : 0;
+  
+  // Calculate word count
+  const wordCount = meetingContext.segments.reduce((count, segment) => {
+    return count + segment.text.split(/\s+/).length;
+  }, 0);
+  
+  // Calculate speaker stats
+  const speakerStats: Record<string, { wordCount: number; speakingTime: number }> = {};
+  
+  meetingContext.segments.forEach(segment => {
+    const speaker = segment.speakerLabel;
+    if (!speakerStats[speaker]) {
+      speakerStats[speaker] = { wordCount: 0, speakingTime: 0 };
+    }
+    speakerStats[speaker].wordCount += segment.text.split(/\s+/).length;
+    speakerStats[speaker].speakingTime += segment.endTime - segment.startTime;
+  });
+  
+  // Extract top topics (simple keyword extraction)
+  const allText = meetingContext.segments.map(s => s.text).join(' ').toLowerCase();
+  const topicKeywords = [
+    'project', 'deadline', 'budget', 'design', 'development', 'testing', 
+    'deployment', 'marketing', 'sales', 'customer', 'product', 'feature',
+    'meeting', 'schedule', 'plan', 'strategy', 'goal', 'objective'
+  ];
+  
+  const topicCounts: Record<string, number> = {};
+  topicKeywords.forEach(keyword => {
+    const count = (allText.match(new RegExp(`\\b${keyword}\\b`, 'g')) || []).length;
+    if (count > 0) {
+      topicCounts[keyword] = count;
+    }
+  });
+  
+  const topTopics = Object.entries(topicCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([topic]) => topic);
+  
+  // Generate sentiment analysis
+  const sentiment = analyzeMeetingSentiment(meetingContext.sentiments);
+  
+  // Calculate engagement score
+  const engagementScore = calculateEngagementScore(meetingContext, speakerStats);
+  
+  return {
+    duration,
+    wordCount,
+    speakerStats,
+    topTopics,
+    sentiment,
+    actionItems: meetingContext.tasks,
+    keyMoments: meetingContext.keyMoments,
+    engagementScore,
+  };
+}
+
+/**
+ * Analyze overall meeting sentiment
+ */
+function analyzeMeetingSentiment(sentiments: SentimentResult[]): MeetingSentimentAnalysis {
+  if (sentiments.length === 0) {
+    return {
+      overall: 'neutral',
+      averageScore: 0,
+      timeline: [],
+      speakerBreakdown: {},
+    };
+  }
+  
+  const totalScore = sentiments.reduce((sum, s) => sum + s.score, 0);
+  const averageScore = totalScore / sentiments.length;
+  
+  let overall: MeetingSentimentAnalysis['overall'] = 'neutral';
+  if (averageScore > 0.2) overall = 'positive';
+  else if (averageScore < -0.2) overall = 'negative';
+  
+  const timeline = sentiments.map(s => ({
+    timestamp: s.timestamp,
+    score: s.score,
+    speaker: s.speaker,
+  }));
+  
+  // Speaker breakdown
+  const speakerScores: Record<string, number[]> = {};
+  sentiments.forEach(s => {
+    if (!speakerScores[s.speaker]) {
+      speakerScores[s.speaker] = [];
+    }
+    speakerScores[s.speaker].push(s.score);
+  });
+  
+  const speakerBreakdown: MeetingSentimentAnalysis['speakerBreakdown'] = {};
+  Object.entries(speakerScores).forEach(([speaker, scores]) => {
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    let sentiment: 'positive' | 'neutral' | 'negative' = 'neutral';
+    if (avg > 0.2) sentiment = 'positive';
+    else if (avg < -0.2) sentiment = 'negative';
+    
+    speakerBreakdown[speaker] = { averageScore: avg, sentiment };
+  });
+  
+  return {
+    overall,
+    averageScore,
+    timeline,
+    speakerBreakdown,
+  };
+}
+
+/**
+ * Calculate engagement score based on participation
+ */
+function calculateEngagementScore(
+  context: MeetingContext,
+  speakerStats: Record<string, { wordCount: number; speakingTime: number }>
+): number {
+  const speakers = Object.keys(speakerStats);
+  if (speakers.length === 0) return 0;
+  
+  // Factors:
+  // 1. Number of speakers (more is better, up to a point)
+  // 2. Balance of speaking time
+  // 3. Number of interactions (turns)
+  // 4. Presence of action items and key moments
+  
+  const speakerCountScore = Math.min(speakers.length / 4, 1) * 25;
+  
+  const speakingTimes = speakers.map(s => speakerStats[s].speakingTime);
+  const totalTime = speakingTimes.reduce((a, b) => a + b, 0);
+  const avgTime = totalTime / speakers.length;
+  const variance = speakingTimes.reduce((sum, time) => sum + Math.pow(time - avgTime, 2), 0) / speakers.length;
+  const balanceScore = Math.max(0, 25 - (variance / (avgTime || 1)) * 10);
+  
+  const interactionScore = Math.min(context.segments.length / 20, 1) * 25;
+  
+  const outcomeScore = Math.min(
+    (context.tasks.length + context.keyMoments.length) / 5,
+    1
+  ) * 25;
+  
+  return Math.round(speakerCountScore + balanceScore + interactionScore + outcomeScore);
+}
+
+// ============================================
+// INTEGRATION HELPERS
+// ============================================
+
+/**
+ * Connect to WebRTC recording stream
+ * Allows using an existing media stream for transcription
+ */
+export async function connectToWebRTCStream(
+  mediaStream: MediaStream,
+  meetingId: string,
+  callbacks: {
+    onTranscript: (segment: TranscriptSegment) => void;
+    onActionItem: (task: ExtractedTask) => void;
+    onSentiment: (sentiment: SentimentResult) => void;
+    onKeyMoment: (moment: KeyMoment) => void;
+  },
+  config: Partial<RealtimeProcessingConfig> = {}
+): Promise<{ stop: () => void; pause: () => void; resume: () => void }> {
+  const processingConfig = { ...DEFAULT_PROCESSING_CONFIG, ...config };
+  
+  // Get or create meeting context
+  let meetingContext = getMeetingContext(meetingId);
+  if (!meetingContext) {
+    meetingContext = createMeetingContext(meetingId);
+  }
+  
+  const transcriptionConfig = loadTranscriptionConfig();
+  let isPaused = false;
+  let audioContext: AudioContext | null = null;
+  let scriptNode: ScriptProcessorNode | null = null;
+  let source: MediaStreamAudioSourceNode | null = null;
+  let socket: WebSocket | null = null;
+  
+  // Connect to AssemblyAI streaming
+  const startStreaming = async () => {
+    const streamingAuth = await getRealtimeToken(transcriptionConfig?.apiKey);
+    
+    if (!streamingAuth.token || !streamingAuth.streaming_url) {
+      throw new Error('Failed to get streaming credentials');
+    }
+    
+    const socketUrl = `${streamingAuth.streaming_url}?token=${encodeURIComponent(streamingAuth.token)}&sample_rate=16000&encoding=pcm_s16le&format_turns=true`;
+    socket = new WebSocket(socketUrl);
+    
+    socket.onopen = () => {
+      // Start audio capture
+      audioContext = new AudioContext({ sampleRate: 16000 });
+      source = audioContext.createMediaStreamSource(mediaStream);
+      scriptNode = audioContext.createScriptProcessor(4096, 1, 1);
+      
+      scriptNode.onaudioprocess = (event) => {
+        if (socket?.readyState !== WebSocket.OPEN || isPaused) return;
+        
+        const inputData = event.inputBuffer.getChannelData(0);
+        const pcmData = new Int16Array(inputData.length);
+        
+        for (let i = 0; i < inputData.length; i++) {
+          const s = Math.max(-1, Math.min(1, inputData[i]));
+          pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        
+        socket.send(pcmData.buffer);
+      };
+      
+      source.connect(scriptNode);
+      scriptNode.connect(audioContext.destination);
+    };
+    
+    socket.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        
+        if (message.type === 'Turn' && message.transcript) {
+          const segment: TranscriptSegment = {
+            id: `${meetingId}-${Date.now()}`,
+            speaker: 'A',
+            speakerLabel: 'Speaker A',
+            text: message.transcript,
+            startTime: message.words?.[0]?.start || 0,
+            endTime: message.words?.[message.words.length - 1]?.end || 0,
+            confidence: message.words?.[0]?.confidence || 0.9,
+            words: message.words?.map((w: any) => ({
+              text: w.text,
+              startTime: w.start,
+              endTime: w.end,
+              confidence: w.confidence,
+            })),
+          };
+          
+          meetingContext!.segments.push(segment);
+          callbacks.onTranscript(segment);
+          
+          // Process for AI features
+          if (processingConfig.enableSentimentAnalysis) {
+            const sentiment = analyzeSentiment(segment);
+            meetingContext!.sentiments.push(sentiment);
+            callbacks.onSentiment(sentiment);
+          }
+          
+          if (processingConfig.enableActionItemExtraction) {
+            const actionItem = extractActionItemsFromSegment(segment);
+            if (actionItem && actionItem.confidence >= processingConfig.actionItemMinConfidence) {
+              meetingContext!.tasks.push(actionItem);
+              callbacks.onActionItem(actionItem);
+            }
+          }
+          
+          if (processingConfig.enableKeyMomentDetection) {
+            const keyMoment = detectKeyMoment(segment);
+            if (keyMoment && keyMoment.confidence >= processingConfig.keyMomentMinConfidence) {
+              meetingContext!.keyMoments.push(keyMoment);
+              callbacks.onKeyMoment(keyMoment);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse WebSocket message:', e);
+      }
+    };
+  };
+  
+  await startStreaming();
+  
+  return {
+    stop: () => {
+      scriptNode?.disconnect();
+      source?.disconnect();
+      audioContext?.close();
+      socket?.close();
+    },
+    pause: () => {
+      isPaused = true;
+    },
+    resume: () => {
+      isPaused = false;
+    },
+  };
+}
+
+/**
+ * Buffer manager for AI processing
+ * Handles buffering segments for batch processing
+ */
+export class AIBufferManager {
+  private buffer: TranscriptSegment[] = [];
+  private processingTimer: number | null = null;
+  private config: RealtimeProcessingConfig;
+  
+  constructor(
+    config: Partial<RealtimeProcessingConfig> = {},
+    private onProcess: (results: {
+      sentiments: SentimentResult[];
+      actionItems: ExtractedTask[];
+      keyMoments: KeyMoment[];
+    }) => void
+  ) {
+    this.config = { ...DEFAULT_PROCESSING_CONFIG, ...config };
+  }
+  
+  start() {
+    if (this.processingTimer) return;
+    
+    this.processingTimer = window.setInterval(() => {
+      this.processBuffer();
+    }, this.config.processingIntervalMs);
+  }
+  
+  stop() {
+    if (this.processingTimer) {
+      clearInterval(this.processingTimer);
+      this.processingTimer = null;
+    }
+    this.processBuffer(); // Process remaining
+  }
+  
+  addSegment(segment: TranscriptSegment) {
+    this.buffer.push(segment);
+    
+    // Keep buffer size in check
+    if (this.buffer.length > this.config.sentimentBufferSize * 2) {
+      this.buffer = this.buffer.slice(-this.config.sentimentBufferSize);
+    }
+  }
+  
+  private processBuffer() {
+    if (this.buffer.length === 0) return;
+    
+    const segments = [...this.buffer];
+    this.buffer = [];
+    
+    const results = processSegmentBatch(segments, this.config);
+    this.onProcess(results);
+  }
+  
+  clear() {
+    this.buffer = [];
+  }
+}
+
+/**
+ * Error handler with reconnection logic
+ */
+export class TranscriptionErrorHandler {
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 3;
+  private reconnectDelay = 2000;
+  
+  constructor(
+    private onError: (error: Error) => void,
+    private onReconnect: () => Promise<void>
+  ) {}
+  
+  handleError(error: Error): boolean {
+    console.error('Transcription error:', error);
+    this.onError(error);
+    
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.reconnectAttempts++;
+      console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+      
+      setTimeout(() => {
+        this.onReconnect().catch(e => {
+          console.error('Reconnection failed:', e);
+          this.handleError(e);
+        });
+      }, this.reconnectDelay * this.reconnectAttempts);
+      
+      return true; // Error is being handled
+    }
+    
+    return false; // Max reconnects reached
+  }
+  
+  reset() {
+    this.reconnectAttempts = 0;
+  }
+}
+
+// ============================================
 // FORMATTING FUNCTIONS
 // ============================================
 
@@ -1206,6 +2305,7 @@ export function mergeSpeakers(
 // ============================================
 
 const STORAGE_KEY_PREFIX = 'transcript_';
+const MEETING_KEY_PREFIX = 'meeting_';
 const CONFIG_STORAGE_KEY = 'transcription_config';
 
 /**
@@ -1240,6 +2340,50 @@ export function loadTranscript(id: string): FullTranscript | null {
 }
 
 /**
+ * Save meeting context to localStorage
+ */
+export function saveMeetingContext(context: MeetingContext): void {
+  try {
+    localStorage.setItem(
+      `${MEETING_KEY_PREFIX}${context.meetingId}`,
+      JSON.stringify({
+        ...context,
+        startTime: context.startTime.toISOString(),
+        tasks: context.tasks.map(t => ({
+          ...t,
+          createdAt: t.createdAt.toISOString(),
+          dueDate: t.dueDate?.toISOString(),
+        })),
+      })
+    );
+  } catch (e) {
+    console.error('Failed to save meeting context:', e);
+  }
+}
+
+/**
+ * Load meeting context from localStorage
+ */
+export function loadMeetingContext(meetingId: string): MeetingContext | null {
+  try {
+    const data = localStorage.getItem(`${MEETING_KEY_PREFIX}${meetingId}`);
+    if (data) {
+      const context = JSON.parse(data);
+      context.startTime = new Date(context.startTime);
+      context.tasks = context.tasks.map((t: any) => ({
+        ...t,
+        createdAt: new Date(t.createdAt),
+        dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
+      }));
+      return context;
+    }
+  } catch (e) {
+    console.error('Failed to load meeting context:', e);
+  }
+  return null;
+}
+
+/**
  * List all saved transcripts
  */
 export function listSavedTranscripts(): FullTranscript[] {
@@ -1259,10 +2403,37 @@ export function listSavedTranscripts(): FullTranscript[] {
 }
 
 /**
+ * List all saved meetings
+ */
+export function listSavedMeetings(): MeetingContext[] {
+  const meetings: MeetingContext[] = [];
+  
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith(MEETING_KEY_PREFIX)) {
+      const meetingId = key.replace(MEETING_KEY_PREFIX, '');
+      const meeting = loadMeetingContext(meetingId);
+      if (meeting) {
+        meetings.push(meeting);
+      }
+    }
+  }
+
+  return meetings.sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
+}
+
+/**
  * Delete transcript from localStorage
  */
 export function deleteTranscript(id: string): void {
   localStorage.removeItem(`${STORAGE_KEY_PREFIX}${id}`);
+}
+
+/**
+ * Delete meeting from localStorage
+ */
+export function deleteMeeting(meetingId: string): void {
+  localStorage.removeItem(`${MEETING_KEY_PREFIX}${meetingId}`);
 }
 
 /**

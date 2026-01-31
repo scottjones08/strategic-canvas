@@ -212,6 +212,8 @@ Appears when a single node is selected. Features:
 | 2026-01-31 | Real-time node updates with requestAnimationFrame for smooth dragging | EnterpriseMeetingView.tsx |
 | 2026-01-31 | Smart alignment guides when dragging nodes | EnterpriseMeetingView.tsx |
 | 2026-01-31 | Mobile toolbar v2 - tabbed interface, haptics, more tools | MobileToolbar.tsx |
+| 2026-01-31 | World-class connector improvements - clickable dots, edge routing | EnterpriseMeetingView.tsx, connector-engine.ts |
+| 2026-01-31 | Fixed arrowhead markers - proper positioning at line end | EnhancedConnector.tsx |
 
 ---
 
