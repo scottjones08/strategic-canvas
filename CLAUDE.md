@@ -214,6 +214,13 @@ Appears when a single node is selected. Features:
 | 2026-01-31 | Mobile toolbar v2 - tabbed interface, haptics, more tools | MobileToolbar.tsx |
 | 2026-01-31 | World-class connector improvements - clickable dots, edge routing | EnterpriseMeetingView.tsx, connector-engine.ts |
 | 2026-01-31 | Fixed arrowhead markers - proper positioning at line end | EnhancedConnector.tsx |
+| 2026-01-31 | AI Meeting Assistant (Jump.ai-inspired) - Full meeting lifecycle | AIMeetingAssistant.tsx |
+| 2026-01-31 | Pre-Meeting Prep Panel - 6 templates, agenda, checklist | MeetingPrepPanel.tsx |
+| 2026-01-31 | Live Meeting Copilot - Real-time transcript, action items, sentiment | LiveMeetingCopilot.tsx |
+| 2026-01-31 | Post-Meeting Automation - Summary, follow-up email, export | PostMeetingAutomation.tsx |
+| 2026-01-31 | Smart Task Extraction - Pattern-based with OpenAI fallback | ai-task-extraction.ts |
+| 2026-01-31 | Sentiment Analysis - Real-time emotion detection | sentiment-analysis.ts |
+| 2026-01-31 | Ask Anything RAG - Natural language search across meetings | AskAnythingPanel.tsx |
 
 ---
 
