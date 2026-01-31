@@ -152,6 +152,34 @@ interface Board {
   linkedNoteIds?: string[];
 }
 
+// Safe localStorage helpers
+const safeLocalStorage = {
+  get: <T>(key: string, defaultValue: T): T => {
+    try {
+      const item = localStorage.getItem(key);
+      if (!item) return defaultValue;
+      return JSON.parse(item) as T;
+    } catch (e) {
+      console.warn(`localStorage parse error for ${key}:`, e);
+      return defaultValue;
+    }
+  },
+  set: <T>(key: string, value: T): void => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      console.warn(`localStorage write error for ${key}:`, e);
+    }
+  },
+  getString: (key: string, defaultValue: string = ''): string => {
+    try {
+      return localStorage.getItem(key) || defaultValue;
+    } catch (e) {
+      return defaultValue;
+    }
+  },
+};
+
 interface VisualNode {
   id: string;
   type: 'sticky' | 'frame' | 'opportunity' | 'risk' | 'action' | 'youtube' | 'image' | 'bucket' | 'text' | 'shape' | 'connector' | 'mindmap' | 'drawing' | 'comment' | 'table' | 'linklist';
@@ -5074,8 +5102,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   const [currentUser, setCurrentUser] = useState(() => {
     // Check for guest collaborator first
     if (isGuestCollaborator) {
-      const guestName = localStorage.getItem('fan-canvas-guest-name') || 'Guest';
-      const savedColor = localStorage.getItem('fan-canvas-user-color');
+      const guestName = safeLocalStorage.getString('fan-canvas-guest-name', 'Guest');
+      const savedColor = safeLocalStorage.getString('fan-canvas-user-color', '');
       return {
         id: `guest-${Math.random().toString(36).substr(2, 9)}`,
         name: guestName,
@@ -5084,8 +5112,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
       };
     }
     // Regular user - prefer localStorage first (auth may not be loaded yet)
-    const savedName = localStorage.getItem('fan-canvas-user-name');
-    const savedColor = localStorage.getItem('fan-canvas-user-color');
+    const savedName = safeLocalStorage.getString('fan-canvas-user-name', '');
+    const savedColor = safeLocalStorage.getString('fan-canvas-user-color', '');
     return {
       id: '1',
       name: savedName || 'Guest',
@@ -5102,8 +5130,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   // Load saved transcripts from localStorage first, then fall back to board.transcripts
   const [savedTranscripts, setSavedTranscripts] = useState<SavedTranscript[]>(() => {
-    try {
-      const stored = localStorage.getItem(`board-transcripts-${board.id}`);
+    const stored = safeLocalStorage.get<SavedTranscript[]>(`board-transcripts-${board.id}`, []);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -5180,8 +5207,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   // Save user name to localStorage and update state
   const handleSaveUserName = useCallback((name: string) => {
     const trimmedName = name.trim() || 'Guest';
-    localStorage.setItem('fan-canvas-user-name', trimmedName);
-    localStorage.setItem('fan-canvas-user-color', currentUser.color);
+    safeLocalStorage.set('fan-canvas-user-name', trimmedName);
+    safeLocalStorage.set('fan-canvas-user-color', currentUser.color);
     setCurrentUser(prev => ({ ...prev, name: trimmedName }));
     setIsEditingUserName(false);
   }, [currentUser.color]);
@@ -5815,7 +5842,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
         const savedTranscript: SavedTranscript = { id: generateId(), entries: transcript, startedAt: recordingStartTime, endedAt: endTime, duration: recordingDuration };
         const newSavedTranscripts = [...savedTranscripts, savedTranscript];
         setSavedTranscripts(newSavedTranscripts);
-        localStorage.setItem(`board-transcripts-${board.id}`, JSON.stringify(newSavedTranscripts));
+        safeLocalStorage.set(`board-transcripts-${board.id}`, newSavedTranscripts);
         onUpdateBoard({ transcripts: newSavedTranscripts });
 
         // Create a note with the full transcript
@@ -6146,7 +6173,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   };
 
   const handleSave = useCallback(() => {
-    localStorage.setItem(`board-${board.id}`, JSON.stringify(board));
+    safeLocalStorage.set(`board-${board.id}`, board);
     setSaved(true);
     
     // Generate AI Summary and create note
@@ -6173,13 +6200,13 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   const handleSaveTranscript = useCallback((transcript: SavedTranscript) => {
     const newTranscripts = [...savedTranscripts, transcript];
     setSavedTranscripts(newTranscripts);
-    localStorage.setItem(`board-transcripts-${board.id}`, JSON.stringify(newTranscripts));
+    safeLocalStorage.set(`board-transcripts-${board.id}`, newTranscripts);
   }, [savedTranscripts, board.id]);
 
   const handleDeleteTranscript = useCallback((id: string) => {
     const newTranscripts = savedTranscripts.filter(t => t.id !== id);
     setSavedTranscripts(newTranscripts);
-    localStorage.setItem(`board-transcripts-${board.id}`, JSON.stringify(newTranscripts));
+    safeLocalStorage.set(`board-transcripts-${board.id}`, newTranscripts);
   }, [savedTranscripts, board.id]);
 
   const handleLoadTranscript = useCallback((transcript: SavedTranscript) => {
