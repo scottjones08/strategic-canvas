@@ -175,6 +175,10 @@ function documentToDbRow(doc: CreateDocumentInput | UpdateDocumentInput): any {
   if ('annotations' in doc && doc.annotations !== undefined) row.annotations = doc.annotations;
   if ('status' in doc && doc.status !== undefined) row.status = doc.status;
   
+  // Add default values for required fields
+  row.is_public = false;
+  row.version = 1;
+  
   return row;
 }
 
@@ -196,7 +200,6 @@ export const documentsApi = {
         let query = supabase!
           .from('client_documents')
           .select('*')
-          .eq('status', 'active')
           .order('updated_at', { ascending: false });
 
         if (organizationId) {
@@ -206,19 +209,24 @@ export const documentsApi = {
         const { data, error } = await query;
 
         if (error) {
-          console.error('Error fetching documents:', error);
+          console.error('[Documents] Error fetching documents:', error);
+          console.log('[Documents] Falling back to local storage');
           return localFallback;
         }
 
         return data.map(dbRowToDocument);
-      } catch (e) {
-        console.error('Error fetching documents:', e);
+      } catch (e: any) {
+        console.error('[Documents] Exception fetching documents:', e);
+        // If it's a 400 error, likely the table doesn't exist or schema mismatch
+        if (e?.status === 400 || e?.message?.includes('400')) {
+          console.log('[Documents] 400 error - table may not exist, using local storage');
+        }
         return localFallback;
       }
     };
 
-    // Use timeout to prevent hanging - 5 second timeout
-    return withTimeout(fetchFromSupabase(), 5000, localFallback);
+    // Use timeout to prevent hanging - 3 second timeout
+    return withTimeout(fetchFromSupabase(), 3000, localFallback);
   },
 
   // Get documents for a specific client
@@ -346,7 +354,8 @@ export const documentsApi = {
         .single();
 
       if (error) {
-        console.error('Error creating document:', error);
+        console.error('[Documents] Error creating document in Supabase:', error);
+        console.log('[Documents] Falling back to local storage');
         // Fallback to local storage
         const docs = loadDocumentsFromStorage();
         docs.unshift(newDoc);
@@ -355,8 +364,12 @@ export const documentsApi = {
       }
 
       return dbRowToDocument(data);
-    } catch (e) {
-      console.error('Error creating document:', e);
+    } catch (e: any) {
+      console.error('[Documents] Exception creating document:', e);
+      // If it's a 400 error, likely the table doesn't exist or schema mismatch
+      if (e?.status === 400 || e?.message?.includes('400')) {
+        console.log('[Documents] 400 error - table may not exist, using local storage');
+      }
       // Fallback to local storage
       const docs = loadDocumentsFromStorage();
       docs.unshift(newDoc);
