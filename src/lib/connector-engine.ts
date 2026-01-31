@@ -594,6 +594,7 @@ export const autoArrangeWaypoints = (
 /**
  * Convert VisualNode connector to ConnectorPath
  * Always recalculates start/end points based on current node positions
+ * Uses specified edges if available, otherwise calculates nearest edge
  */
 export const nodeToConnectorPath = (
   node: {
@@ -604,6 +605,8 @@ export const nodeToConnectorPath = (
     height: number;
     connectorFrom?: string;
     connectorTo?: string;
+    connectorFromEdge?: 'top' | 'right' | 'bottom' | 'left';
+    connectorToEdge?: 'top' | 'right' | 'bottom' | 'left';
     connectorStyle?: 'solid' | 'dashed' | 'dotted';
     connectorLabel?: string;
     connectorControlPoint?: { x: number; y: number };
@@ -620,10 +623,41 @@ export const nodeToConnectorPath = (
   const fromCenter = { x: fromNode.x + fromNode.width / 2, y: fromNode.y + fromNode.height / 2 };
   const toCenter = { x: toNode.x + toNode.width / 2, y: toNode.y + toNode.height / 2 };
   
-  // Always recalculate start and end points based on current node positions
-  // Use minimal padding (0) so connectors touch the node edges
-  const startPoint = getNearestEdgePoint(fromNode, toCenter, 0);
-  const endPoint = getNearestEdgePoint(toNode, fromCenter, 0);
+  // Calculate start point - use specified edge if available
+  let startPoint: Point;
+  if (node.connectorFromEdge) {
+    startPoint = {
+      x: fromNode.x + fromNode.width / 2,
+      y: fromNode.y + fromNode.height / 2
+    };
+    switch (node.connectorFromEdge) {
+      case 'top': startPoint.y = fromNode.y; break;
+      case 'right': startPoint.x = fromNode.x + fromNode.width; break;
+      case 'bottom': startPoint.y = fromNode.y + fromNode.height; break;
+      case 'left': startPoint.x = fromNode.x; break;
+    }
+  } else {
+    // Calculate nearest edge point
+    startPoint = getNearestEdgePoint(fromNode, toCenter, 0);
+  }
+  
+  // Calculate end point - use specified edge if available
+  let endPoint: Point;
+  if (node.connectorToEdge) {
+    endPoint = {
+      x: toNode.x + toNode.width / 2,
+      y: toNode.y + toNode.height / 2
+    };
+    switch (node.connectorToEdge) {
+      case 'top': endPoint.y = toNode.y; break;
+      case 'right': endPoint.x = toNode.x + toNode.width; break;
+      case 'bottom': endPoint.y = toNode.y + toNode.height; break;
+      case 'left': endPoint.x = toNode.x; break;
+    }
+  } else {
+    // Calculate nearest edge point
+    endPoint = getNearestEdgePoint(toNode, fromCenter, 0);
+  }
   
   // Build waypoints with NEW IDs for start and end (always recalculated)
   const waypoints: Waypoint[] = [

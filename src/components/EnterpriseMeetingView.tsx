@@ -96,6 +96,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   
   // Connector tool state
   const [connectorStart, setConnectorStart] = useState<string | null>(null);
+  const [connectorStartEdge, setConnectorStartEdge] = useState<'top' | 'right' | 'bottom' | 'left' | null>(null);
   const [connectorPreviewPos, setConnectorPreviewPos] = useState<{ x: number; y: number } | null>(null);
   
   // Alignment guides state
@@ -298,6 +299,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           // ESC cancels connector mode
           setActiveTool('select');
           setConnectorStart(null);
+          setConnectorStartEdge(null);
           setConnectorPreviewPos(null);
         }
       }
@@ -445,6 +447,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
         // but stays in connector mode for the next attempt
         if (connectorStart) {
           setConnectorStart(null); // Cancel current connection
+          setConnectorStartEdge(null);
           setConnectorPreviewPos(null);
         }
         // Don't switch to select tool - stay in connector mode
@@ -596,7 +599,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   }, [canvasSize, handleAddNode]);
   
   // Create connector between two nodes
-  const createConnector = useCallback((fromId: string, toId: string) => {
+  const createConnector = useCallback((fromId: string, toId: string, fromEdge?: 'top' | 'right' | 'bottom' | 'left', toEdge?: 'top' | 'right' | 'bottom' | 'left') => {
     const connectorNode: VisualNode = {
       id: generateId(),
       type: 'connector',
@@ -614,7 +617,8 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       comments: [],
       connectorFrom: fromId,
       connectorTo: toId,
-      connectorWaypoints: []
+      connectorFromEdge: fromEdge,
+      connectorToEdge: toEdge
     };
     const newNodes = [...nodes, connectorNode];
     onUpdateBoard({ visualNodes: newNodes });
@@ -622,21 +626,23 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   }, [nodes, userName, onUpdateBoard, pushHistory]);
   
   // Handle node click for connector tool
-  const handleNodeClickForConnector = useCallback((nodeId: string) => {
+  const handleNodeClickForConnector = useCallback((nodeId: string, edge?: 'top' | 'right' | 'bottom' | 'left') => {
     if (activeTool !== 'connector') return;
 
     if (!connectorStart) {
-      // First click - set start node
+      // First click - set start node and edge
       setConnectorStart(nodeId);
+      setConnectorStartEdge(edge || null);
     } else if (connectorStart !== nodeId) {
-      // Second click - create connector
-      createConnector(connectorStart, nodeId);
+      // Second click - create connector with edge positions
+      createConnector(connectorStart, nodeId, connectorStartEdge || undefined, edge);
       setConnectorStart(null);
+      setConnectorStartEdge(null);
       setConnectorPreviewPos(null);
       // Stay in connector mode so user can create more connectors
       // Press Escape or click Select to exit connector mode
     }
-  }, [activeTool, connectorStart, createConnector]);
+  }, [activeTool, connectorStart, connectorStartEdge, createConnector]);
   
   // Calculate alignment guides for a node at a given position
   const calculateAlignmentGuides = useCallback((nodeId: string, x: number, y: number) => {
@@ -1058,29 +1064,61 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
             const startNode = nodes.find(n => n.id === connectorStart);
             if (!startNode) return null;
 
-            // Calculate edge point using the same logic as the connector engine
-            const fromCenter = { 
-              x: startNode.x + startNode.width / 2, 
-              y: startNode.y + startNode.height / 2 
-            };
-            const toPoint = connectorPreviewPos;
+            // Calculate start point based on selected edge or nearest to cursor
+            let startX = startNode.x + startNode.width / 2;
+            let startY = startNode.y + startNode.height / 2;
             
-            // Use the same getNearestEdgePoint logic
-            const startPoint = getNearestEdgePoint(
-              { x: startNode.x, y: startNode.y, width: startNode.width, height: startNode.height },
-              toPoint,
-              0
-            );
+            // If a specific edge was selected, use that
+            if (connectorStartEdge) {
+              switch (connectorStartEdge) {
+                case 'top': startY = startNode.y; break;
+                case 'right': startX = startNode.x + startNode.width; break;
+                case 'bottom': startY = startNode.y + startNode.height; break;
+                case 'left': startX = startNode.x; break;
+              }
+            } else {
+              // Use nearest edge point logic
+              const startPoint = getNearestEdgePoint(
+                { x: startNode.x, y: startNode.y, width: startNode.width, height: startNode.height },
+                connectorPreviewPos,
+                0
+              );
+              startX = startPoint.x;
+              startY = startPoint.y;
+            }
             
-            const startX = startPoint.x;
-            const startY = startPoint.y;
             const endX = connectorPreviewPos.x;
             const endY = connectorPreviewPos.y;
 
-            // Calculate control points for smooth curve (similar to generateCurvedPath)
-            const midX = (startX + endX) / 2;
-            const controlX = midX + (endY - startY) * 0.2;
-            const controlY = midX - (endX - startX) * 0.2;
+            // Calculate control points for smooth curve
+            const dx = endX - startX;
+            const dy = endY - startY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Create a fluid bezier curve based on direction
+            let controlX1 = startX;
+            let controlY1 = startY;
+            let controlX2 = endX;
+            let controlY2 = endY;
+            
+            // Offset control points based on which edge we're starting from
+            const offsetAmount = Math.min(distance * 0.5, 100);
+            
+            if (connectorStartEdge) {
+              switch (connectorStartEdge) {
+                case 'top': controlY1 = startY - offsetAmount; break;
+                case 'right': controlX1 = startX + offsetAmount; break;
+                case 'bottom': controlY1 = startY + offsetAmount; break;
+                case 'left': controlX1 = startX - offsetAmount; break;
+              }
+            } else {
+              // Default control point offset
+              controlX1 = startX + dx * 0.3;
+              controlY1 = startY + dy * 0.1;
+            }
+            
+            controlX2 = endX - dx * 0.3;
+            controlY2 = endY - dy * 0.1;
 
             return (
               <svg
@@ -1089,7 +1127,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
               >
                 {/* Animated dashed preview line */}
                 <path
-                  d={`M ${startX} ${startY} Q ${controlX} ${startY} ${endX} ${endY}`}
+                  d={`M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`}
                   stroke="#3b82f6"
                   strokeWidth="3"
                   strokeDasharray="8 4"
@@ -1102,7 +1140,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
                 />
                 {/* Animated glow effect */}
                 <path
-                  d={`M ${startX} ${startY} Q ${controlX} ${startY} ${endX} ${endY}`}
+                  d={`M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`}
                   stroke="#3b82f6"
                   strokeWidth="8"
                   strokeLinecap="round"
@@ -1196,9 +1234,9 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
                 isConnectorStart={connectorStart === node.id}
                 isConnectorMode={activeTool === 'connector'}
                 zoom={viewportState.zoom}
-                onSelect={() => {
+                onSelect={(edge) => {
                   if (activeTool === 'connector') {
-                    handleNodeClickForConnector(node.id);
+                    handleNodeClickForConnector(node.id, edge);
                   } else {
                     handleSelectNodes([node.id]);
                   }
@@ -1342,7 +1380,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
                   : 'Click an element to start connecting'}
               </span>
               <button
-                onClick={() => { setActiveTool('select'); setConnectorStart(null); setConnectorPreviewPos(null); }}
+                onClick={() => { setActiveTool('select'); setConnectorStart(null); setConnectorStartEdge(null); setConnectorPreviewPos(null); }}
                 className="ml-2 p-1 hover:bg-indigo-700 rounded-full transition-colors"
                 title="Cancel (ESC)"
               >
@@ -1650,7 +1688,7 @@ interface NodeComponentProps {
   isConnectorStart?: boolean;
   isConnectorMode?: boolean;
   zoom: number;
-  onSelect: () => void;
+  onSelect: (edge?: 'top' | 'right' | 'bottom' | 'left') => void;
   onUpdate: (updates: Partial<VisualNode>) => void;
   onDelete: () => void;
   onAddMindmapChild?: (parentId: string) => void;
@@ -2353,7 +2391,7 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
                 className={`absolute ${pos.className} cursor-crosshair transition-all duration-200 ease-out z-30 group`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onSelect();
+                  onSelect(position);
                 }}
               >
                 {/* Outer glow/pulse ring */}

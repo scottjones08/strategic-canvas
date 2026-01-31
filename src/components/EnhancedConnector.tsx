@@ -297,14 +297,14 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
             <marker
               key={marker.id}
               id={marker.id}
-              markerWidth="8"
-              markerHeight="8"
-              refX="0"
-              refY="4"
+              markerWidth="10"
+              markerHeight="10"
+              refX="9"
+              refY="5"
               orient="auto"
               markerUnits="strokeWidth"
             >
-              <path d="M0,4 L8,0 L8,8 z" fill={marker.fill} />
+              <path d="M0,1 L0,9 L10,5 z" fill={marker.fill} />
             </marker>
           ))}
         </defs>

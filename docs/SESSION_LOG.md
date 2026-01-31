@@ -8,8 +8,9 @@
 
 ### Status
 - **Current Branch**: `main`
-- **Last Commit**: `530df93` - "fix: Connector edge point calculation and live preview improvements"
-- **Uncommitted Changes**: No - all changes committed ✅
+- **Last Commit**: `121926e` - "feat: Mobile optimization and alignment guides"
+- **Uncommitted Changes**: No - all changes committed and pushed ✅
+- **Deployment**: Pushed to Railway auto-deploy ✅
 
 ### What Was Being Worked On
 
@@ -77,6 +78,8 @@ npm run dev
 | 2026-01-31 | Connector edge point calculation | ✅ Committed |
 | 2026-01-31 | Live preview line improvements | ✅ Committed |
 | 2026-01-31 | Connection dot hover states | ✅ Committed |
+| 2026-01-31 | Smart alignment guides when dragging | ✅ Committed & Pushed |
+| 2026-01-31 | Mobile toolbar v2 with tabs & haptics | ✅ Committed & Pushed |
 
 ---
 

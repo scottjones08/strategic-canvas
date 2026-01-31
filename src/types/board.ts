@@ -83,6 +83,8 @@ export interface VisualNode {
   // Enhanced connector properties
   connectorFrom?: string;
   connectorTo?: string;
+  connectorFromEdge?: 'top' | 'right' | 'bottom' | 'left';
+  connectorToEdge?: 'top' | 'right' | 'bottom' | 'left';
   connectorStyle?: 'solid' | 'dashed' | 'dotted';
   connectorLabel?: string;
   connectorWaypoints?: Waypoint[];

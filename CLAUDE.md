@@ -210,6 +210,8 @@ Appears when a single node is selected. Features:
 | 2026-01-31 | Fixed connector edge point calculation with line-rectangle intersection | connector-engine.ts, EnterpriseMeetingView.tsx, EnhancedConnector.tsx |
 | 2026-01-31 | Improved connector live preview - uses same edge logic as final connectors | EnterpriseMeetingView.tsx |
 | 2026-01-31 | Real-time node updates with requestAnimationFrame for smooth dragging | EnterpriseMeetingView.tsx |
+| 2026-01-31 | Smart alignment guides when dragging nodes | EnterpriseMeetingView.tsx |
+| 2026-01-31 | Mobile toolbar v2 - tabbed interface, haptics, more tools | MobileToolbar.tsx |
 
 ---
 
