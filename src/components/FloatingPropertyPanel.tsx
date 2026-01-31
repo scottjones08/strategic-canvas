@@ -87,65 +87,65 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
 
   return (
     <>
-      {/* Main Horizontal Toolbar - Positioned at bottom of screen */}
+      {/* Main Horizontal Toolbar - Positioned at bottom of screen, centered, smaller */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 20 }}
-        className="fixed bottom-4 left-4 right-4 z-50"
+        className="fixed bottom-[10%] left-1/2 -translate-x-1/2 z-50 w-auto max-w-[90vw]"
       >
         <div className="bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-gray-200/80 overflow-hidden">
-          {/* Header Row */}
-          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-gray-700">
+          {/* Header Row - Compact */}
+          <div className="flex items-center justify-between px-2 py-1 bg-gray-50 border-b border-gray-100">
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-semibold text-gray-700">
                 {node.type.charAt(0).toUpperCase() + node.type.slice(1)} Properties
               </span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               <button
                 onClick={() => setShowMore(!showMore)}
-                className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-500 transition-colors"
+                className="p-1 hover:bg-gray-200 rounded text-gray-500 transition-colors"
                 title="More options"
               >
-                <MoreHorizontal className="w-4 h-4" />
+                <MoreHorizontal className="w-3 h-3" />
               </button>
               <button
                 onClick={onClose}
-                className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-500 transition-colors"
+                className="p-1 hover:bg-gray-200 rounded text-gray-500 transition-colors"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3" />
               </button>
             </div>
           </div>
 
-          {/* Main Controls Row */}
-          <div className="flex items-center gap-1 px-2 py-2 overflow-x-auto scrollbar-hide">
+          {/* Main Controls Row - Compact */}
+          <div className="flex items-center gap-1 px-2 py-1.5 overflow-x-auto scrollbar-hide">
             {/* Quick Actions */}
             <div className="flex items-center gap-0.5 pr-2 border-r border-gray-200">
-              <IconButton icon={<Copy className="w-4 h-4" />} onClick={onDuplicate} title="Duplicate" />
-              <IconButton icon={<ArrowUp className="w-4 h-4" />} onClick={onBringToFront} title="To Front" />
-              <IconButton icon={<ArrowDown className="w-4 h-4" />} onClick={onSendToBack} title="To Back" />
+              <IconButton icon={<Copy className="w-3 h-3" />} onClick={onDuplicate} title="Duplicate" />
+              <IconButton icon={<ArrowUp className="w-3 h-3" />} onClick={onBringToFront} title="To Front" />
+              <IconButton icon={<ArrowDown className="w-3 h-3" />} onClick={onSendToBack} title="To Back" />
               <IconButton 
-                icon={node.locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />} 
+                icon={node.locked ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />} 
                 onClick={onLockToggle} 
                 title={node.locked ? 'Unlock' : 'Lock'}
                 active={node.locked}
               />
-              <IconButton icon={<Trash2 className="w-4 h-4" />} onClick={onDelete} title="Delete" danger />
+              <IconButton icon={<Trash2 className="w-3 h-3" />} onClick={onDelete} title="Delete" danger />
             </div>
 
             {/* Color Picker */}
             <div className="flex items-center gap-0.5 px-2 border-r border-gray-200">
-              <span className="text-xs text-gray-500 mr-1">Color</span>
+              <span className="text-[10px] text-gray-500 mr-1">Color</span>
               {COLOR_PRESETS.slice(0, 6).map((color) => (
                 <button
                   key={color.name}
                   onClick={() => onUpdate({ color: color.bg })}
                   className={`
-                    w-6 h-6 rounded-full border-2 transition-all
+                    w-4 h-4 rounded-full border-2 transition-all
                     ${node.color === color.bg 
-                      ? 'border-indigo-500 ring-2 ring-indigo-100' 
+                      ? 'border-indigo-500 ring-1 ring-indigo-100' 
                       : 'border-transparent hover:scale-110'
                     }
                   `}
@@ -159,11 +159,11 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
             {hasTextContent && (
               <>
                 <div className="flex items-center gap-0.5 px-2 border-r border-gray-200">
-                  <span className="text-xs text-gray-500 mr-1">Size</span>
+                  <span className="text-[10px] text-gray-500 mr-1">Size</span>
                   <select
                     value={node.fontSize || 14}
                     onChange={(e) => onUpdate({ fontSize: parseInt(e.target.value) })}
-                    className="text-sm px-2 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="text-xs px-1.5 py-0.5 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   >
                     {FONT_SIZES.map(size => (
                       <option key={size} value={size}>{size}px</option>
@@ -173,27 +173,27 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
 
                 <div className="flex items-center gap-0.5 px-2 border-r border-gray-200">
                   <StyleButton
-                    icon={<Bold className="w-4 h-4" />}
+                    icon={<Bold className="w-3 h-3" />}
                     active={node.fontWeight === 'bold'}
                     onClick={() => onUpdate({ fontWeight: node.fontWeight === 'bold' ? 'normal' : 'bold' })}
                   />
                   <StyleButton
-                    icon={<Italic className="w-4 h-4" />}
+                    icon={<Italic className="w-3 h-3" />}
                     active={node.fontStyle === 'italic'}
                     onClick={() => onUpdate({ fontStyle: node.fontStyle === 'italic' ? 'normal' : 'italic' })}
                   />
                   <StyleButton
-                    icon={<AlignLeft className="w-4 h-4" />}
+                    icon={<AlignLeft className="w-3 h-3" />}
                     active={node.textAlign === 'left'}
                     onClick={() => onUpdate({ textAlign: 'left' })}
                   />
                   <StyleButton
-                    icon={<AlignCenter className="w-4 h-4" />}
+                    icon={<AlignCenter className="w-3 h-3" />}
                     active={!node.textAlign || node.textAlign === 'center'}
                     onClick={() => onUpdate({ textAlign: 'center' })}
                   />
                   <StyleButton
-                    icon={<AlignRight className="w-4 h-4" />}
+                    icon={<AlignRight className="w-3 h-3" />}
                     active={node.textAlign === 'right'}
                     onClick={() => onUpdate({ textAlign: 'right' })}
                   />
@@ -203,19 +203,19 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
 
             {/* Dimensions */}
             <div className="flex items-center gap-1 px-2">
-              <span className="text-xs text-gray-500">W</span>
+              <span className="text-[10px] text-gray-500">W</span>
               <input
                 type="number"
                 value={Math.round(node.width)}
                 onChange={(e) => onUpdate({ width: parseInt(e.target.value) || 100 })}
-                className="w-14 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-12 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
-              <span className="text-xs text-gray-500 ml-1">H</span>
+              <span className="text-[10px] text-gray-500 ml-1">H</span>
               <input
                 type="number"
                 value={Math.round(node.height)}
                 onChange={(e) => onUpdate({ height: parseInt(e.target.value) || 100 })}
-                className="w-14 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-12 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
           </div>
@@ -331,7 +331,7 @@ const IconButton: React.FC<IconButtonProps> = ({ icon, onClick, title, active, d
     onClick={onClick}
     title={title}
     className={`
-      p-1.5 rounded-lg transition-colors
+      p-1 rounded transition-colors
       ${danger 
         ? 'text-red-600 hover:bg-red-50' 
         : active 
@@ -355,7 +355,7 @@ const StyleButton: React.FC<StyleButtonProps> = ({ icon, active, onClick }) => (
   <button
     onClick={onClick}
     className={`
-      p-1.5 rounded-lg transition-colors
+      p-1 rounded transition-colors
       ${active 
         ? 'bg-indigo-100 text-indigo-600' 
         : 'text-gray-600 hover:bg-gray-100'

@@ -103,7 +103,7 @@ import {
   Menu,
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import { supabase, organizationsApi, boardsApi, notesApi, isSupabaseConfigured } from './lib/supabase';
+import { supabase, organizationsApi, boardsApi, notesApi, boardHistoryApi, isSupabaseConfigured } from './lib/supabase';
 // TranscriptionPanel is now integrated into UnifiedLeftPanel
 import TranscriptToWhiteboardModal, { VisualNodeInput } from './components/TranscriptToWhiteboardModal';
 import { FullTranscript } from './lib/transcription';
@@ -5181,6 +5181,38 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   const timerRef = useRef<NodeJS.Timeout>();
   const nameInputRef = useRef<HTMLInputElement>(null);
 
+  // Load board history from Supabase when board changes
+  useEffect(() => {
+    if (!board?.id || !isSupabaseConfigured()) return;
+    
+    const loadHistory = async () => {
+      try {
+        const historyEntries = await boardHistoryApi.getByBoardId(board.id);
+        if (historyEntries.length > 0) {
+          // Convert Supabase history entries to local format
+          const formattedHistory = historyEntries.map(entry => ({
+            nodes: entry.nodes,
+            timestamp: new Date(entry.created_at),
+            action: entry.action
+          }));
+          setHistory(formattedHistory);
+          setHistoryIndex(formattedHistory.length - 1);
+        } else {
+          // Initialize with current board state if no history exists
+          setHistory([{ nodes: board.visualNodes, timestamp: new Date(), action: 'Initial' }]);
+          setHistoryIndex(0);
+        }
+      } catch (err) {
+        console.error('Error loading board history:', err);
+        // Fall back to initial state
+        setHistory([{ nodes: board.visualNodes, timestamp: new Date(), action: 'Initial' }]);
+        setHistoryIndex(0);
+      }
+    };
+    
+    loadHistory();
+  }, [board?.id]);
+
   // New feature states
   const [gridSnap, setGridSnap] = useState(false);
   const [showMinimap, setShowMinimap] = useState(true);
@@ -5647,13 +5679,21 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   const searchResults = searchQuery.trim() ? board.visualNodes.filter(n => n.content.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
   const addToHistory = useCallback((nodes: VisualNode[], action: string) => {
+    const clonedNodes = JSON.parse(JSON.stringify(nodes));
     setHistory(prev => {
       const newHistory = prev.slice(0, historyIndex + 1);
-      newHistory.push({ nodes: JSON.parse(JSON.stringify(nodes)), timestamp: new Date(), action });
+      newHistory.push({ nodes: clonedNodes, timestamp: new Date(), action });
       return newHistory.slice(-50); // Keep last 50 actions
     });
     setHistoryIndex(prev => Math.min(prev + 1, 49));
-  }, [historyIndex]);
+    
+    // Also save to Supabase for persistence
+    if (board?.id && isSupabaseConfigured()) {
+      boardHistoryApi.create(board.id, clonedNodes, action, currentUser?.id).catch(err => {
+        console.error('Failed to save history to Supabase:', err);
+      });
+    }
+  }, [historyIndex, board?.id, currentUser?.id]);
 
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {

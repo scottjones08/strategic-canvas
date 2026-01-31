@@ -803,4 +803,101 @@ export const organizationsApi = {
   }
 };
 
+// ============================================
+// BOARD HISTORY API - For time travel functionality
+// ============================================
+
+export interface BoardHistoryEntry {
+  id: string;
+  board_id: string;
+  nodes: any[];
+  action: string;
+  created_by?: string;
+  created_at: string;
+}
+
+export const boardHistoryApi = {
+  // Get history for a board (last 50 entries)
+  async getByBoardId(boardId: string): Promise<BoardHistoryEntry[]> {
+    if (!supabase) return [];
+    
+    const { data, error } = await supabase
+      .from('board_history')
+      .select('*')
+      .eq('board_id', boardId)
+      .order('created_at', { ascending: true })
+      .limit(50);
+    
+    if (error) {
+      console.error('Error fetching board history:', error);
+      return [];
+    }
+    return data || [];
+  },
+  
+  // Add a history entry
+  async create(boardId: string, nodes: any[], action: string, createdBy?: string): Promise<BoardHistoryEntry | null> {
+    if (!supabase) return null;
+    
+    const { data, error } = await supabase
+      .from('board_history')
+      .insert({
+        board_id: boardId,
+        nodes: JSON.parse(JSON.stringify(nodes)), // Deep clone
+        action,
+        created_by: createdBy
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error creating history entry:', error);
+      return null;
+    }
+    return data;
+  },
+  
+  // Clear old history (keep last 50)
+  async clearOldHistory(boardId: string): Promise<void> {
+    if (!supabase) return;
+    
+    // Get IDs to keep
+    const { data } = await supabase
+      .from('board_history')
+      .select('id')
+      .eq('board_id', boardId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    
+    if (data && data.length > 0) {
+      const idsToKeep = data.map(d => d.id);
+      
+      // Delete entries not in the keep list
+      const { error } = await supabase
+        .from('board_history')
+        .delete()
+        .eq('board_id', boardId)
+        .not('id', 'in', `(${idsToKeep.join(',')})`);
+      
+      if (error) {
+        console.error('Error clearing old history:', error);
+      }
+    }
+  },
+  
+  // Delete all history for a board
+  async deleteAll(boardId: string): Promise<void> {
+    if (!supabase) return;
+    
+    const { error } = await supabase
+      .from('board_history')
+      .delete()
+      .eq('board_id', boardId);
+    
+    if (error) {
+      console.error('Error deleting board history:', error);
+    }
+  }
+};
+
 export default supabase;

@@ -217,6 +217,41 @@ export default function TranscriptionPanel({
     setTimeout(() => setNoteSaved(false), 3000);
   }, [transcript, boardName, clientName, getActionItems, onCreateNote]);
 
+  // Convert transcript to notes and action items
+  const handleConvertToNotesAndActions = useCallback(() => {
+    if (!transcript || !onCreateNote) return;
+
+    // Create a summary note with key points
+    const actionItemsList = getActionItems();
+    const title = `Meeting Summary - ${boardName} - ${new Date().toLocaleDateString()}`;
+    
+    // Format notes with action items highlighted
+    let content = `<h3>📋 Meeting Notes</h3>\n\n`;
+    content += `<p><strong>Duration:</strong> ${formatDuration(transcript.duration)}</p>\n`;
+    content += `<p><strong>Speakers:</strong> ${transcript.speakers.map(s => s.customName || s.label).join(', ')}</p>\n\n`;
+    
+    // Add key discussion points
+    content += `<h4>📝 Key Discussion Points</h4>\n<ul>\n`;
+    transcript.segments.forEach(segment => {
+      const speaker = transcript.speakers.find(s => s.id === segment.speaker);
+      content += `<li><strong>${speaker?.customName || speaker?.label}:</strong> ${segment.text}</li>\n`;
+    });
+    content += `</ul>\n\n`;
+    
+    // Add action items section
+    if (actionItemsList.length > 0) {
+      content += `<h4>✅ Action Items (${actionItemsList.length})</h4>\n<ul>\n`;
+      actionItemsList.forEach((item, index) => {
+        content += `<li>[ ] ${item}</li>\n`;
+      });
+      content += `</ul>\n`;
+    }
+    
+    onCreateNote(title, content, actionItemsList);
+    setNoteSaved(true);
+    setTimeout(() => setNoteSaved(false), 3000);
+  }, [transcript, boardName, getActionItems, onCreateNote]);
+
   // Generate whiteboard from transcript
   const handleGenerateWhiteboard = useCallback(() => {
     if (transcript && onGenerateWhiteboard) {
@@ -973,6 +1008,18 @@ export default function TranscriptionPanel({
                 >
                   <Wand2 className="w-4 h-4" />
                   <Layout className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* Create Notes & Actions button */}
+              {onCreateNote && (
+                <button
+                  onClick={handleConvertToNotesAndActions}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+                  title="Convert transcript to notes and action items"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Notes & Actions
                 </button>
               )}
 
