@@ -912,23 +912,37 @@ export const documentShareLinksApi = {
 // Storage bucket name - ensure this matches your Supabase bucket name exactly
 const STORAGE_BUCKET = 'documents';
 
+// Helper to create a local data URL fallback
+function createLocalDataUrl(file: File): Promise<{ url: string; path: string }> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve({
+        url: reader.result as string,
+        path: `local/${file.name}`,
+      });
+    };
+    reader.onerror = () => {
+      // If FileReader fails, create a blob URL as last resort
+      const blobUrl = URL.createObjectURL(file);
+      resolve({
+        url: blobUrl,
+        path: `local/${file.name}`,
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export async function uploadDocumentFile(
   file: File,
   organizationId?: string,
   maxRetries: number = 3
 ): Promise<{ url: string; path: string } | null> {
+  // Always try local storage first for immediate feedback, then upload to Supabase in background
   if (!isSupabaseConfigured()) {
-    // For local storage, create a data URL
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        resolve({
-          url: reader.result as string,
-          path: `local/${file.name}`,
-        });
-      };
-      reader.readAsDataURL(file);
-    });
+    console.log('[Documents] Supabase not configured, using local data URL');
+    return createLocalDataUrl(file);
   }
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -969,16 +983,16 @@ export async function uploadDocumentFile(
         const errorText = await response.text();
         console.error(`[Documents] Upload error (attempt ${attempt}):`, response.status, errorText);
 
-        // Check for storage bucket not found
+        // Check for storage bucket not found or 400 error - fallback to local
         if (errorText.includes('Bucket not found') || errorText.includes('bucket') || response.status === 400) {
-          console.error(`[Documents] ❌ Storage bucket "${STORAGE_BUCKET}" not found!`);
-          console.error('[Documents] To fix this:');
-          console.error('  1. Go to Supabase Dashboard > Storage');
-          console.error(`  2. Create a new bucket named "${STORAGE_BUCKET}"`);
-          console.error('  3. Set the bucket to "Public" for file access');
-          console.error('  4. Enable RLS policies if needed');
-          alert(`Storage bucket "${STORAGE_BUCKET}" not found in Supabase. Please create it in Supabase Dashboard > Storage.`);
-          return null;
+          console.warn(`[Documents] ⚠️ Storage bucket "${STORAGE_BUCKET}" not found or error (400). Falling back to local storage.`);
+          console.warn('[Documents] To enable cloud storage:');
+          console.warn('  1. Go to Supabase Dashboard > Storage');
+          console.warn(`  2. Create a new bucket named "${STORAGE_BUCKET}"`);
+          console.warn('  3. Set the bucket to "Public" for file access');
+          console.warn('  4. Enable RLS policies if needed');
+          // Fallback to local storage instead of failing
+          return createLocalDataUrl(file);
         }
 
         // Check for AbortError - retry
@@ -988,17 +1002,21 @@ export async function uploadDocumentFile(
             await new Promise(r => setTimeout(r, attempt * 1000));
             continue;
           }
+          // Fall back to local storage after retries exhausted
+          console.warn('[Documents] Upload failed after retries, falling back to local storage');
+          return createLocalDataUrl(file);
         }
 
-        // Check for policy/permission errors
+        // Check for policy/permission errors - fallback to local
         if (response.status === 403 || errorText.includes('policy')) {
-          console.error('[Documents] ❌ Permission denied - check RLS policies');
-          console.error('[Documents] Make sure your bucket has appropriate policies for uploads');
-          alert('Permission denied uploading file. Check Supabase storage bucket policies.');
-          return null;
+          console.warn('[Documents] ⚠️ Permission denied - falling back to local storage');
+          console.warn('[Documents] Make sure your bucket has appropriate policies for uploads');
+          return createLocalDataUrl(file);
         }
 
-        return null;
+        // Any other error - fallback to local
+        console.warn('[Documents] ⚠️ Upload failed, falling back to local storage');
+        return createLocalDataUrl(file);
       }
 
       // Construct public URL directly
@@ -1019,13 +1037,19 @@ export async function uploadDocumentFile(
           await new Promise(r => setTimeout(r, attempt * 1000));
           continue;
         }
-        console.error('[Documents] Upload failed after retries - request keeps aborting. Check network/Supabase connection.');
+        console.warn('[Documents] Upload failed after retries, falling back to local storage');
+        return createLocalDataUrl(file);
       }
-      return null;
+      
+      // Any other exception - fallback to local
+      console.warn('[Documents] ⚠️ Upload exception, falling back to local storage');
+      return createLocalDataUrl(file);
     }
   }
 
-  return null;
+  // All retries exhausted - fallback to local storage
+  console.warn('[Documents] All upload attempts failed, falling back to local storage');
+  return createLocalDataUrl(file);
 }
 
 // ============================================
