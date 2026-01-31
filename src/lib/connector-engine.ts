@@ -287,6 +287,7 @@ export const generateOrthogonalPath = (
 
 /**
  * Generate curved bezier path through waypoints
+ * Dynamic scaling: curve grows with distance, shrinks when closer
  */
 export const generateCurvedPath = (
   start: Point,
@@ -297,13 +298,37 @@ export const generateCurvedPath = (
   const points = [start, ...waypoints, end];
   
   if (points.length < 2) return '';
+  
+  // Calculate distance between start and end
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  
+  // Dynamic curve factor based on distance
+  // Short distances: minimal curve
+  // Long distances: more pronounced curve to fill space
+  const minCurveFactor = 0.2;  // Minimum curve (20% of distance)
+  const maxCurveFactor = 0.5;  // Maximum curve (50% of distance)
+  const curveFactor = Math.min(maxCurveFactor, Math.max(minCurveFactor, distance / 400));
+  
   if (points.length === 2) {
-    // Simple quadratic curve for direct connection
-    const midX = (start.x + end.x) / 2;
-    const midY = (start.y + end.y) / 2;
-    const controlX = midX + (end.y - start.y) * 0.2;
-    const controlY = midY - (end.x - start.x) * 0.2;
-    return `M ${start.x} ${start.y} Q ${controlX} ${controlY} ${end.x} ${end.y}`;
+    // Dynamic cubic bezier for direct connection
+    // Control points scale with distance
+    const controlOffset = distance * curveFactor;
+    
+    // Calculate perpendicular direction for control points
+    const angle = Math.atan2(dy, dx);
+    const perpAngle = angle + Math.PI / 2;
+    
+    // First control point - extends from start
+    const cp1x = start.x + Math.cos(angle) * (distance * 0.3) + Math.cos(perpAngle) * (controlOffset * 0.3);
+    const cp1y = start.y + Math.sin(angle) * (distance * 0.3) + Math.sin(perpAngle) * (controlOffset * 0.3);
+    
+    // Second control point - extends from end
+    const cp2x = end.x - Math.cos(angle) * (distance * 0.3) + Math.cos(perpAngle) * (controlOffset * 0.3);
+    const cp2y = end.y - Math.sin(angle) * (distance * 0.3) + Math.sin(perpAngle) * (controlOffset * 0.3);
+    
+    return `M ${start.x} ${start.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${end.x} ${end.y}`;
   }
   
   // Cubic bezier through multiple points

@@ -523,6 +523,9 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
         panY: viewport.panY
       });
     } else if (isCanvasClick) {
+      // Always deselect when clicking on canvas (regardless of tool)
+      onSelectNodes([]);
+      
       // Call onCanvasClick for tool-based element creation
       if (onCanvasClick) {
         const worldCoords = getWorldCoordinates(e.clientX, e.clientY);
@@ -537,7 +540,6 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
           setLassoStart({ x: e.clientX - rect.left, y: e.clientY - rect.top });
           setLassoEnd({ x: e.clientX - rect.left, y: e.clientY - rect.top });
         }
-        onSelectNodes([]);
       }
     }
   }, [activeTool, spacePressed, viewport.panX, viewport.panY, onSelectNodes, onCanvasClick, getWorldCoordinates]);
