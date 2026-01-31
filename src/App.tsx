@@ -7784,7 +7784,7 @@ export default function App() {
             // Reset to idle after 5 seconds
             setTimeout(() => setSaveStatus('idle'), 5000);
           }
-        }, 1500); // 1.5s debounce
+        }, 500); // 500ms debounce for faster real-time collaboration
         return newBoards;
       });
     }
@@ -7922,6 +7922,46 @@ export default function App() {
 
     loadBoards();
   }, []);
+
+  // Real-time subscription to active board for live collaboration
+  useEffect(() => {
+    if (!activeBoard || !isSupabaseConfigured() || !supabase) return;
+
+    // Subscribe to board changes
+    const channel = supabase
+      .channel(`board-changes-${activeBoard.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'canvas_boards',
+          filter: `id=eq.${activeBoard.id}`
+        },
+        (payload) => {
+          // Only update if the change is from another user
+          // (we check if the visual_nodes are different from current)
+          const newVisualNodes = payload.new?.visual_nodes;
+          if (newVisualNodes && JSON.stringify(newVisualNodes) !== JSON.stringify(activeBoard.visualNodes)) {
+            console.log('Received real-time update from Supabase');
+            setActiveBoard(prev => prev ? {
+              ...prev,
+              visualNodes: newVisualNodes,
+              name: payload.new?.name || prev.name,
+              zoom: payload.new?.zoom || prev.zoom,
+              panX: payload.new?.pan_x || prev.panX,
+              panY: payload.new?.pan_y || prev.panY,
+              lastActivity: new Date()
+            } : null);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [activeBoard?.id]);
 
   // Check for board URL parameter and auto-load that board
   const boardParamHandledRef = useRef(false);

@@ -179,11 +179,10 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
         });
       },
       onNodeChange: (change) => {
-        // Handle remote node changes
-        if (change.userId !== userId) {
-          // Remote change - apply it
-          // The board state is managed by the parent, so we don't need to do anything here
-          // The parent will receive updates via Supabase subscription
+        // Handle remote node changes from other collaborators
+        if (change.userId !== userId && change.data?.visualNodes) {
+          // Apply remote changes immediately for real-time collaboration
+          onUpdateBoard({ visualNodes: change.data.visualNodes });
         }
       }
     };
@@ -738,6 +737,14 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   const handleUpdateNodes = useCallback((updatedNodes: VisualNode[]) => {
     onUpdateBoard({ visualNodes: updatedNodes });
     pushHistory(updatedNodes);
+    
+    // Broadcast changes to other collaborators
+    if (collaborationRef.current) {
+      collaborationRef.current.broadcastNodeChange({
+        type: 'batch',
+        data: { visualNodes: updatedNodes }
+      });
+    }
   }, [onUpdateBoard, pushHistory]);
   
   const handleDeleteNodes = useCallback((ids: string[]) => {
