@@ -87,12 +87,12 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
 
   return (
     <>
-      {/* Main Horizontal Toolbar - Positioned at top, not covering left nav */}
+      {/* Main Horizontal Toolbar - Positioned at bottom of screen */}
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        className="fixed top-4 left-[320px] right-4 z-50"
+        exit={{ opacity: 0, y: 20 }}
+        className="fixed bottom-4 left-4 right-4 z-50"
       >
         <div className="bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-gray-200/80 overflow-hidden">
           {/* Header Row */}
