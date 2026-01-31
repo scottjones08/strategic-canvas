@@ -1,20 +1,17 @@
 /**
- * Floating Property Panel
+ * Floating Property Panel - Horizontal Compact Version
  * 
  * Features:
- * - Context-sensitive properties based on selected element type
- * - Draggable positioning
- * - Collapsible sections
- * - Color picker with presets
- * - Font size and style controls
- * - Alignment tools
+ * - Horizontal toolbar layout (top or bottom)
+ * - Compact design that doesn't cover left navigation
+ * - Quick actions, color picker, font controls
+ * - Collapsible sections in horizontal layout
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
-  GripVertical,
   Type,
   Palette,
   AlignLeft,
@@ -22,24 +19,18 @@ import {
   AlignRight,
   Bold,
   Italic,
-  Underline,
-  ChevronDown,
-  ChevronUp,
   Minus,
   Plus,
   Trash2,
   Copy,
   Lock,
   Unlock,
-  Move,
   ArrowUp,
   ArrowDown,
-  LayoutGrid,
-  Maximize2,
-  Minimize2,
-  MoreHorizontal,
   Square,
-  RotateCw
+  RotateCw,
+  ChevronDown,
+  MoreHorizontal
 } from 'lucide-react';
 import type { VisualNode } from '../types/board';
 
@@ -53,26 +44,23 @@ interface FloatingPropertyPanelProps {
   onBringToFront: () => void;
   onSendToBack: () => void;
   onLockToggle: () => void;
-  position?: { x: number; y: number };
-  onPositionChange?: (pos: { x: number; y: number }) => void;
 }
 
 // Color presets
 const COLOR_PRESETS = [
-  { bg: '#fef3c7', border: '#fcd34d', name: 'Yellow' },
-  { bg: '#dbeafe', border: '#60a5fa', name: 'Blue' },
-  { bg: '#fce7f3', border: '#f472b6', name: 'Pink' },
-  { bg: '#dcfce7', border: '#4ade80', name: 'Green' },
-  { bg: '#f3e8ff', border: '#a78bfa', name: 'Purple' },
-  { bg: '#fee2e2', border: '#f87171', name: 'Red' },
-  { bg: '#ffedd5', border: '#fb923c', name: 'Orange' },
-  { bg: '#ccfbf1', border: '#2dd4bf', name: 'Teal' },
-  { bg: '#ffffff', border: '#e5e7eb', name: 'White' },
-  { bg: '#1f2937', border: '#374151', name: 'Dark', text: '#ffffff' },
+  { bg: '#fef3c7', name: 'Yellow' },
+  { bg: '#dbeafe', name: 'Blue' },
+  { bg: '#fce7f3', name: 'Pink' },
+  { bg: '#dcfce7', name: 'Green' },
+  { bg: '#f3e8ff', name: 'Purple' },
+  { bg: '#fee2e2', name: 'Red' },
+  { bg: '#ffedd5', name: 'Orange' },
+  { bg: '#ccfbf1', name: 'Teal' },
+  { bg: '#ffffff', name: 'White' },
 ];
 
 // Font size options
-const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48];
+const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32];
 
 export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
   node,
@@ -83,218 +71,82 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
   onDuplicate,
   onBringToFront,
   onSendToBack,
-  onLockToggle,
-  position = { x: 20, y: 80 },
-  onPositionChange
+  onLockToggle
 }) => {
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [panelPos, setPanelPos] = useState(position);
-  const [expandedSections, setExpandedSections] = useState<string[]>(['style', 'text']);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  // Update local position when prop changes (only on x/y value changes)
-  useEffect(() => {
-    setPanelPos(prev => {
-      if (prev.x !== position.x || prev.y !== position.y) {
-        return position;
-      }
-      return prev;
-    });
-  }, [position.x, position.y]);
-
-  // Handle drag start
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('[data-drag-handle]')) {
-      setIsDragging(true);
-      setDragStart({
-        x: e.clientX - panelPos.x,
-        y: e.clientY - panelPos.y
-      });
-      e.preventDefault();
-    }
-  };
-
-  // Handle drag
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const newPos = {
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      };
-      
-      // Keep within viewport bounds
-      const maxX = window.innerWidth - 300;
-      const maxY = window.innerHeight - 100;
-      
-      setPanelPos({
-        x: Math.max(10, Math.min(newPos.x, maxX)),
-        y: Math.max(10, Math.min(newPos.y, maxY))
-      });
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-      onPositionChange?.(panelPos);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, dragStart, panelPos, onPositionChange]);
-
-  // Toggle section expansion
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev => 
-      prev.includes(section) 
-        ? prev.filter(s => s !== section)
-        : [...prev, section]
-    );
-  };
-
-  // Check if section is expanded
-  const isExpanded = (section: string) => expandedSections.includes(section);
+  const [showMore, setShowMore] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const hasTextContent = !['image', 'youtube', 'bucket', 'connector', 'drawing'].includes(node.type);
   const isShape = node.type === 'shape';
-  const isSticky = node.type === 'sticky';
-  const isFrame = node.type === 'frame';
 
-  // Mobile optimized position
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-  const isTablet = typeof window !== 'undefined' && window.innerWidth >= 640 && window.innerWidth < 1024;
-  
-  const getPanelStyle = () => {
-    if (isMobile) {
-      return {
-        left: '50%',
-        top: 'auto',
-        bottom: '90px',
-        transform: 'translateX(-50%)',
-        width: 'calc(100vw - 24px)',
-        maxWidth: '380px',
-        maxHeight: '60vh'
-      };
-    }
-    if (isTablet) {
-      // Keep within bounds on tablet
-      const boundedX = Math.max(10, Math.min(panelPos.x, window.innerWidth - 280));
-      const boundedY = Math.max(10, Math.min(panelPos.y, window.innerHeight - 400));
-      return {
-        left: boundedX,
-        top: boundedY,
-        maxHeight: '70vh'
-      };
-    }
-    // Desktop - keep within viewport bounds
-    const boundedX = Math.max(10, Math.min(panelPos.x, window.innerWidth - 280));
-    const boundedY = Math.max(10, Math.min(panelPos.y, window.innerHeight - 500));
-    return {
-      left: boundedX,
-      top: boundedY,
-      maxHeight: '80vh'
-    };
+  const toggleSection = (section: string) => {
+    setExpandedSection(expandedSection === section ? null : section);
   };
-  
-  const panelStyle = getPanelStyle();
 
   return (
-    <motion.div
-      ref={panelRef}
-      initial={{ opacity: 0, x: isMobile ? 0 : -20, y: isMobile ? 20 : 0 }}
-      animate={{ opacity: 1, x: isMobile ? 0 : 0, y: 0 }}
-      exit={{ opacity: 0, x: isMobile ? 0 : -20, y: isMobile ? 20 : 0 }}
-      className={`
-        fixed bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-gray-200/80 z-50 overflow-hidden
-        ${isMobile ? 'w-[calc(100vw-24px)] max-w-[380px]' : 'w-64'}
-        ${isDragging ? 'cursor-grabbing select-none' : ''}
-      `}
-      style={panelStyle}
-      onMouseDown={!isMobile ? handleMouseDown : undefined}
-    >
-      {/* Header */}
-      <div 
-        data-drag-handle
-        className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-100 cursor-grab active:cursor-grabbing"
+    <>
+      {/* Main Horizontal Toolbar - Positioned at top, not covering left nav */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="fixed top-4 left-[320px] right-4 z-50"
       >
-        <div className="flex items-center gap-2">
-          <GripVertical className="w-4 h-4 text-gray-400" />
-          <span className="text-sm font-semibold text-gray-700">
-            {node.type === 'mindmap' ? 'Mind Map' : 
-             node.type === 'youtube' ? 'YouTube' :
-             node.type === 'linklist' ? 'Link List' :
-             node.type.charAt(0).toUpperCase() + node.type.slice(1)} Properties
-          </span>
-        </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-500 transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+        <div className="bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-gray-200/80 overflow-hidden">
+          {/* Header Row */}
+          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-gray-700">
+                {node.type.charAt(0).toUpperCase() + node.type.slice(1)} Properties
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setShowMore(!showMore)}
+                className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-500 transition-colors"
+                title="More options"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onClose}
+                className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-500 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
 
-      {/* Scrollable Content - compact height */}
-      <div className={`overflow-y-auto scrollbar-hide ${isMobile ? 'max-h-[50vh]' : 'max-h-[calc(100vh-200px)]'}`}>
-        {/* Quick Actions */}
-        <div className="flex items-center justify-between gap-1 p-2 border-b border-gray-100">
-          <ActionButton
-            icon={<Copy className="w-4 h-4" />}
-            label="Duplicate"
-            onClick={onDuplicate}
-          />
-          <ActionButton
-            icon={<ArrowUp className="w-4 h-4" />}
-            label="To Front"
-            onClick={onBringToFront}
-          />
-          <ActionButton
-            icon={<ArrowDown className="w-4 h-4" />}
-            label="To Back"
-            onClick={onSendToBack}
-          />
-          <ActionButton
-            icon={node.locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-            label={node.locked ? 'Unlock' : 'Lock'}
-            onClick={onLockToggle}
-            active={node.locked}
-          />
-          <ActionButton
-            icon={<Trash2 className="w-4 h-4" />}
-            label="Delete"
-            onClick={onDelete}
-            danger
-          />
-        </div>
+          {/* Main Controls Row */}
+          <div className="flex items-center gap-1 px-2 py-2 overflow-x-auto scrollbar-hide">
+            {/* Quick Actions */}
+            <div className="flex items-center gap-0.5 pr-2 border-r border-gray-200">
+              <IconButton icon={<Copy className="w-4 h-4" />} onClick={onDuplicate} title="Duplicate" />
+              <IconButton icon={<ArrowUp className="w-4 h-4" />} onClick={onBringToFront} title="To Front" />
+              <IconButton icon={<ArrowDown className="w-4 h-4" />} onClick={onSendToBack} title="To Back" />
+              <IconButton 
+                icon={node.locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />} 
+                onClick={onLockToggle} 
+                title={node.locked ? 'Unlock' : 'Lock'}
+                active={node.locked}
+              />
+              <IconButton icon={<Trash2 className="w-4 h-4" />} onClick={onDelete} title="Delete" danger />
+            </div>
 
-        {/* Style Section */}
-        <Section 
-          title="Style" 
-          icon={<Palette className="w-4 h-4" />}
-          expanded={isExpanded('style')}
-          onToggle={() => toggleSection('style')}
-        >
-          {/* Color Picker */}
-          <div className="mb-4">
-            <label className="text-xs font-medium text-gray-500 mb-2 block">Color</label>
-            <div className="grid grid-cols-5 gap-1.5">
-              {COLOR_PRESETS.map((color) => (
+            {/* Color Picker */}
+            <div className="flex items-center gap-0.5 px-2 border-r border-gray-200">
+              <span className="text-xs text-gray-500 mr-1">Color</span>
+              {COLOR_PRESETS.slice(0, 6).map((color) => (
                 <button
                   key={color.name}
                   onClick={() => onUpdate({ color: color.bg })}
                   className={`
-                    w-9 h-9 rounded-lg border-2 transition-all
+                    w-6 h-6 rounded-full border-2 transition-all
                     ${node.color === color.bg 
                       ? 'border-indigo-500 ring-2 ring-indigo-100' 
-                      : 'border-gray-200 hover:border-gray-300'
+                      : 'border-transparent hover:scale-110'
                     }
                   `}
                   style={{ backgroundColor: color.bg }}
@@ -302,231 +154,184 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
                 />
               ))}
             </div>
-          </div>
 
-          {/* Opacity */}
-          <div className="mb-4">
-            <label className="text-xs font-medium text-gray-500 mb-2 block">
-              Opacity ({Math.round((node.opacity ?? 1) * 100)}%)
-            </label>
-            <input
-              type="range"
-              min="0.1"
-              max="1"
-              step="0.1"
-              value={node.opacity ?? 1}
-              onChange={(e) => onUpdate({ opacity: parseFloat(e.target.value) })}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-            />
-          </div>
-        </Section>
+            {/* Text Controls */}
+            {hasTextContent && (
+              <>
+                <div className="flex items-center gap-0.5 px-2 border-r border-gray-200">
+                  <span className="text-xs text-gray-500 mr-1">Size</span>
+                  <select
+                    value={node.fontSize || 14}
+                    onChange={(e) => onUpdate({ fontSize: parseInt(e.target.value) })}
+                    className="text-sm px-2 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {FONT_SIZES.map(size => (
+                      <option key={size} value={size}>{size}px</option>
+                    ))}
+                  </select>
+                </div>
 
-        {/* Text Section */}
-        {hasTextContent && (
-          <Section
-            title="Text"
-            icon={<Type className="w-4 h-4" />}
-            expanded={isExpanded('text')}
-            onToggle={() => toggleSection('text')}
-          >
-            {/* Font Size */}
-            <div className="mb-4">
-              <label className="text-xs font-medium text-gray-500 mb-2 block">Size</label>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => onUpdate({ fontSize: Math.max(10, (node.fontSize || 14) - 2) })}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="flex-1 text-center text-sm font-medium">
-                  {node.fontSize || 14}px
-                </span>
-                <button
-                  onClick={() => onUpdate({ fontSize: Math.min(72, (node.fontSize || 14) + 2) })}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+                <div className="flex items-center gap-0.5 px-2 border-r border-gray-200">
+                  <StyleButton
+                    icon={<Bold className="w-4 h-4" />}
+                    active={node.fontWeight === 'bold'}
+                    onClick={() => onUpdate({ fontWeight: node.fontWeight === 'bold' ? 'normal' : 'bold' })}
+                  />
+                  <StyleButton
+                    icon={<Italic className="w-4 h-4" />}
+                    active={node.fontStyle === 'italic'}
+                    onClick={() => onUpdate({ fontStyle: node.fontStyle === 'italic' ? 'normal' : 'italic' })}
+                  />
+                  <StyleButton
+                    icon={<AlignLeft className="w-4 h-4" />}
+                    active={node.textAlign === 'left'}
+                    onClick={() => onUpdate({ textAlign: 'left' })}
+                  />
+                  <StyleButton
+                    icon={<AlignCenter className="w-4 h-4" />}
+                    active={!node.textAlign || node.textAlign === 'center'}
+                    onClick={() => onUpdate({ textAlign: 'center' })}
+                  />
+                  <StyleButton
+                    icon={<AlignRight className="w-4 h-4" />}
+                    active={node.textAlign === 'right'}
+                    onClick={() => onUpdate({ textAlign: 'right' })}
+                  />
+                </div>
+              </>
+            )}
 
-            {/* Font Style */}
-            <div className="mb-4">
-              <label className="text-xs font-medium text-gray-500 mb-2 block">Style</label>
-              <div className="flex gap-1">
-                <StyleButton
-                  icon={<Bold className="w-4 h-4" />}
-                  active={node.fontWeight === 'bold'}
-                  onClick={() => onUpdate({ fontWeight: node.fontWeight === 'bold' ? 'normal' : 'bold' })}
-                />
-                <StyleButton
-                  icon={<Italic className="w-4 h-4" />}
-                  active={node.fontStyle === 'italic'}
-                  onClick={() => onUpdate({ fontStyle: node.fontStyle === 'italic' ? 'normal' : 'italic' })}
-                />
-              </div>
-            </div>
-
-            {/* Text Alignment */}
-            <div className="mb-4">
-              <label className="text-xs font-medium text-gray-500 mb-2 block">Alignment</label>
-              <div className="flex gap-1">
-                <StyleButton
-                  icon={<AlignLeft className="w-4 h-4" />}
-                  active={node.textAlign === 'left'}
-                  onClick={() => onUpdate({ textAlign: 'left' })}
-                />
-                <StyleButton
-                  icon={<AlignCenter className="w-4 h-4" />}
-                  active={!node.textAlign || node.textAlign === 'center'}
-                  onClick={() => onUpdate({ textAlign: 'center' })}
-                />
-                <StyleButton
-                  icon={<AlignRight className="w-4 h-4" />}
-                  active={node.textAlign === 'right'}
-                  onClick={() => onUpdate({ textAlign: 'right' })}
-                />
-              </div>
-            </div>
-          </Section>
-        )}
-
-        {/* Dimensions Section */}
-        <Section
-          title="Dimensions"
-          icon={<Maximize2 className="w-4 h-4" />}
-          expanded={isExpanded('dimensions')}
-          onToggle={() => toggleSection('dimensions')}
-        >
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">Width</label>
+            {/* Dimensions */}
+            <div className="flex items-center gap-1 px-2">
+              <span className="text-xs text-gray-500">W</span>
               <input
                 type="number"
                 value={Math.round(node.width)}
                 onChange={(e) => onUpdate({ width: parseInt(e.target.value) || 100 })}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-14 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">Height</label>
+              <span className="text-xs text-gray-500 ml-1">H</span>
               <input
                 type="number"
                 value={Math.round(node.height)}
                 onChange={(e) => onUpdate({ height: parseInt(e.target.value) || 100 })}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-14 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
-          
-          {/* Rotation */}
-          <div className="mt-4">
-            <label className="text-xs font-medium text-gray-500 mb-2 block">Rotation</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="range"
-                min="-180"
-                max="180"
-                value={node.rotation || 0}
-                onChange={(e) => onUpdate({ rotation: parseInt(e.target.value) })}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-              <span className="text-sm font-medium w-12 text-right">
-                {node.rotation || 0}°
-              </span>
-            </div>
-          </div>
-        </Section>
 
-        {/* Shape-specific options */}
-        {isShape && (
-          <Section
-            title="Shape"
-            icon={<Square className="w-4 h-4" />}
-            expanded={isExpanded('shape')}
-            onToggle={() => toggleSection('shape')}
-          >
-            <div className="grid grid-cols-3 gap-2">
-              {['rectangle', 'circle', 'triangle', 'diamond'].map((shape) => (
-                <button
-                  key={shape}
-                  onClick={() => onUpdate({ shapeType: shape as any })}
-                  className={`
-                    p-2 text-sm rounded-lg border-2 capitalize
-                    ${node.shapeType === shape 
-                      ? 'border-indigo-500 bg-indigo-50 text-indigo-600' 
-                      : 'border-gray-200 hover:border-gray-300'
-                    }
-                  `}
-                >
-                  {shape}
-                </button>
-              ))}
-            </div>
-          </Section>
-        )}
-      </div>
-    </motion.div>
+          {/* Expanded Section */}
+          <AnimatePresence>
+            {showMore && (
+              <motion.div
+                initial={{ height: 0 }}
+                animate={{ height: 'auto' }}
+                exit={{ height: 0 }}
+                className="border-t border-gray-100 overflow-hidden"
+              >
+                <div className="p-3 flex flex-wrap gap-4">
+                  {/* All Colors */}
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-2 block">All Colors</label>
+                    <div className="flex gap-1">
+                      {COLOR_PRESETS.map((color) => (
+                        <button
+                          key={color.name}
+                          onClick={() => onUpdate({ color: color.bg })}
+                          className={`
+                            w-7 h-7 rounded-full border-2 transition-all
+                            ${node.color === color.bg 
+                              ? 'border-indigo-500 ring-2 ring-indigo-100' 
+                              : 'border-transparent hover:scale-110'
+                            }
+                          `}
+                          style={{ backgroundColor: color.bg }}
+                          title={color.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Opacity */}
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-2 block">
+                      Opacity ({Math.round((node.opacity ?? 1) * 100)}%)
+                    </label>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="1"
+                      step="0.1"
+                      value={node.opacity ?? 1}
+                      onChange={(e) => onUpdate({ opacity: parseFloat(e.target.value) })}
+                      className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                  </div>
+
+                  {/* Rotation */}
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-2 block">Rotation</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="-180"
+                        max="180"
+                        value={node.rotation || 0}
+                        onChange={(e) => onUpdate({ rotation: parseInt(e.target.value) })}
+                        className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                      <span className="text-sm font-medium w-10">{node.rotation || 0}°</span>
+                    </div>
+                  </div>
+
+                  {/* Shape Options */}
+                  {isShape && (
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 mb-2 block">Shape</label>
+                      <div className="flex gap-1">
+                        {['rectangle', 'circle', 'triangle', 'diamond'].map((shape) => (
+                          <button
+                            key={shape}
+                            onClick={() => onUpdate({ shapeType: shape as any })}
+                            className={`
+                              px-2 py-1 text-xs rounded-lg border capitalize
+                              ${node.shapeType === shape 
+                                ? 'border-indigo-500 bg-indigo-50 text-indigo-600' 
+                                : 'border-gray-200 hover:border-gray-300'
+                              }
+                            `}
+                          >
+                            {shape}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+    </>
   );
 };
 
-// Section Component
-interface SectionProps {
-  title: string;
+// Icon Button Component
+interface IconButtonProps {
   icon: React.ReactNode;
-  expanded: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}
-
-const Section: React.FC<SectionProps> = ({ title, icon, expanded, onToggle, children }) => (
-  <div className="border-b border-gray-100 last:border-b-0">
-    <button
-      onClick={onToggle}
-      className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
-    >
-      <div className="flex items-center gap-2 text-gray-700">
-        {icon}
-        <span className="text-sm font-medium">{title}</span>
-      </div>
-      {expanded ? (
-        <ChevronUp className="w-4 h-4 text-gray-400" />
-      ) : (
-        <ChevronDown className="w-4 h-4 text-gray-400" />
-      )}
-    </button>
-    <AnimatePresence>
-      {expanded && (
-        <motion.div
-          initial={{ height: 0 }}
-          animate={{ height: 'auto' }}
-          exit={{ height: 0 }}
-          className="overflow-hidden"
-        >
-          <div className="px-4 pb-4">
-            {children}
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  </div>
-);
-
-// Action Button Component
-interface ActionButtonProps {
-  icon: React.ReactNode;
-  label: string;
   onClick: () => void;
+  title: string;
   active?: boolean;
   danger?: boolean;
 }
 
-const ActionButton: React.FC<ActionButtonProps> = ({ icon, label, onClick, active, danger }) => (
+const IconButton: React.FC<IconButtonProps> = ({ icon, onClick, title, active, danger }) => (
   <button
     onClick={onClick}
+    title={title}
     className={`
-      flex flex-col items-center gap-0.5 p-1.5 rounded-lg min-w-[48px] transition-colors
+      p-1.5 rounded-lg transition-colors
       ${danger 
         ? 'text-red-600 hover:bg-red-50' 
         : active 
@@ -536,7 +341,6 @@ const ActionButton: React.FC<ActionButtonProps> = ({ icon, label, onClick, activ
     `}
   >
     {icon}
-    <span className="text-[10px] font-medium">{label}</span>
   </button>
 );
 
@@ -551,10 +355,10 @@ const StyleButton: React.FC<StyleButtonProps> = ({ icon, active, onClick }) => (
   <button
     onClick={onClick}
     className={`
-      p-2 rounded-lg transition-colors
+      p-1.5 rounded-lg transition-colors
       ${active 
         ? 'bg-indigo-100 text-indigo-600' 
-        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        : 'text-gray-600 hover:bg-gray-100'
       }
     `}
   >

@@ -90,6 +90,8 @@ npm run dev
 | 2026-01-31 | Smart Task Extraction system | ✅ Committed & Pushed |
 | 2026-01-31 | Sentiment Analysis module | ✅ Committed & Pushed |
 | 2026-01-31 | Ask Anything RAG search | ✅ Committed & Pushed |
+| 2026-01-31 | Connection dots 30% smaller with tooltips | ✅ Committed & Pushed |
+| 2026-01-31 | Connectors work from any tool mode | ✅ Committed & Pushed |
 
 ---
 

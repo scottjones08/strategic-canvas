@@ -655,8 +655,8 @@ export const nodeToConnectorPath = (
       case 'left': endPoint.x = toNode.x; break;
     }
   } else {
-    // Calculate nearest edge point
-    endPoint = getNearestEdgePoint(toNode, fromCenter, 0);
+    // Calculate nearest edge point from the START point (not center) for accuracy
+    endPoint = getNearestEdgePoint(toNode, startPoint, 0);
   }
   
   // Build waypoints with NEW IDs for start and end (always recalculated)
