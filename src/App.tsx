@@ -2390,6 +2390,18 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     setAlignmentGuides([]);
   }, []);
 
+  // Handle window resize for responsive canvas
+  useEffect(() => {
+    const handleResize = () => {
+      // Force re-render on resize to update any size-dependent calculations
+      // This ensures connectors and positioned elements update when window size changes
+      window.dispatchEvent(new CustomEvent('canvas-resize'));
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Handle spacebar for pan mode (only when not typing in inputs)
   useEffect(() => {
     const isTypingElement = (element: Element | null): boolean => {
