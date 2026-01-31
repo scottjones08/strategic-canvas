@@ -113,6 +113,19 @@ function saveDocumentsToStorage(documents: ClientDocument[]): void {
 // HELPER FUNCTIONS
 // ============================================
 
+// Timeout wrapper for async operations
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => {
+      setTimeout(() => {
+        console.warn(`[Documents] Operation timed out after ${ms}ms, using fallback`);
+        resolve(fallback);
+      }, ms);
+    }),
+  ]);
+}
+
 function generateToken(length: number = 24): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const array = new Uint32Array(length);
@@ -172,33 +185,40 @@ function documentToDbRow(doc: CreateDocumentInput | UpdateDocumentInput): any {
 export const documentsApi = {
   // Get all documents
   async getAll(organizationId?: string): Promise<ClientDocument[]> {
+    const localFallback = loadDocumentsFromStorage();
+
     if (!isSupabaseConfigured()) {
-      return loadDocumentsFromStorage();
+      return localFallback;
     }
 
-    try {
-      let query = supabase!
-        .from('client_documents')
-        .select('*')
-        .eq('status', 'active')
-        .order('updated_at', { ascending: false });
+    const fetchFromSupabase = async (): Promise<ClientDocument[]> => {
+      try {
+        let query = supabase!
+          .from('client_documents')
+          .select('*')
+          .eq('status', 'active')
+          .order('updated_at', { ascending: false });
 
-      if (organizationId) {
-        query = query.eq('organization_id', organizationId);
+        if (organizationId) {
+          query = query.eq('organization_id', organizationId);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error('Error fetching documents:', error);
+          return localFallback;
+        }
+
+        return data.map(dbRowToDocument);
+      } catch (e) {
+        console.error('Error fetching documents:', e);
+        return localFallback;
       }
+    };
 
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching documents:', error);
-        return loadDocumentsFromStorage();
-      }
-
-      return data.map(dbRowToDocument);
-    } catch (e) {
-      console.error('Error fetching documents:', e);
-      return loadDocumentsFromStorage();
-    }
+    // Use timeout to prevent hanging - 5 second timeout
+    return withTimeout(fetchFromSupabase(), 5000, localFallback);
   },
 
   // Get documents for a specific client

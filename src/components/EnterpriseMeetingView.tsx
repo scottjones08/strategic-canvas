@@ -96,6 +96,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   
   // Connector tool state
   const [connectorStart, setConnectorStart] = useState<string | null>(null);
+  const [connectorPreviewPos, setConnectorPreviewPos] = useState<{ x: number; y: number } | null>(null);
   
   // Current user info
   const currentUser = useMemo(() => ({
@@ -193,11 +194,18 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   
   // Track cursor movement (throttled)
   const handleCursorMove = useCallback((e: React.MouseEvent) => {
+    // Track preview position when in connector mode with a start node selected
+    if (activeTool === 'connector' && connectorStart && canvasRef.current) {
+      const worldCoords = canvasRef.current.getWorldCoordinates(e.clientX, e.clientY);
+      setConnectorPreviewPos({ x: worldCoords.x, y: worldCoords.y });
+    }
+
+    // Broadcast cursor for collaboration
     if (!collaborationRef.current || !canvasRef.current) return;
-    
+
     const worldCoords = canvasRef.current.getWorldCoordinates(e.clientX, e.clientY);
     collaborationRef.current.broadcastCursor({ x: worldCoords.x, y: worldCoords.y });
-  }, []);
+  }, [activeTool, connectorStart]);
   
   // Tool options
   const [toolOptions, setToolOptions] = useState<{
@@ -284,6 +292,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           // ESC cancels connector mode
           setActiveTool('select');
           setConnectorStart(null);
+          setConnectorPreviewPos(null);
         }
       }
     };
@@ -430,6 +439,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
         // but stays in connector mode for the next attempt
         if (connectorStart) {
           setConnectorStart(null); // Cancel current connection
+          setConnectorPreviewPos(null);
         }
         // Don't switch to select tool - stay in connector mode
         break;
@@ -561,6 +571,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     // Reset connector start when switching tools
     if (tool !== 'connector') {
       setConnectorStart(null);
+      setConnectorPreviewPos(null);
     }
   }, [getViewportCenter, toolOptions, handleAddNode]);
   
@@ -607,7 +618,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   // Handle node click for connector tool
   const handleNodeClickForConnector = useCallback((nodeId: string) => {
     if (activeTool !== 'connector') return;
-    
+
     if (!connectorStart) {
       // First click - set start node
       setConnectorStart(nodeId);
@@ -615,6 +626,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       // Second click - create connector
       createConnector(connectorStart, nodeId);
       setConnectorStart(null);
+      setConnectorPreviewPos(null);
       // Stay in connector mode so user can create more connectors
       // Press Escape or click Select to exit connector mode
     }
@@ -950,7 +962,99 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
               );
             })}
           </svg>
-          
+
+          {/* Connector preview line - shows when creating a new connection */}
+          {connectorStart && connectorPreviewPos && (() => {
+            const startNode = nodes.find(n => n.id === connectorStart);
+            if (!startNode) return null;
+
+            const startX = startNode.x + startNode.width / 2;
+            const startY = startNode.y + startNode.height / 2;
+            const endX = connectorPreviewPos.x;
+            const endY = connectorPreviewPos.y;
+
+            // Calculate control point for smooth curve
+            const midX = (startX + endX) / 2;
+            const midY = (startY + endY) / 2;
+
+            return (
+              <svg
+                className="absolute inset-0 pointer-events-none"
+                style={{ overflow: 'visible', zIndex: 200 }}
+              >
+                {/* Animated dashed preview line */}
+                <path
+                  d={`M ${startX} ${startY} Q ${midX} ${startY} ${endX} ${endY}`}
+                  stroke="#3b82f6"
+                  strokeWidth="3"
+                  strokeDasharray="8 4"
+                  strokeLinecap="round"
+                  fill="none"
+                  opacity="0.8"
+                  style={{
+                    animation: 'dash 0.5s linear infinite',
+                  }}
+                />
+                {/* Animated glow effect */}
+                <path
+                  d={`M ${startX} ${startY} Q ${midX} ${startY} ${endX} ${endY}`}
+                  stroke="#3b82f6"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  fill="none"
+                  opacity="0.2"
+                  filter="blur(4px)"
+                />
+                {/* Start point indicator */}
+                <circle
+                  cx={startX}
+                  cy={startY}
+                  r="8"
+                  fill="#3b82f6"
+                  stroke="white"
+                  strokeWidth="3"
+                  style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}
+                />
+                {/* End point cursor indicator */}
+                <circle
+                  cx={endX}
+                  cy={endY}
+                  r="12"
+                  fill="transparent"
+                  stroke="#3b82f6"
+                  strokeWidth="3"
+                  strokeDasharray="4 4"
+                  opacity="0.8"
+                >
+                  <animate
+                    attributeName="r"
+                    values="10;14;10"
+                    dur="1s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                {/* Inner dot at cursor */}
+                <circle
+                  cx={endX}
+                  cy={endY}
+                  r="4"
+                  fill="#3b82f6"
+                  opacity="0.9"
+                />
+                {/* Animation keyframes */}
+                <style>
+                  {`
+                    @keyframes dash {
+                      to {
+                        stroke-dashoffset: -24;
+                      }
+                    }
+                  `}
+                </style>
+              </svg>
+            );
+          })()}
+
           {/* Render non-connector nodes */}
           {nodes
             .filter(n => !(n.type === 'connector' && n.connectorFrom && n.connectorTo))
@@ -1104,8 +1208,8 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
                   ? 'Click another element to connect' 
                   : 'Click an element to start connecting'}
               </span>
-              <button 
-                onClick={() => { setActiveTool('select'); setConnectorStart(null); }}
+              <button
+                onClick={() => { setActiveTool('select'); setConnectorStart(null); setConnectorPreviewPos(null); }}
                 className="ml-2 p-1 hover:bg-indigo-700 rounded-full transition-colors"
                 title="Cancel (ESC)"
               >
@@ -2041,62 +2145,84 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
       {/* Connection points - visible in connector mode or when node is selected */}
       {(isConnectorMode || isSelected) && (
         <>
-          {/* Top */}
-          <div
-            className={`absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 border-2 border-white rounded-full cursor-crosshair hover:scale-150 transition-all shadow-lg z-20 ${
-              isConnectorMode ? 'bg-blue-500 hover:bg-blue-600 animate-pulse' : 'bg-gray-400 hover:bg-blue-500'
-            }`}
-            style={{ 
-              boxShadow: isConnectorMode ? '0 0 0 4px rgba(59, 130, 246, 0.3)' : '0 2px 8px rgba(0,0,0,0.3)'
-            }}
-            title={isConnectorMode ? "Click to connect" : "Switch to connector tool"}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect();
-            }}
-          />
-          {/* Right */}
-          <div
-            className={`absolute top-1/2 right-0 translate-x-1/2 -translate-y-1/2 w-5 h-5 border-2 border-white rounded-full cursor-crosshair hover:scale-150 transition-all shadow-lg z-20 ${
-              isConnectorMode ? 'bg-blue-500 hover:bg-blue-600 animate-pulse' : 'bg-gray-400 hover:bg-blue-500'
-            }`}
-            style={{ 
-              boxShadow: isConnectorMode ? '0 0 0 4px rgba(59, 130, 246, 0.3)' : '0 2px 8px rgba(0,0,0,0.3)'
-            }}
-            title={isConnectorMode ? "Click to connect" : "Switch to connector tool"}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect();
-            }}
-          />
-          {/* Bottom */}
-          <div
-            className={`absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-5 h-5 border-2 border-white rounded-full cursor-crosshair hover:scale-150 transition-all shadow-lg z-20 ${
-              isConnectorMode ? 'bg-blue-500 hover:bg-blue-600 animate-pulse' : 'bg-gray-400 hover:bg-blue-500'
-            }`}
-            style={{ 
-              boxShadow: isConnectorMode ? '0 0 0 4px rgba(59, 130, 246, 0.3)' : '0 2px 8px rgba(0,0,0,0.3)'
-            }}
-            title={isConnectorMode ? "Click to connect" : "Switch to connector tool"}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect();
-            }}
-          />
-          {/* Left */}
-          <div
-            className={`absolute top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 w-5 h-5 border-2 border-white rounded-full cursor-crosshair hover:scale-150 transition-all shadow-lg z-20 ${
-              isConnectorMode ? 'bg-blue-500 hover:bg-blue-600 animate-pulse' : 'bg-gray-400 hover:bg-blue-500'
-            }`}
-            style={{ 
-              boxShadow: isConnectorMode ? '0 0 0 4px rgba(59, 130, 246, 0.3)' : '0 2px 8px rgba(0,0,0,0.3)'
-            }}
-            title={isConnectorMode ? "Click to connect" : "Switch to connector tool"}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect();
-            }}
-          />
+          {/* Connection dot component helper */}
+          {(['top', 'right', 'bottom', 'left'] as const).map((position) => {
+            const positionStyles = {
+              top: 'top-0 left-1/2 -translate-x-1/2 -translate-y-1/2',
+              right: 'top-1/2 right-0 translate-x-1/2 -translate-y-1/2',
+              bottom: 'bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2',
+              left: 'top-1/2 left-0 -translate-x-1/2 -translate-y-1/2',
+            };
+
+            const getColors = () => {
+              if (isConnectorStart) {
+                return {
+                  bg: 'bg-green-500',
+                  hover: 'hover:bg-green-400',
+                  ring: '0 0 0 6px rgba(34, 197, 94, 0.4), 0 0 20px rgba(34, 197, 94, 0.6)',
+                  animation: 'animate-ping-slow',
+                };
+              }
+              if (isConnectorMode) {
+                return {
+                  bg: 'bg-blue-500',
+                  hover: 'hover:bg-blue-400',
+                  ring: '0 0 0 4px rgba(59, 130, 246, 0.3)',
+                  animation: 'animate-pulse',
+                };
+              }
+              return {
+                bg: 'bg-gray-400',
+                hover: 'hover:bg-blue-500',
+                ring: '0 2px 8px rgba(0,0,0,0.3)',
+                animation: '',
+              };
+            };
+
+            const colors = getColors();
+
+            return (
+              <div
+                key={position}
+                className={`absolute ${positionStyles[position]} cursor-crosshair transition-all duration-200 ease-out z-20 group`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect();
+                }}
+              >
+                {/* Outer glow ring for connector start */}
+                {isConnectorStart && (
+                  <div
+                    className="absolute inset-0 w-8 h-8 -translate-x-1.5 -translate-y-1.5 rounded-full bg-green-400 opacity-30 animate-ping"
+                    style={{ animationDuration: '1.5s' }}
+                  />
+                )}
+                {/* Main dot */}
+                <div
+                  className={`w-5 h-5 rounded-full border-2 border-white ${colors.bg} ${colors.hover} ${colors.animation}
+                    shadow-lg transition-all duration-150 group-hover:scale-150 group-hover:shadow-xl`}
+                  style={{
+                    boxShadow: colors.ring,
+                  }}
+                  title={
+                    isConnectorStart
+                      ? 'Click another node to complete connection'
+                      : isConnectorMode
+                      ? 'Click to connect from here'
+                      : 'Click to start connecting'
+                  }
+                />
+                {/* Plus icon on hover (when in connector mode and not already started) */}
+                {isConnectorMode && !isConnectorStart && (
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </>
       )}
       
