@@ -63,6 +63,7 @@ export const angle = (p1: Point, p2: Point): number => {
 /**
  * Get the nearest point on a rectangle edge from an external point
  * Uses proper line-rectangle intersection for accurate edge detection
+ * Ensures connector touches the exact edge with no gaps
  */
 export const getNearestEdgePoint = (
   rect: { x: number; y: number; width: number; height: number },
@@ -92,7 +93,6 @@ export const getNearestEdgePoint = (
   const top = rect.y - padding;
   const bottom = rect.y + rect.height + padding;
 
-  // Calculate intersection with each edge
   // Line from center to fromPoint
   const dx = fromPoint.x - centerX;
   const dy = fromPoint.y - centerY;
@@ -102,7 +102,7 @@ export const getNearestEdgePoint = (
     return { x: right, y: centerY };
   }
 
-  // Calculate intersection points with all four edges
+  // Calculate intersection points with all four edges using parametric line equation
   const intersections: Point[] = [];
 
   // Check intersection with left edge (x = left)
@@ -162,7 +162,8 @@ export const getNearestEdgePoint = (
       }
     }
     
-    return closest;
+    // Round to avoid sub-pixel rendering gaps
+    return { x: Math.round(closest.x), y: Math.round(closest.y) };
   }
 
   // Fallback: return the closest edge midpoint
@@ -184,7 +185,8 @@ export const getNearestEdgePoint = (
     }
   }
   
-  return closest;
+  // Round to avoid sub-pixel rendering gaps
+  return { x: Math.round(closest.x), y: Math.round(closest.y) };
 };
 
 /**

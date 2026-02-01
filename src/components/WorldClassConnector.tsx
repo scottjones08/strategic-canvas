@@ -42,12 +42,18 @@ interface ConnectorProps {
 }
 
 // Calculate the best edge point on a rectangle given a target point
+// Ensures connector touches the exact edge of the node (no gaps)
 const getEdgePoint = (rect: Node, target: { x: number; y: number }): { x: number; y: number; side: 'top' | 'right' | 'bottom' | 'left' } => {
   const centerX = rect.x + rect.width / 2;
   const centerY = rect.y + rect.height / 2;
   
   const dx = target.x - centerX;
   const dy = target.y - centerY;
+  
+  // Handle case where target is at center (prevent division by zero)
+  if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {
+    return { x: rect.x + rect.width, y: centerY, side: 'right' };
+  }
   
   // Determine which edge to use based on angle
   const angle = Math.atan2(dy, dx);
@@ -59,33 +65,43 @@ const getEdgePoint = (rect: Node, target: { x: number; y: number }): { x: number
   let x: number, y: number;
   let side: 'top' | 'right' | 'bottom' | 'left';
   
+  // Use precise intersection calculation for flush connection
   if (absAngle < threshold) {
-    // Right edge
+    // Right edge - ensure exact edge position
     x = rect.x + rect.width;
-    y = centerY + (rect.width / 2) * Math.tan(angle);
+    const t = (x - centerX) / dx;
+    y = centerY + t * dy;
+    // Clamp to edge bounds
     y = Math.max(rect.y, Math.min(rect.y + rect.height, y));
     side = 'right';
   } else if (absAngle > Math.PI - threshold) {
-    // Left edge
+    // Left edge - ensure exact edge position
     x = rect.x;
-    y = centerY - (rect.width / 2) * Math.tan(angle);
+    const t = (x - centerX) / dx;
+    y = centerY + t * dy;
+    // Clamp to edge bounds
     y = Math.max(rect.y, Math.min(rect.y + rect.height, y));
     side = 'left';
   } else if (angle > 0) {
-    // Bottom edge
+    // Bottom edge - ensure exact edge position
     y = rect.y + rect.height;
-    x = centerX + (rect.height / 2) / Math.tan(angle);
+    const t = (y - centerY) / dy;
+    x = centerX + t * dx;
+    // Clamp to edge bounds
     x = Math.max(rect.x, Math.min(rect.x + rect.width, x));
     side = 'bottom';
   } else {
-    // Top edge
+    // Top edge - ensure exact edge position
     y = rect.y;
-    x = centerX - (rect.height / 2) / Math.tan(angle);
+    const t = (y - centerY) / dy;
+    x = centerX + t * dx;
+    // Clamp to edge bounds
     x = Math.max(rect.x, Math.min(rect.x + rect.width, x));
     side = 'top';
   }
   
-  return { x, y, side };
+  // Round to avoid sub-pixel rendering gaps
+  return { x: Math.round(x), y: Math.round(y), side };
 };
 
 // Generate a smooth bezier path between two points
@@ -495,10 +511,10 @@ export const WorldClassConnector: React.FC<ConnectorProps> = ({
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 p-2 flex items-center gap-1.5 z-[200]"
+            className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 p-2 flex items-center gap-1.5 z-[200] max-w-[90vw]"
             style={{
-              left: Math.max(10, Math.min(midPoint.x - 180, window.innerWidth - 400)),
-              top: Math.max(10, Math.min(midPoint.y + 35, window.innerHeight - 60)),
+              left: Math.max(10, Math.min(midPoint.x - 150, (typeof window !== 'undefined' ? window.innerWidth : 1000) - 320)),
+              top: Math.max(10, midPoint.y + 30),
             }}
             onClick={(e) => e.stopPropagation()}
           >
