@@ -712,6 +712,15 @@ const Sidebar = ({
       </div>
 
       <div className="border-t border-gray-100 p-3 space-y-2">
+        <a 
+          href="https://fanconsulting-production.up.railway.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-all"
+        >
+          <LayoutDashboard className="w-5 h-5 flex-shrink-0" />
+          {(!isCollapsed || isMobileOpen) && <span className="text-sm">Management</span>}
+        </a>
         <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-all">
           <Settings className="w-5 h-5 flex-shrink-0" />
           {(!isCollapsed || isMobileOpen) && <span className="text-sm">Settings</span>}
@@ -2507,7 +2516,13 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     }
   }, []);
 
-  useEffect(() => { onUpdateBoard({ zoom, panX, panY }); }, [zoom, panX, panY]);
+  // Debounce pan/zoom updates to avoid hammering Supabase
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      onUpdateBoard({ zoom, panX, panY });
+    }, 500); // 500ms debounce
+    return () => clearTimeout(timeout);
+  }, [zoom, panX, panY]);
 
   const handleDelete = useCallback((nodeId: string) => {
     onUpdateWithHistory({ visualNodes: board.visualNodes.filter(n => n.id !== nodeId) }, 'Delete element');
@@ -6446,6 +6461,18 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           )}
           {/* Share button - icon only on mobile */}
           <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowShareModal(true)} className="p-2 sm:px-4 sm:py-2 bg-navy-700 text-white rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-navy-200"><Share2 className="w-4 h-4" /><span className="hidden sm:inline">Share</span></motion.button>
+          {/* Management Dashboard Link */}
+          <motion.a
+            whileHover={{ scale: 1.05 }}
+            href="https://fanconsulting-production.up.railway.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:flex px-3 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium items-center gap-2 hover:bg-gray-200"
+            title="Back to Management Dashboard"
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            <span>Management</span>
+          </motion.a>
         </div>
       </header>
 
@@ -7795,6 +7822,8 @@ export default function App() {
 
   // Auto-save to localStorage and Supabase whenever board updates
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingSaveRef = useRef<Board | null>(null);
+  
   const handleUpdateBoard = (updates: Partial<Board>) => {
     if (activeBoard) {
       const updatedBoard = { ...activeBoard, ...updates, lastActivity: new Date() };
@@ -7802,22 +7831,28 @@ export default function App() {
       setBoards(prev => {
         const newBoards = prev.map(b => b.id === activeBoard.id ? updatedBoard : b);
         
-        // Immediate sync to Supabase for real-time collaboration
-        // Use a micro-task to ensure state is updated first
-        Promise.resolve().then(async () => {
+        // Save to localStorage immediately (fast, local)
+        localStorage.setItem('fan-canvas-boards', JSON.stringify(newBoards));
+        
+        // Debounce Supabase saves to avoid hammering the API
+        pendingSaveRef.current = updatedBoard;
+        if (autoSaveTimeoutRef.current) {
+          clearTimeout(autoSaveTimeoutRef.current);
+        }
+        
+        autoSaveTimeoutRef.current = setTimeout(async () => {
+          const boardToSave = pendingSaveRef.current;
+          if (!boardToSave) return;
+          
           try {
-            // Save to localStorage immediately
-            localStorage.setItem('fan-canvas-boards', JSON.stringify(newBoards));
-
-            // Sync to Supabase immediately if configured
             if (isSupabaseConfigured() && supabaseTablesExist) {
               setSaveStatus('saving');
-              await boardsApi.update(updatedBoard.id, {
-                name: updatedBoard.name,
-                visual_nodes: updatedBoard.visualNodes,
-                zoom: updatedBoard.zoom || 1,
-                pan_x: updatedBoard.panX || 0,
-                pan_y: updatedBoard.panY || 0,
+              await boardsApi.update(boardToSave.id, {
+                name: boardToSave.name,
+                visual_nodes: boardToSave.visualNodes,
+                zoom: boardToSave.zoom || 1,
+                pan_x: boardToSave.panX || 0,
+                pan_y: boardToSave.panY || 0,
                 last_activity: new Date().toISOString()
               });
               setSaveStatus('saved');
@@ -7835,7 +7870,7 @@ export default function App() {
             }
             setTimeout(() => setSaveStatus('idle'), 3000);
           }
-        });
+        }, 1000); // 1 second debounce for Supabase saves
         
         return newBoards;
       });
