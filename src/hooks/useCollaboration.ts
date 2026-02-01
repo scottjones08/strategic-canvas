@@ -107,11 +107,8 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       const success = await manager.subscribe({
         onConnectionChange: (connected) => {
           setIsConnected(connected);
-          if (!connected) {
-            setConnectionError('Connection lost');
-          } else {
-            setConnectionError(null);
-          }
+          // Connection status is hidden in UI - synced automatically
+          setConnectionError(null);
         },
 
         onPresenceSync: (syncedUsers) => {

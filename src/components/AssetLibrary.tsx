@@ -399,7 +399,7 @@ export default function AssetLibrary({
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-navy-600 rounded-xl flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -447,10 +447,10 @@ export default function AssetLibrary({
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder={`Search ${activeTab === 'unsplash' ? 'photos' : activeTab === 'giphy' ? 'GIFs' : 'icons'}...`}
-                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500 focus:border-transparent transition-all"
               />
               {isLoading && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-500 animate-spin" />
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-navy-500 animate-spin" />
               )}
             </div>
 
@@ -462,7 +462,7 @@ export default function AssetLibrary({
                   <select
                     value={selectedIconCollection}
                     onChange={e => setSelectedIconCollection(e.target.value)}
-                    className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
                   >
                     {ICON_COLLECTIONS.map(col => (
                       <option key={col.prefix} value={col.prefix}>
@@ -546,7 +546,7 @@ export default function AssetLibrary({
                         </div>
                         <div className="absolute top-2 right-2">
                           <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg">
-                            <Download className="w-4 h-4 text-indigo-600" />
+                            <Download className="w-4 h-4 text-navy-700" />
                           </div>
                         </div>
                       </div>
@@ -640,7 +640,7 @@ export default function AssetLibrary({
                     className={`aspect-square rounded-xl border-2 flex items-center justify-center p-3 transition-all hover:shadow-lg ${
                       recentlyInserted.includes(iconName)
                         ? 'border-green-500 bg-green-50'
-                        : 'border-gray-200 hover:border-indigo-300 bg-white'
+                        : 'border-gray-200 hover:border-navy-300 bg-white'
                     }`}
                     title={iconName}
                   >

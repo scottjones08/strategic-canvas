@@ -584,7 +584,7 @@ export const AIMeetingAssistant: React.FC<AIMeetingAssistantProps> = ({
             )}
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white flex-shrink-0">
+            <div className="bg-gradient-to-r from-navy-700 via-navy-600 to-pink-500 text-white flex-shrink-0">
               <div className="px-6 py-4">
                 <div className="flex items-center justify-between">
                   {/* Left: Title & Info */}
@@ -756,11 +756,11 @@ export const AIMeetingAssistant: React.FC<AIMeetingAssistantProps> = ({
 
                         {/* Quick Stats */}
                         <div className="grid grid-cols-4 gap-4 mb-6">
-                          <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
-                            <p className="text-2xl font-bold text-indigo-600">
+                          <div className="bg-navy-50 rounded-xl p-4 border border-navy-100">
+                            <p className="text-2xl font-bold text-navy-700">
                               {meetingState.transcript.length}
                             </p>
-                            <p className="text-sm text-indigo-600/70">Transcript Entries</p>
+                            <p className="text-sm text-navy-700/70">Transcript Entries</p>
                           </div>
                           <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
                             <p className="text-2xl font-bold text-amber-600">
@@ -774,11 +774,11 @@ export const AIMeetingAssistant: React.FC<AIMeetingAssistantProps> = ({
                             </p>
                             <p className="text-sm text-green-600/70">Action Items</p>
                           </div>
-                          <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
-                            <p className="text-2xl font-bold text-purple-600">
+                          <div className="bg-navy-50 rounded-xl p-4 border border-navy-100">
+                            <p className="text-2xl font-bold text-navy-600">
                               {meetingState.notes.length}
                             </p>
-                            <p className="text-sm text-purple-600/70">Notes</p>
+                            <p className="text-sm text-navy-600/70">Notes</p>
                           </div>
                         </div>
 
@@ -850,7 +850,7 @@ export const AIMeetingAssistant: React.FC<AIMeetingAssistantProps> = ({
                     'w-10 h-10 rounded-xl flex items-center justify-center',
                     phase === 'prep' && 'bg-blue-100 text-blue-600',
                     phase === 'live' && 'bg-green-100 text-green-600',
-                    phase === 'follow-up' && 'bg-purple-100 text-purple-600'
+                    phase === 'follow-up' && 'bg-navy-100 text-navy-600'
                   )}>
                     {phase === 'prep' && <Calendar className="w-5 h-5" />}
                     {phase === 'live' && <Mic className="w-5 h-5" />}
@@ -905,7 +905,7 @@ export const AIMeetingAssistant: React.FC<AIMeetingAssistantProps> = ({
                           const note = prompt('Quick note:');
                           if (note) handleAddNote(note);
                         }}
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-xl font-medium hover:bg-indigo-200 transition-all"
+                        className="flex items-center gap-2 px-4 py-2 bg-navy-100 text-navy-800 rounded-xl font-medium hover:bg-navy-200 transition-all"
                       >
                         <Bookmark className="w-4 h-4" />
                         Quick Note
@@ -933,7 +933,7 @@ export const AIMeetingAssistant: React.FC<AIMeetingAssistantProps> = ({
                       </button>
                       <button
                         onClick={onClose}
-                        className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-all"
+                        className="flex items-center gap-2 px-6 py-2 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 transition-all"
                       >
                         <CheckCircle className="w-4 h-4" />
                         Done
@@ -944,7 +944,7 @@ export const AIMeetingAssistant: React.FC<AIMeetingAssistantProps> = ({
                   {phase === 'prep' && (
                     <button
                       onClick={startMeeting}
-                      className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-indigo-200 transition-all"
+                      className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-navy-700 to-navy-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-navy-200 transition-all"
                     >
                       <Play className="w-4 h-4 fill-current" />
                       Start Meeting

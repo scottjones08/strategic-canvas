@@ -11,8 +11,6 @@ import {
   Users, 
   ChevronDown, 
   ChevronUp, 
-  Wifi, 
-  WifiOff,
   Eye,
   Edit3,
   Circle
@@ -86,12 +84,12 @@ const UserAvatar = memo(({
 
 UserAvatar.displayName = 'UserAvatar';
 
-// Connection status badge
-const ConnectionBadge = memo(({ isConnected, error, isDemoMode }: { isConnected: boolean; error?: string | null; isDemoMode?: boolean }) => {
+// Connection status badge - hidden for cleaner UI
+const ConnectionBadge = memo(({ isDemoMode }: { isConnected: boolean; error?: string | null; isDemoMode?: boolean }) => {
   if (isDemoMode) {
     return (
       <div 
-        className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700"
+        className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-navy-100 text-navy-700"
         title="Demo Mode - Local storage only"
       >
         <span>✨ Demo</span>
@@ -99,30 +97,8 @@ const ConnectionBadge = memo(({ isConnected, error, isDemoMode }: { isConnected:
     );
   }
   
-  return (
-    <div 
-      className={`
-        flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium
-        ${isConnected 
-          ? 'bg-green-100 text-green-700' 
-          : 'bg-red-100 text-red-700'
-        }
-      `}
-      title={error || (isConnected ? 'Connected' : 'Disconnected')}
-    >
-      {isConnected ? (
-        <>
-          <Wifi className="w-3 h-3" />
-          <span>Live</span>
-        </>
-      ) : (
-        <>
-          <WifiOff className="w-3 h-3" />
-          <span>Offline</span>
-        </>
-      )}
-    </div>
-  );
+  // Return null to hide connection status - synced automatically
+  return null;
 });
 
 ConnectionBadge.displayName = 'ConnectionBadge';
@@ -168,7 +144,7 @@ const ExpandedUserList = memo(({
         {/* Current user */}
         <div className="flex items-center gap-3 p-3 hover:bg-gray-50">
           <div 
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ring-2 ring-indigo-500"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ring-2 ring-navy-500"
             style={{ backgroundColor: currentUser.color }}
           >
             {getUserInitials(currentUser.name)}
@@ -218,7 +194,7 @@ const ExpandedUserList = memo(({
                   )}
                 </p>
               </div>
-              <span className="text-xs text-indigo-500">Follow →</span>
+              <span className="text-xs text-navy-500">Follow →</span>
             </button>
           );
         })}

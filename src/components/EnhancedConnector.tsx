@@ -457,21 +457,21 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
             {/* Style buttons */}
             <button
               onClick={() => handleStyleChange('straight')}
-              className={`p-2 rounded-lg ${path.style === 'straight' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
+              className={`p-2 rounded-lg ${path.style === 'straight' ? 'bg-navy-100 text-navy-700' : 'hover:bg-gray-100 text-gray-600'}`}
               title="Straight line"
             >
               <Minus className="w-4 h-4" />
             </button>
             <button
               onClick={() => handleStyleChange('curved')}
-              className={`p-2 rounded-lg ${path.style === 'curved' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
+              className={`p-2 rounded-lg ${path.style === 'curved' ? 'bg-navy-100 text-navy-700' : 'hover:bg-gray-100 text-gray-600'}`}
               title="Curved"
             >
               <GitBranch className="w-4 h-4" />
             </button>
             <button
               onClick={() => handleStyleChange('orthogonal')}
-              className={`p-2 rounded-lg ${path.style === 'orthogonal' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
+              className={`p-2 rounded-lg ${path.style === 'orthogonal' ? 'bg-navy-100 text-navy-700' : 'hover:bg-gray-100 text-gray-600'}`}
               title="Orthogonal"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -480,7 +480,7 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
             </button>
             <button
               onClick={() => handleStyleChange('stepped')}
-              className={`p-2 rounded-lg ${path.style === 'stepped' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
+              className={`p-2 rounded-lg ${path.style === 'stepped' ? 'bg-navy-100 text-navy-700' : 'hover:bg-gray-100 text-gray-600'}`}
               title="Stepped"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -518,7 +518,7 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
             {/* Arrow toggles */}
             <button
               onClick={() => onUpdate({ ...path, arrowStart: !path.arrowStart })}
-              className={`p-2 rounded-lg ${path.arrowStart ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
+              className={`p-2 rounded-lg ${path.arrowStart ? 'bg-navy-100 text-navy-700' : 'hover:bg-gray-100 text-gray-600'}`}
               title="Arrow at start"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -527,7 +527,7 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
             </button>
             <button
               onClick={() => onUpdate({ ...path, arrowEnd: !path.arrowEnd })}
-              className={`p-2 rounded-lg ${path.arrowEnd !== false ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`}
+              className={`p-2 rounded-lg ${path.arrowEnd !== false ? 'bg-navy-100 text-navy-700' : 'hover:bg-gray-100 text-gray-600'}`}
               title="Arrow at end"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -542,7 +542,7 @@ export const EnhancedConnector: React.FC<EnhancedConnectorProps> = ({
               <button
                 key={color}
                 onClick={() => onUpdate({ ...path, color })}
-                className={`w-5 h-5 rounded-full hover:ring-2 ${path.color === color ? 'ring-2 ring-offset-1 ring-indigo-500' : ''}`}
+                className={`w-5 h-5 rounded-full hover:ring-2 ${path.color === color ? 'ring-2 ring-offset-1 ring-navy-500' : ''}`}
                 style={{ backgroundColor: color }}
               />
             ))}

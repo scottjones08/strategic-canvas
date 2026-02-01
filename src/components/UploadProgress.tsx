@@ -58,7 +58,7 @@ function getStatusColor(status: UploadFile['status']): string {
   switch (status) {
     case 'complete': return 'bg-green-500';
     case 'error': return 'bg-red-500';
-    case 'uploading': return 'bg-indigo-500';
+    case 'uploading': return 'bg-navy-500';
     case 'processing': return 'bg-amber-500';
     default: return 'bg-gray-300';
   }
@@ -103,7 +103,7 @@ export function UploadProgress({ files, isVisible, onClose, onRetry, onCancel }:
                   <CheckCircle className="w-5 h-5 text-green-500" />
                 )
               ) : (
-                <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />
+                <Loader2 className="w-5 h-5 text-navy-700 animate-spin" />
               )}
               <span className="font-medium text-gray-900">
                 {isAllComplete
@@ -126,7 +126,7 @@ export function UploadProgress({ files, isVisible, onClose, onRetry, onCancel }:
             <div className="px-4 py-2 bg-gray-50 border-b">
               <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                 <motion.div
-                  className="h-full bg-indigo-600 rounded-full"
+                  className="h-full bg-navy-700 rounded-full"
                   initial={{ width: 0 }}
                   animate={{
                     width: `${(files.reduce((sum, f) => sum + f.progress, 0) / files.length)}%`,
@@ -154,12 +154,12 @@ export function UploadProgress({ files, isVisible, onClose, onRetry, onCancel }:
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                       uploadFile.status === 'complete' ? 'bg-green-100' :
                       uploadFile.status === 'error' ? 'bg-red-100' :
-                      'bg-indigo-100'
+                      'bg-navy-100'
                     }`}>
                       <FileIcon className={`w-5 h-5 ${
                         uploadFile.status === 'complete' ? 'text-green-600' :
                         uploadFile.status === 'error' ? 'text-red-600' :
-                        'text-indigo-600'
+                        'text-navy-700'
                       }`} />
                     </div>
 
@@ -175,7 +175,7 @@ export function UploadProgress({ files, isVisible, onClose, onRetry, onCancel }:
                         <span className={`text-xs font-medium ${
                           uploadFile.status === 'complete' ? 'text-green-600' :
                           uploadFile.status === 'error' ? 'text-red-600' :
-                          'text-indigo-600'
+                          'text-navy-700'
                         }`}>
                           {getStatusText(uploadFile.status)}
                         </span>
@@ -190,7 +190,7 @@ export function UploadProgress({ files, isVisible, onClose, onRetry, onCancel }:
                     {/* Status / Actions */}
                     <div className="flex items-center gap-2">
                       {uploadFile.status === 'uploading' && (
-                        <span className="text-xs font-mono text-indigo-600">
+                        <span className="text-xs font-mono text-navy-700">
                           {uploadFile.progress}%
                         </span>
                       )}
@@ -200,7 +200,7 @@ export function UploadProgress({ files, isVisible, onClose, onRetry, onCancel }:
                       {uploadFile.status === 'error' && onRetry && (
                         <button
                           onClick={() => onRetry(uploadFile.id)}
-                          className="text-xs text-indigo-600 hover:underline"
+                          className="text-xs text-navy-700 hover:underline"
                         >
                           Retry
                         </button>
@@ -237,7 +237,7 @@ export function UploadProgress({ files, isVisible, onClose, onRetry, onCancel }:
             <div className="px-4 py-3 bg-gray-50 border-t">
               <button
                 onClick={onClose}
-                className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                className="w-full px-4 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800 transition-colors text-sm font-medium"
               >
                 Done
               </button>
@@ -344,7 +344,7 @@ export function DragDropZone({
       onDrop={handleDrop}
       className={`
         relative cursor-pointer transition-all duration-200
-        ${isDragging ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}
+        ${isDragging ? 'ring-2 ring-navy-500 ring-offset-2' : ''}
         ${className}
       `}
     >
@@ -362,12 +362,12 @@ export function DragDropZone({
           className={`
             flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl
             transition-colors
-            ${isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'}
+            ${isDragging ? 'border-navy-500 bg-navy-50' : 'border-gray-300 hover:border-navy-400 hover:bg-gray-50'}
           `}
         >
-          <Upload className={`w-12 h-12 mb-3 ${isDragging ? 'text-indigo-500' : 'text-gray-400'}`} />
+          <Upload className={`w-12 h-12 mb-3 ${isDragging ? 'text-navy-500' : 'text-gray-400'}`} />
           <p className="text-sm text-gray-600 text-center">
-            <span className="font-medium text-indigo-600">Click to upload</span> or drag and drop
+            <span className="font-medium text-navy-700">Click to upload</span> or drag and drop
           </p>
           <p className="text-xs text-gray-400 mt-1">
             PDF, Word, Excel, PowerPoint up to {maxSizeMB}MB
@@ -382,11 +382,11 @@ export function DragDropZone({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-indigo-500/10 rounded-xl flex items-center justify-center"
+            className="absolute inset-0 bg-navy-500/10 rounded-xl flex items-center justify-center"
           >
             <div className="bg-white px-6 py-4 rounded-lg shadow-lg">
-              <Upload className="w-8 h-8 text-indigo-600 mx-auto mb-2" />
-              <p className="text-sm font-medium text-indigo-600">Drop files here</p>
+              <Upload className="w-8 h-8 text-navy-700 mx-auto mb-2" />
+              <p className="text-sm font-medium text-navy-700">Drop files here</p>
             </div>
           </motion.div>
         )}

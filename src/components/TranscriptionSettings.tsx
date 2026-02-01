@@ -141,7 +141,7 @@ export default function TranscriptionSettings({
           className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
         >
           {/* Header */}
-          <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+          <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-navy-500 to-navy-500 text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Settings className="w-6 h-6" />
@@ -164,7 +164,7 @@ export default function TranscriptionSettings({
             {/* API Key Section */}
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <Key className="w-4 h-4 text-indigo-500" />
+                <Key className="w-4 h-4 text-navy-500" />
                 AssemblyAI API Key
               </label>
               <div className="relative">
@@ -173,7 +173,7 @@ export default function TranscriptionSettings({
                   value={config.apiKey || ''}
                   onChange={(e) => handleChange('apiKey', e.target.value)}
                   placeholder="Enter your AssemblyAI API key"
-                  className="w-full px-4 py-3 pr-24 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 placeholder-gray-400"
+                  className="w-full px-4 py-3 pr-24 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500 text-gray-900 placeholder-gray-400"
                 />
                 <button
                   onClick={() => setShowApiKey(!showApiKey)}
@@ -214,7 +214,7 @@ export default function TranscriptionSettings({
                 href="https://www.assemblyai.com/app/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700"
+                className="inline-flex items-center gap-1.5 text-sm text-navy-700 hover:text-navy-800"
               >
                 Get your free API key at AssemblyAI
                 <ExternalLink className="w-4 h-4" />
@@ -224,13 +224,13 @@ export default function TranscriptionSettings({
             {/* Language Selection */}
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <Languages className="w-4 h-4 text-indigo-500" />
+                <Languages className="w-4 h-4 text-navy-500" />
                 Language
               </label>
               <select
                 value={config.languageCode || 'en'}
                 onChange={(e) => handleChange('languageCode', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500 text-gray-900 bg-white"
               >
                 {LANGUAGES.map((lang) => (
                   <option key={lang.code} value={lang.code}>
@@ -244,13 +244,13 @@ export default function TranscriptionSettings({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <Users className="w-4 h-4 text-indigo-500" />
+                  <Users className="w-4 h-4 text-navy-500" />
                   Speaker Diarization
                 </label>
                 <button
                   onClick={() => handleChange('enableDiarization', !config.enableDiarization)}
                   className={`relative w-14 h-7 rounded-full transition-colors ${
-                    config.enableDiarization ? 'bg-indigo-600' : 'bg-gray-300'
+                    config.enableDiarization ? 'bg-navy-700' : 'bg-gray-300'
                   }`}
                 >
                   <motion.span
@@ -276,7 +276,7 @@ export default function TranscriptionSettings({
                         onClick={() => handleChange('speakersExpected', config.speakersExpected === num ? undefined : num)}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                           config.speakersExpected === num
-                            ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-500'
+                            ? 'bg-navy-100 text-navy-800 ring-2 ring-navy-500'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                       >
@@ -287,7 +287,7 @@ export default function TranscriptionSettings({
                       onClick={() => handleChange('speakersExpected', undefined)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         config.speakersExpected === undefined
-                          ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-500'
+                          ? 'bg-navy-100 text-navy-800 ring-2 ring-navy-500'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                     >
@@ -301,7 +301,7 @@ export default function TranscriptionSettings({
             {/* Text Formatting Options */}
             <div className="space-y-4">
               <h3 className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <Sparkles className="w-4 h-4 text-indigo-500" />
+                <Sparkles className="w-4 h-4 text-navy-500" />
                 Text Formatting
               </h3>
 
@@ -311,7 +311,7 @@ export default function TranscriptionSettings({
                   <button
                     onClick={() => handleChange('punctuate', !config.punctuate)}
                     className={`relative w-12 h-6 rounded-full transition-colors ${
-                      config.punctuate ? 'bg-indigo-600' : 'bg-gray-300'
+                      config.punctuate ? 'bg-navy-700' : 'bg-gray-300'
                     }`}
                   >
                     <motion.span
@@ -327,7 +327,7 @@ export default function TranscriptionSettings({
                   <button
                     onClick={() => handleChange('formatText', !config.formatText)}
                     className={`relative w-12 h-6 rounded-full transition-colors ${
-                      config.formatText ? 'bg-indigo-600' : 'bg-gray-300'
+                      config.formatText ? 'bg-navy-700' : 'bg-gray-300'
                     }`}
                   >
                     <motion.span
@@ -363,7 +363,7 @@ export default function TranscriptionSettings({
             </button>
             <button
               onClick={handleSave}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+              className="px-6 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800 transition-colors font-medium"
             >
               Save Settings
             </button>

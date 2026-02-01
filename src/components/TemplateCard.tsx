@@ -221,9 +221,9 @@ export default function TemplateCard({
   // Premium category color mapping
   const categoryColors: Record<string, { bg: string; text: string; border: string }> = {
     indigo: { 
-      bg: 'bg-gradient-to-r from-indigo-50 to-indigo-100', 
-      text: 'text-indigo-700', 
-      border: 'border-indigo-200' 
+      bg: 'bg-gradient-to-r from-navy-50 to-navy-100', 
+      text: 'text-navy-800', 
+      border: 'border-navy-200' 
     },
     green: { 
       bg: 'bg-gradient-to-r from-emerald-50 to-emerald-100', 
@@ -241,9 +241,9 @@ export default function TemplateCard({
       border: 'border-blue-200' 
     },
     purple: { 
-      bg: 'bg-gradient-to-r from-purple-50 to-purple-100', 
-      text: 'text-purple-700', 
-      border: 'border-purple-200' 
+      bg: 'bg-gradient-to-r from-navy-50 to-navy-100', 
+      text: 'text-navy-700', 
+      border: 'border-navy-200' 
     },
   };
 
@@ -258,7 +258,7 @@ export default function TemplateCard({
         whileTap={{ scale: 0.98 }}
         className={`w-full p-4 rounded-2xl border-2 transition-all duration-300 text-left backdrop-blur-sm ${
           isSelected 
-            ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-purple-50 shadow-lg shadow-indigo-200/50' 
+            ? 'border-navy-500 bg-gradient-to-br from-navy-50 to-navy-50 shadow-lg shadow-navy-200/50' 
             : 'border-slate-200 hover:border-slate-300 bg-white/80 hover:bg-white hover:shadow-md'
         }`}
       >
@@ -277,7 +277,7 @@ export default function TemplateCard({
             <motion.div 
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className="w-6 h-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-md"
+              className="w-6 h-6 bg-gradient-to-br from-navy-500 to-navy-600 rounded-full flex items-center justify-center shadow-md"
             >
               <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -295,7 +295,7 @@ export default function TemplateCard({
       whileHover={{ y: -6, boxShadow: '0 20px 40px -15px rgba(0,0,0,0.15)' }}
       className={`bg-white rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 ${
         isSelected 
-          ? 'ring-2 ring-indigo-500 ring-offset-2 shadow-xl shadow-indigo-200/50' 
+          ? 'ring-2 ring-navy-500 ring-offset-2 shadow-xl shadow-navy-200/50' 
           : 'border border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-lg'
       }`}
       onClick={() => onSelect(template)}
@@ -349,7 +349,7 @@ export default function TemplateCard({
             animate={{ scale: 1 }}
             className="absolute bottom-3 right-3"
           >
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+            <div className="w-8 h-8 bg-gradient-to-br from-navy-500 to-navy-600 rounded-full flex items-center justify-center shadow-lg">
               <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
               </svg>

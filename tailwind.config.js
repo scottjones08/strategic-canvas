@@ -4,18 +4,32 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Primary brand colors
+        // Primary brand colors - Navy Blue
         primary: {
-          50: '#faf5ff',
-          100: '#f3e8ff',
-          200: '#e9d5ff',
-          300: '#d8b4fe',
-          400: '#c084fc',
-          500: '#a855f7',
-          600: '#9333ea',
-          700: '#7e22ce',
-          800: '#6b21a8',
-          900: '#581c87',
+          50: '#f0f4f8',
+          100: '#d9e2ec',
+          200: '#bcccdc',
+          300: '#9fb3c8',
+          400: '#829ab1',
+          500: '#627d98',
+          600: '#486581',
+          700: '#334e68',
+          800: '#243b53',
+          900: '#102a43',
+        },
+        // Navy accent colors
+        navy: {
+          50: '#f0f4f8',
+          100: '#d9e2ec',
+          200: '#bcccdc',
+          300: '#9fb3c8',
+          400: '#829ab1',
+          500: '#627d98',
+          600: '#486581',
+          700: '#334e68',
+          800: '#243b53',
+          900: '#102a43',
+          950: '#0a192f',
         },
         // Accent colors for canvas elements
         accent: {
@@ -25,22 +39,22 @@ export default {
           'red-light': '#fee2e2',
           yellow: '#f59e0b',
           'yellow-light': '#fef3c7',
-          blue: '#3b82f6',
-          'blue-light': '#dbeafe',
-          purple: '#8b5cf6',
-          'purple-light': '#f3e8ff',
-          pink: '#ec4899',
-          'pink-light': '#fce7f3',
-          teal: '#14b8a6',
-          'teal-light': '#ccfbf1',
-          indigo: '#6366f1',
-          'indigo-light': '#e0e7ff',
+          blue: '#334e68', // Navy blue
+          'blue-light': '#d9e2ec',
+          purple: '#486581', // Navy shade
+          'purple-light': '#f0f4f8',
+          pink: '#627d98',
+          'pink-light': '#f0f4f8',
+          teal: '#243b53',
+          'teal-light': '#d9e2ec',
+          indigo: '#102a43', // Deep navy
+          'indigo-light': '#f0f4f8',
           orange: '#f97316',
           'orange-light': '#ffedd5',
           coral: '#f43f5e',
           'coral-light': '#fff1f2',
-          cyan: '#06b6d4',
-          'cyan-light': '#cffafe',
+          cyan: '#486581',
+          'cyan-light': '#f0f4f8',
         },
         // Canvas-specific colors
         canvas: {
@@ -62,11 +76,11 @@ export default {
         'premium-md': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.02)',
         'premium-lg': '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.02)',
         'premium-xl': '0 20px 40px -10px rgba(0, 0, 0, 0.12), 0 10px 20px -5px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.02)',
-        'glow-indigo': '0 0 20px rgba(99, 102, 241, 0.15), 0 0 40px rgba(99, 102, 241, 0.1)',
-        'glow-purple': '0 0 20px rgba(139, 92, 246, 0.15), 0 0 40px rgba(139, 92, 246, 0.1)',
-        'glow-pink': '0 0 20px rgba(236, 72, 153, 0.15), 0 0 40px rgba(236, 72, 153, 0.1)',
+        'glow-indigo': '0 0 20px rgba(16, 42, 67, 0.15), 0 0 40px rgba(16, 42, 67, 0.1)',
+        'glow-purple': '0 0 20px rgba(36, 59, 83, 0.15), 0 0 40px rgba(36, 59, 83, 0.1)',
+        'glow-pink': '0 0 20px rgba(72, 101, 129, 0.15), 0 0 40px rgba(72, 101, 129, 0.1)',
         'glow-green': '0 0 20px rgba(16, 185, 129, 0.15), 0 0 40px rgba(16, 185, 129, 0.1)',
-        'glow-blue': '0 0 20px rgba(59, 130, 246, 0.15), 0 0 40px rgba(59, 130, 246, 0.1)',
+        'glow-blue': '0 0 20px rgba(51, 78, 104, 0.15), 0 0 40px rgba(51, 78, 104, 0.1)',
         'inner-light': 'inset 0 1px 0 rgba(255, 255, 255, 0.5)',
         'sticky': '0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
       },
@@ -92,8 +106,8 @@ export default {
           '50%': { transform: 'translateY(-8px)' },
         },
         glow: {
-          '0%': { boxShadow: '0 0 5px rgba(168, 85, 247, 0.4)' },
-          '100%': { boxShadow: '0 0 20px rgba(168, 85, 247, 0.8), 0 0 40px rgba(168, 85, 247, 0.4)' },
+          '0%': { boxShadow: '0 0 5px rgba(16, 42, 67, 0.4)' },
+          '100%': { boxShadow: '0 0 20px rgba(16, 42, 67, 0.8), 0 0 40px rgba(16, 42, 67, 0.4)' },
         },
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
@@ -145,9 +159,9 @@ export default {
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-premium': 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
-        'gradient-sunrise': 'linear-gradient(135deg, #fef3c7 0%, #fce7f3 50%, #e0e7ff 100%)',
-        'gradient-ocean': 'linear-gradient(135deg, #cffafe 0%, #dbeafe 50%, #e0e7ff 100%)',
+        'gradient-premium': 'linear-gradient(135deg, #334e68 0%, #486581 50%, #627d98 100%)',
+        'gradient-sunrise': 'linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 50%, #bcccdc 100%)',
+        'gradient-ocean': 'linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 50%, #bcccdc 100%)',
         'gradient-forest': 'linear-gradient(135deg, #d1fae5 0%, #ccfbf1 50%, #cffafe 100%)',
         'gradient-sunset': 'linear-gradient(135deg, #ffedd5 0%, #fee2e2 50%, #fce7f3 100%)',
         'dots-pattern': 'radial-gradient(circle at 1px 1px, #e2e8f0 1px, transparent 0)',

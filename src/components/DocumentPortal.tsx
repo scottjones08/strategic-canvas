@@ -1123,13 +1123,13 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
                     item.type === 'view' ? 'bg-gray-100' :
                     item.type === 'edit' ? 'bg-blue-100' :
                     item.type === 'share' ? 'bg-green-100' :
-                    item.type === 'comment' ? 'bg-yellow-100' : 'bg-purple-100'
+                    item.type === 'comment' ? 'bg-yellow-100' : 'bg-navy-100'
                   }`}>
                     {item.type === 'view' && <Eye size={14} className="text-gray-600" />}
                     {item.type === 'edit' && <Edit3 size={14} className="text-blue-600" />}
                     {item.type === 'share' && <Share2 size={14} className="text-green-600" />}
                     {item.type === 'comment' && <Users size={14} className="text-yellow-600" />}
-                    {item.type === 'upload' && <Upload size={14} className="text-purple-600" />}
+                    {item.type === 'upload' && <Upload size={14} className="text-navy-600" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-900">

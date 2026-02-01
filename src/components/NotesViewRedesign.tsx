@@ -281,7 +281,7 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
       onClick={() => { setSelectedNote(note.id); setEditingContent(note.content); }}
       className={`w-full text-left transition-all ${
         selectedNote === note.id 
-          ? 'bg-indigo-50 ring-2 ring-indigo-500' 
+          ? 'bg-navy-50 ring-2 ring-navy-500' 
           : 'bg-white hover:bg-gray-50 border border-gray-100 hover:border-gray-200'
       } ${compact ? 'p-2 rounded-lg' : 'p-3 rounded-xl shadow-sm'}`}
     >
@@ -370,7 +370,7 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
         <div className="p-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-4 pl-10 sm:pl-0">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-navy-500 to-navy-600 flex items-center justify-center">
                 <BookOpen className="w-4 h-4 text-white" />
               </div>
               <div>
@@ -380,10 +380,10 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
             </div>
             <button 
               onClick={() => handleCreateNote()} 
-              className="p-2 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+              className="p-2 bg-navy-50 hover:bg-navy-100 rounded-lg transition-colors"
               title="New Note"
             >
-              <Plus className="w-4 h-4 text-indigo-600" />
+              <Plus className="w-4 h-4 text-navy-700" />
             </button>
           </div>
           
@@ -394,7 +394,7 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search notes..."
-              className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500 focus:border-transparent"
             />
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           </div>
@@ -418,7 +418,7 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
             <select 
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="flex-1 text-xs bg-gray-100 border-0 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-indigo-500"
+              className="flex-1 text-xs bg-gray-100 border-0 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-navy-500"
             >
               <option value="updated">Recently Updated</option>
               <option value="created">Recently Created</option>
@@ -564,14 +564,14 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
           {/* Empty state */}
           {notes.length === 0 && (
             <div className="text-center py-12">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
-                <BookOpen className="w-8 h-8 text-indigo-400" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-navy-100 to-navy-100 flex items-center justify-center">
+                <BookOpen className="w-8 h-8 text-navy-400" />
               </div>
               <p className="font-medium text-gray-700 mb-1">No notes yet</p>
               <p className="text-sm text-gray-400 mb-4">Create your first note to get started</p>
               <button 
                 onClick={() => handleCreateNote()}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors"
+                className="px-4 py-2 bg-navy-700 text-white rounded-lg text-sm hover:bg-navy-800 transition-colors"
               >
                 <Plus className="w-4 h-4 inline mr-1" />
                 Create Note
@@ -605,7 +605,7 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowLinkBoardModal(true)}
-                  className="px-3 py-1.5 text-sm bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 flex items-center gap-2 transition-colors"
+                  className="px-3 py-1.5 text-sm bg-navy-50 text-navy-800 rounded-lg hover:bg-navy-100 flex items-center gap-2 transition-colors"
                 >
                   <LinkIcon className="w-4 h-4" />
                   Link Board
@@ -637,7 +637,7 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
                       <span key={boardId}>
                         <button 
                           onClick={() => board && onOpenBoard(board)}
-                          className="hover:text-indigo-600 hover:underline"
+                          className="hover:text-navy-700 hover:underline"
                         >
                           {board?.name || 'Unknown'}
                         </button>
@@ -704,7 +704,7 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
                   [&>p]:mb-3 [&>p]:text-gray-700 [&>p]:leading-relaxed
                   [&>ul]:list-disc [&>ul]:pl-6 [&>ul]:mb-3
                   [&>ol]:list-decimal [&>ol]:pl-6 [&>ol]:mb-3
-                  [&>blockquote]:border-l-4 [&>blockquote]:border-indigo-300 [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:text-gray-600 [&>blockquote]:bg-indigo-50/50 [&>blockquote]:py-2 [&>blockquote]:rounded-r
+                  [&>blockquote]:border-l-4 [&>blockquote]:border-navy-300 [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:text-gray-600 [&>blockquote]:bg-navy-50/50 [&>blockquote]:py-2 [&>blockquote]:rounded-r
                   [&>pre]:bg-gray-900 [&>pre]:text-gray-100 [&>pre]:p-4 [&>pre]:rounded-xl [&>pre]:text-sm [&>pre]:overflow-x-auto"
                 data-placeholder="Start writing... Use the toolbar above for formatting."
               />
@@ -713,7 +713,7 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center max-w-sm">
-              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-200">
+              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-navy-500 to-navy-600 flex items-center justify-center shadow-lg shadow-navy-200">
                 <Sparkles className="w-10 h-10 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Project Notes</h2>
@@ -722,7 +722,7 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
               </p>
               <button 
                 onClick={() => handleCreateNote()}
-                className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-200 flex items-center gap-2 mx-auto"
+                className="px-6 py-3 bg-gradient-to-r from-navy-700 to-navy-600 text-white rounded-xl hover:from-navy-800 hover:to-navy-700 transition-all shadow-lg shadow-navy-200 flex items-center gap-2 mx-auto"
               >
                 <Plus className="w-5 h-5" />
                 Create Note
@@ -765,12 +765,12 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
                           onClick={() => handleLinkBoard(board.id)}
                           className={`w-full p-3 rounded-xl border text-left flex items-center gap-3 transition-all ${
                             selectedNoteData.linkedBoardIds.includes(board.id)
-                              ? 'border-indigo-500 bg-indigo-50'
+                              ? 'border-navy-500 bg-navy-50'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                            selectedNoteData.linkedBoardIds.includes(board.id) ? 'bg-indigo-500' : 'bg-gray-100'
+                            selectedNoteData.linkedBoardIds.includes(board.id) ? 'bg-navy-500' : 'bg-gray-100'
                           }`}>
                             {selectedNoteData.linkedBoardIds.includes(board.id) ? (
                               <Check className="w-4 h-4 text-white" />
@@ -806,12 +806,12 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
                             onClick={() => handleLinkBoard(board.id)}
                             className={`w-full p-3 rounded-xl border text-left flex items-center gap-3 transition-all ${
                               selectedNoteData.linkedBoardIds.includes(board.id)
-                                ? 'border-indigo-500 bg-indigo-50'
+                                ? 'border-navy-500 bg-navy-50'
                                 : 'border-gray-200 hover:border-gray-300'
                             }`}
                           >
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                              selectedNoteData.linkedBoardIds.includes(board.id) ? 'bg-indigo-500' : 'bg-gray-100'
+                              selectedNoteData.linkedBoardIds.includes(board.id) ? 'bg-navy-500' : 'bg-gray-100'
                             }`}>
                               {selectedNoteData.linkedBoardIds.includes(board.id) ? (
                                 <Check className="w-4 h-4 text-white" />

@@ -202,7 +202,7 @@ export const FacilitationTimer: React.FC<FacilitationTimerProps> = ({
                     : isWarning
                     ? 'bg-red-500 border-red-400 text-white'
                     : isRunning
-                    ? 'bg-indigo-500 border-indigo-400 text-white'
+                    ? 'bg-navy-500 border-navy-400 text-white'
                     : 'bg-white/95 border-gray-200 text-gray-800'
                 }
                 backdrop-blur-sm
@@ -466,7 +466,7 @@ export const FacilitationTimer: React.FC<FacilitationTimerProps> = ({
                           py-2.5 px-2 text-sm font-medium rounded-xl transition-all
                           ${
                             totalDuration === preset.seconds && !isRunning
-                              ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-500'
+                              ? 'bg-navy-100 text-navy-800 ring-2 ring-navy-500'
                               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }
                           ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}
@@ -503,7 +503,7 @@ export const FacilitationTimer: React.FC<FacilitationTimerProps> = ({
                         </div>
                         <button
                           onClick={handleCustomTimeSet}
-                          className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+                          className="px-4 py-2 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 transition-colors"
                         >
                           Set
                         </button>
@@ -554,7 +554,7 @@ export const FacilitationTimer: React.FC<FacilitationTimerProps> = ({
                           ? 'bg-amber-500 hover:bg-amber-600 text-white'
                           : isFinished
                           ? 'bg-green-500 hover:bg-green-600 text-white'
-                          : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                          : 'bg-navy-700 hover:bg-navy-800 text-white'
                       }
                     `}
                     title={isRunning ? 'Pause (Space)' : 'Start (Space)'}
@@ -573,7 +573,7 @@ export const FacilitationTimer: React.FC<FacilitationTimerProps> = ({
                       p-3 rounded-xl transition-all
                       ${
                         visibleToAll
-                          ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-500'
+                          ? 'bg-navy-100 text-navy-800 ring-2 ring-navy-500'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }
                     `}
@@ -591,7 +591,7 @@ export const FacilitationTimer: React.FC<FacilitationTimerProps> = ({
                 <div className="mt-4 text-center">
                   <span
                     className={`text-xs font-medium ${
-                      visibleToAll ? 'text-indigo-600' : 'text-gray-500'
+                      visibleToAll ? 'text-navy-700' : 'text-gray-500'
                     }`}
                   >
                     {visibleToAll

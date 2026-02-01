@@ -242,8 +242,8 @@ function getColorClasses(color: string): string {
   const colorMap: Record<string, string> = {
     blue: 'bg-blue-50 text-blue-600 border-blue-200',
     green: 'bg-green-50 text-green-600 border-green-200',
-    indigo: 'bg-indigo-50 text-indigo-600 border-indigo-200',
-    purple: 'bg-purple-50 text-purple-600 border-purple-200',
+    indigo: 'bg-navy-50 text-navy-700 border-navy-200',
+    purple: 'bg-navy-50 text-navy-600 border-navy-200',
     amber: 'bg-amber-50 text-amber-600 border-amber-200',
     teal: 'bg-teal-50 text-teal-600 border-teal-200',
     red: 'bg-red-50 text-red-600 border-red-200',
@@ -415,7 +415,7 @@ export default function MeetingPrepPanel({
       <div className="px-6 py-5 bg-gradient-to-r from-slate-50 to-white border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-200">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-navy-500 to-navy-600 flex items-center justify-center shadow-lg shadow-navy-200">
               <Calendar className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -429,7 +429,7 @@ export default function MeetingPrepPanel({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={onStartMeeting}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-navy-700 to-navy-600 text-white rounded-xl font-semibold shadow-lg shadow-navy-200 hover:shadow-xl hover:shadow-navy-300 transition-all"
           >
             <Play className="w-5 h-5 fill-current" />
             Start Meeting
@@ -448,7 +448,7 @@ export default function MeetingPrepPanel({
             {participants.slice(0, 4).map((p, i) => (
               <div
                 key={p.id}
-                className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold"
+                className="w-8 h-8 rounded-full bg-gradient-to-br from-navy-400 to-navy-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold"
                 style={{ zIndex: participants.length - i }}
                 title={`${p.name} (${p.role})`}
               >
@@ -480,7 +480,7 @@ export default function MeetingPrepPanel({
           <div className="relative">
             <button
               onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-indigo-300 transition-colors text-left"
+              className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-navy-300 transition-colors text-left"
             >
               <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', getColorClasses(selectedTemplate.color))}>
                 <selectedTemplate.icon className="w-5 h-5" />
@@ -511,19 +511,19 @@ export default function MeetingPrepPanel({
                         onClick={() => handleTemplateChange(template)}
                         className={cn(
                           'w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors',
-                          selectedTemplate.id === template.id && 'bg-indigo-50'
+                          selectedTemplate.id === template.id && 'bg-navy-50'
                         )}
                       >
                         <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', getColorClasses(template.color))}>
                           <template.icon className="w-5 h-5" />
                         </div>
                         <div className="flex-1">
-                          <p className={cn('font-semibold', selectedTemplate.id === template.id ? 'text-indigo-700' : 'text-gray-900')}>
+                          <p className={cn('font-semibold', selectedTemplate.id === template.id ? 'text-navy-800' : 'text-gray-900')}>
                             {template.name}
                           </p>
                           <p className="text-sm text-gray-500">{template.description}</p>
                         </div>
-                        {selectedTemplate.id === template.id && <Check className="w-5 h-5 text-indigo-600" />}
+                        {selectedTemplate.id === template.id && <Check className="w-5 h-5 text-navy-700" />}
                       </button>
                     ))}
                   </motion.div>
@@ -540,8 +540,8 @@ export default function MeetingPrepPanel({
             className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-                <ListTodo className="w-4 h-4 text-indigo-600" />
+              <div className="w-8 h-8 rounded-lg bg-navy-50 flex items-center justify-center">
+                <ListTodo className="w-4 h-4 text-navy-700" />
               </div>
               <div className="text-left">
                 <h2 className="font-semibold text-gray-900">Meeting Agenda</h2>
@@ -551,7 +551,7 @@ export default function MeetingPrepPanel({
             <div className="flex items-center gap-2">
               <button
                 onClick={(e) => { e.stopPropagation(); addAgendaItem(); }}
-                className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                className="p-2 text-gray-400 hover:text-navy-700 hover:bg-navy-50 rounded-lg transition-colors"
                 title="Add agenda item"
               >
                 <Plus className="w-4 h-4" />
@@ -575,10 +575,10 @@ export default function MeetingPrepPanel({
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="group bg-gray-50 rounded-xl p-4 border border-gray-100 hover:border-indigo-200 hover:shadow-sm transition-all"
+                      className="group bg-gray-50 rounded-xl p-4 border border-gray-100 hover:border-navy-200 hover:shadow-sm transition-all"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                        <div className="w-6 h-6 rounded-full bg-navy-100 text-navy-700 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
                           {index + 1}
                         </div>
                         
@@ -589,7 +589,7 @@ export default function MeetingPrepPanel({
                                 type="text"
                                 value={editAgendaValue}
                                 onChange={(e) => setEditAgendaValue(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
                                 autoFocus
                               />
                               <div className="flex items-center gap-2">
@@ -598,7 +598,7 @@ export default function MeetingPrepPanel({
                                   type="number"
                                   value={editDurationValue}
                                   onChange={(e) => setEditDurationValue(parseInt(e.target.value) || 0)}
-                                  className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                  className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
                                   min={5}
                                   step={5}
                                 />
@@ -636,7 +636,7 @@ export default function MeetingPrepPanel({
                                   </button>
                                   <button
                                     onClick={() => startEditingAgenda(item)}
-                                    className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded ml-1"
+                                    className="p-1 text-gray-400 hover:text-navy-700 hover:bg-navy-50 rounded ml-1"
                                   >
                                     <Edit2 className="w-3 h-3" />
                                   </button>
@@ -676,7 +676,7 @@ export default function MeetingPrepPanel({
                                     onChange={(e) => setNewQuestion(e.target.value)}
                                     onKeyDown={(e) => { if (e.key === 'Enter') addQuestion(item.id); }}
                                     placeholder="Add a question..."
-                                    className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
                                     autoFocus
                                   />
                                   <button onClick={() => addQuestion(item.id)} className="p-1 text-green-600 hover:bg-green-50 rounded">
@@ -689,7 +689,7 @@ export default function MeetingPrepPanel({
                               ) : (
                                 <button
                                   onClick={() => setShowAddQuestion(item.id)}
-                                  className="mt-3 flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                                  className="mt-3 flex items-center gap-1.5 text-sm text-navy-700 hover:text-navy-800 font-medium"
                                 >
                                   <Plus className="w-4 h-4" />
                                   Add Question
@@ -722,7 +722,7 @@ export default function MeetingPrepPanel({
                               ));
                             }
                           }}
-                          className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm text-gray-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                          className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm text-gray-600 hover:border-navy-300 hover:text-navy-700 transition-colors"
                         >
                           + {question}
                         </button>
@@ -780,7 +780,7 @@ export default function MeetingPrepPanel({
                       {lastMeeting.actionItems.length > 0 && (
                         <div>
                           <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                            <Target className="w-4 h-4 text-indigo-500" />
+                            <Target className="w-4 h-4 text-navy-500" />
                             Previous Action Items
                           </h4>
                           <div className="space-y-2">
@@ -811,7 +811,7 @@ export default function MeetingPrepPanel({
                       </h4>
                       <button
                         onClick={() => setExpandedSections(prev => ({ ...prev, notes: !prev.notes }))}
-                        className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                        className="text-xs text-navy-700 hover:text-navy-800 font-medium"
                       >
                         {expandedSections.notes ? 'Hide' : 'Show All'}
                       </button>
@@ -989,7 +989,7 @@ export default function MeetingPrepPanel({
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={onStartMeeting}
-              className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors shadow-md hover:shadow-lg"
+              className="flex items-center gap-2 px-5 py-2 bg-navy-700 text-white rounded-lg font-semibold hover:bg-navy-800 transition-colors shadow-md hover:shadow-lg"
             >
               <Play className="w-4 h-4 fill-current" />
               Start Meeting

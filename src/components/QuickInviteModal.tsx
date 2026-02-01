@@ -263,7 +263,7 @@ export default function QuickInviteModal({
           <div className="px-6 py-4 border-b border-gray-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-navy-500 to-navy-600 flex items-center justify-center">
                   <Users className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -291,11 +291,11 @@ export default function QuickInviteModal({
                 }}
                 className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
                   showCreateForm && !showEmailInvite
-                    ? 'border-indigo-500 bg-indigo-50'
-                    : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
+                    ? 'border-navy-500 bg-navy-50'
+                    : 'border-gray-200 hover:border-navy-300 hover:bg-navy-50'
                 }`}
               >
-                <LinkIcon className="w-6 h-6 text-indigo-600" />
+                <LinkIcon className="w-6 h-6 text-navy-700" />
                 <span className="text-sm font-medium text-gray-900">Create Link</span>
               </button>
               <button
@@ -305,11 +305,11 @@ export default function QuickInviteModal({
                 }}
                 className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
                   showEmailInvite
-                    ? 'border-indigo-500 bg-indigo-50'
-                    : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
+                    ? 'border-navy-500 bg-navy-50'
+                    : 'border-gray-200 hover:border-navy-300 hover:bg-navy-50'
                 }`}
               >
-                <Mail className="w-6 h-6 text-indigo-600" />
+                <Mail className="w-6 h-6 text-navy-700" />
                 <span className="text-sm font-medium text-gray-900">Email Invite</span>
               </button>
             </div>
@@ -378,7 +378,7 @@ export default function QuickInviteModal({
                         value={emailInput}
                         onChange={(e) => setEmailInput(e.target.value)}
                         placeholder="Enter email addresses, separated by commas"
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500 resize-none"
                         rows={2}
                       />
                       <p className="text-xs text-gray-400 mt-1">
@@ -399,7 +399,7 @@ export default function QuickInviteModal({
                           onClick={() => setPermission(perm)}
                           className={`p-3 rounded-xl border-2 transition-all ${
                             permission === perm
-                              ? 'border-indigo-500 bg-indigo-50'
+                              ? 'border-navy-500 bg-navy-50'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
@@ -409,7 +409,7 @@ export default function QuickInviteModal({
                             {getPermissionIcon(perm)}
                           </div>
                           <p className={`text-xs font-medium ${
-                            permission === perm ? 'text-indigo-700' : 'text-gray-600'
+                            permission === perm ? 'text-navy-800' : 'text-gray-600'
                           }`}>
                             {getPermissionLabel(perm)}
                           </p>
@@ -433,7 +433,7 @@ export default function QuickInviteModal({
                           onClick={() => setExpiration(opt)}
                           className={`p-2.5 rounded-xl border-2 transition-all text-center ${
                             expiration === opt
-                              ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                              ? 'border-navy-500 bg-navy-50 text-navy-800'
                               : 'border-gray-200 hover:border-gray-300 text-gray-600'
                           }`}
                         >
@@ -455,7 +455,7 @@ export default function QuickInviteModal({
                       <button
                         onClick={() => setUsePassword(!usePassword)}
                         className={`w-11 h-6 rounded-full transition-colors relative ${
-                          usePassword ? 'bg-indigo-500' : 'bg-gray-300'
+                          usePassword ? 'bg-navy-500' : 'bg-gray-300'
                         }`}
                       >
                         <motion.div
@@ -477,7 +477,7 @@ export default function QuickInviteModal({
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Enter password"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
                           />
                         </motion.div>
                       )}
@@ -499,7 +499,7 @@ export default function QuickInviteModal({
                       <button
                         onClick={handleSendEmails}
                         disabled={isSendingEmails || !emailInput.trim()}
-                        className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 px-4 py-2.5 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Send className="w-4 h-4" />
                         {isSendingEmails ? 'Opening Mail...' : 'Send Invite'}
@@ -508,7 +508,7 @@ export default function QuickInviteModal({
                       <button
                         onClick={handleCreateLink}
                         disabled={isCreating}
-                        className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                        className="flex-1 px-4 py-2.5 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                         <LinkIcon className="w-4 h-4" />
                         {isCreating ? 'Creating...' : 'Create Link'}
@@ -542,7 +542,7 @@ export default function QuickInviteModal({
                       key={link.id}
                       className={`p-3 rounded-xl border transition-all ${
                         newlyCreatedLink?.id === link.id
-                          ? 'bg-indigo-50 border-indigo-200'
+                          ? 'bg-navy-50 border-navy-200'
                           : 'bg-gray-50 border-gray-200'
                       }`}
                     >
@@ -631,7 +631,7 @@ export default function QuickInviteModal({
                 </p>
                 <button
                   onClick={() => setShowCreateForm(true)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                  className="px-4 py-2 bg-navy-700 text-white rounded-lg text-sm font-medium hover:bg-navy-800 transition-colors"
                 >
                   Create Invite Link
                 </button>

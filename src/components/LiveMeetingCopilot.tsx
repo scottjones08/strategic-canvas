@@ -138,8 +138,8 @@ const KEY_PHRASES = [
   { phrase: 'My goal is', type: 'goal', icon: Target, color: 'text-amber-600', bg: 'bg-amber-50' },
   { phrase: 'Concerned about', type: 'concern', icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50' },
   { phrase: 'Worried about', type: 'concern', icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50' },
-  { phrase: 'Important to me', type: 'priority', icon: Flag, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-  { phrase: 'Priority', type: 'priority', icon: Flag, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+  { phrase: 'Important to me', type: 'priority', icon: Flag, color: 'text-navy-700', bg: 'bg-navy-50' },
+  { phrase: 'Priority', type: 'priority', icon: Flag, color: 'text-navy-700', bg: 'bg-navy-50' },
   { phrase: 'Need to', type: 'action', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50' },
   { phrase: 'Should', type: 'action', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50' },
   { phrase: 'Will do', type: 'action', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50' },
@@ -465,7 +465,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
           onClick={onMinimize}
           className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-lg border backdrop-blur-sm bg-white/95 border-gray-200/80 hover:bg-white hover:shadow-xl transition-all"
         >
-          <div className="relative flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500">
+          <div className="relative flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br from-navy-500 to-navy-500">
             <Sparkles className="w-3.5 h-3.5 text-white" />
             {isActive && (
               <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full animate-ping" />
@@ -492,7 +492,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
         className="fixed right-0 top-0 h-full w-[400px] bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200"
       >
         {/* Header */}
-        <div className="flex-shrink-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white">
+        <div className="flex-shrink-0 bg-gradient-to-r from-navy-700 via-navy-600 to-pink-500 text-white">
           <div className="p-4">
             {/* Top Row */}
             <div className="flex items-center justify-between mb-3">
@@ -506,7 +506,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                     <Brain className="w-5 h-5 text-white" />
                   </div>
                   {isActive && (
-                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-indigo-600 animate-pulse" />
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-navy-700 animate-pulse" />
                   )}
                 </motion.div>
                 <div>
@@ -670,7 +670,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                                   {formatTimestamp(entry.timestamp)}
                                 </span>
                                 {isLatest && (
-                                  <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded text-[10px] font-medium animate-pulse">
+                                  <span className="px-1.5 py-0.5 bg-navy-100 text-navy-700 rounded text-[10px] font-medium animate-pulse">
                                     NEW
                                   </span>
                                 )}
@@ -711,7 +711,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                               </button>
                               <button
                                 onClick={() => handleAddNote(entry.text, entry.id)}
-                                className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-indigo-600 rounded-lg transition-colors"
+                                className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-navy-700 rounded-lg transition-colors"
                                 title="Add as note"
                               >
                                 <Plus className="w-4 h-4" />
@@ -741,7 +741,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                   <input
                     type="text"
                     placeholder="Quick add note..."
-                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && e.currentTarget.value.trim()) {
                         handleAddNote(e.currentTarget.value.trim());
@@ -757,7 +757,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                         input.value = '';
                       }
                     }}
-                    className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    className="px-3 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -782,7 +782,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                       className={`p-3 rounded-xl border transition-all ${
                         pinnedNotes.has(note.id)
                           ? 'bg-amber-50 border-amber-200'
-                          : 'bg-white border-gray-200 hover:border-indigo-200'
+                          : 'bg-white border-gray-200 hover:border-navy-200'
                       }`}
                     >
                       {editingNote === note.id ? (
@@ -803,7 +803,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                             </button>
                             <button
                               onClick={() => saveNoteEdit(note.id)}
-                              className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                              className="px-2 py-1 text-xs bg-navy-700 text-white rounded hover:bg-navy-800"
                             >
                               Save
                             </button>
@@ -879,7 +879,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                   <input
                     type="text"
                     placeholder="Add action item..."
-                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && e.currentTarget.value.trim()) {
                         handleCreateActionItem(e.currentTarget.value.trim());
@@ -895,7 +895,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                         input.value = '';
                       }
                     }}
-                    className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    className="px-3 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -920,7 +920,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                       className={`p-3 rounded-xl border transition-all ${
                         item.completed
                           ? 'bg-gray-50 border-gray-200 opacity-60'
-                          : 'bg-white border-gray-200 hover:border-indigo-200'
+                          : 'bg-white border-gray-200 hover:border-navy-200'
                       }`}
                     >
                       <div className="flex items-start gap-3">
@@ -929,7 +929,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                           className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
                             item.completed
                               ? 'bg-green-500 border-green-500'
-                              : 'border-gray-300 hover:border-indigo-500'
+                              : 'border-gray-300 hover:border-navy-500'
                           }`}
                         >
                           {item.completed && <Check className="w-3 h-3 text-white" />}
@@ -942,14 +942,14 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                           
                           <div className="flex items-center gap-2 mt-2">
                             {item.assignee ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-xs">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-navy-50 text-navy-700 rounded-full text-xs">
                                 <User className="w-3 h-3" />
                                 {item.assignee}
                               </span>
                             ) : (
                               <button
                                 onClick={() => setShowAssigneeModal(item.id)}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-500 hover:text-indigo-600 rounded-full text-xs transition-colors"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-500 hover:text-navy-700 rounded-full text-xs transition-colors"
                               >
                                 <User className="w-3 h-3" />
                                 Assign
@@ -986,10 +986,10 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
               >
                 {/* Stats Cards */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
+                  <div className="p-3 bg-gradient-to-br from-navy-50 to-navy-50 rounded-xl border border-navy-100">
                     <div className="flex items-center gap-2 mb-1">
-                      <FileText className="w-4 h-4 text-indigo-600" />
-                      <span className="text-xs font-medium text-indigo-600">Entries</span>
+                      <FileText className="w-4 h-4 text-navy-700" />
+                      <span className="text-xs font-medium text-navy-700">Entries</span>
                     </div>
                     <p className="text-2xl font-bold text-gray-900">{stats.totalEntries}</p>
                   </div>
@@ -1019,7 +1019,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                 {/* AI Suggestions */}
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-purple-600" />
+                    <Sparkles className="w-4 h-4 text-navy-600" />
                     AI Suggestions
                   </h3>
                   
@@ -1047,7 +1047,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                           <div className="flex items-start gap-3">
                             <div className={`p-1.5 rounded-lg ${
                               suggestion.type === 'question' ? 'bg-blue-100 text-blue-600' :
-                              suggestion.type === 'agenda' ? 'bg-purple-100 text-purple-600' :
+                              suggestion.type === 'agenda' ? 'bg-navy-100 text-navy-600' :
                               suggestion.type === 'topic' ? 'bg-green-100 text-green-600' :
                               'bg-amber-100 text-amber-600'
                             }`}>
@@ -1076,7 +1076,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
                 {/* Agenda Progress */}
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <Target className="w-4 h-4 text-indigo-600" />
+                    <Target className="w-4 h-4 text-navy-700" />
                     Agenda Progress
                   </h3>
                   <div className="space-y-2">
@@ -1113,7 +1113,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setActiveTab('notes')}
-            className="w-14 h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full shadow-lg shadow-indigo-500/30 flex items-center justify-center hover:shadow-xl hover:shadow-indigo-500/40 transition-shadow"
+            className="w-14 h-14 bg-gradient-to-r from-navy-700 to-navy-600 text-white rounded-full shadow-lg shadow-navy-500/30 flex items-center justify-center hover:shadow-xl hover:shadow-navy-500/40 transition-shadow"
           >
             <Plus className="w-6 h-6" />
           </motion.button>
@@ -1183,7 +1183,7 @@ export const LiveMeetingCopilot: React.FC<LiveMeetingCopilotProps> = ({
           >
             <button
               onClick={() => handleAddNote(selectedText)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded-md text-sm font-medium transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-navy-700 hover:bg-navy-800 rounded-md text-sm font-medium transition-colors"
             >
               <Bookmark className="w-3.5 h-3.5" />
               Add Note

@@ -61,7 +61,7 @@ export function SignaturePad({
             onClick={() => setInputType(id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               inputType === id
-                ? 'bg-indigo-100 text-indigo-700'
+                ? 'bg-navy-100 text-navy-800'
                 : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
@@ -239,7 +239,7 @@ function DrawSignature({ onSave, width, height, penColor, backgroundColor }: Dra
         <button
           onClick={handleSave}
           disabled={isEmpty}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Check className="w-4 h-4" />
           Apply Signature
@@ -297,7 +297,7 @@ function TypeSignature({ onSave, name, type }: TypeSignatureProps) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder={type === 'initials' ? 'Type your initials' : 'Type your name'}
-        className="w-full px-4 py-3 text-xl border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        className="w-full px-4 py-3 text-xl border rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-navy-500"
         autoFocus
       />
 
@@ -308,7 +308,7 @@ function TypeSignature({ onSave, name, type }: TypeSignatureProps) {
             onClick={() => setSelectedFont(font.name)}
             className={`p-4 rounded-lg border-2 text-center transition-colors ${
               selectedFont === font.name
-                ? 'border-indigo-500 bg-indigo-50'
+                ? 'border-navy-500 bg-navy-50'
                 : 'border-gray-200 hover:border-gray-300'
             }`}
           >
@@ -327,7 +327,7 @@ function TypeSignature({ onSave, name, type }: TypeSignatureProps) {
       <button
         onClick={generateSignature}
         disabled={!text}
-        className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+        className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800 disabled:opacity-50"
       >
         <Check className="w-4 h-4" />
         Apply Signature
@@ -362,7 +362,7 @@ function UploadSignature({ onSave }: UploadSignatureProps) {
     <div className="flex flex-col gap-4">
       <div
         onClick={() => inputRef.current?.click()}
-        className="flex flex-col items-center justify-center gap-3 p-8 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+        className="flex flex-col items-center justify-center gap-3 p-8 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-navy-400 hover:bg-navy-50 transition-colors"
       >
         {uploadedImage ? (
           <div className="relative">
@@ -402,7 +402,7 @@ function UploadSignature({ onSave }: UploadSignatureProps) {
       {uploadedImage && (
         <button
           onClick={() => onSave(uploadedImage)}
-          className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800"
         >
           <Check className="w-4 h-4" />
           Apply Signature

@@ -512,7 +512,7 @@ export const DrawingSettingsPanel: React.FC<DrawingSettingsProps> = ({
             }}
             className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
               strokeColor === color && !eraserMode
-                ? 'border-indigo-500 scale-110'
+                ? 'border-navy-500 scale-110'
                 : 'border-gray-300'
             }`}
             style={{
@@ -534,7 +534,7 @@ export const DrawingSettingsPanel: React.FC<DrawingSettingsProps> = ({
             onClick={() => setStrokeWidth(value)}
             className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
               strokeWidth === value
-                ? 'bg-indigo-100 text-indigo-600'
+                ? 'bg-navy-100 text-navy-700'
                 : 'hover:bg-gray-100 text-gray-600'
             }`}
             title={label}
@@ -576,7 +576,7 @@ export const DrawingSettingsPanel: React.FC<DrawingSettingsProps> = ({
         onClick={() => setShapeRecognition(!shapeRecognition)}
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
           shapeRecognition
-            ? 'bg-indigo-100 text-indigo-600'
+            ? 'bg-navy-100 text-navy-700'
             : 'hover:bg-gray-100 text-gray-600'
         }`}
         title="Auto-detect shapes"

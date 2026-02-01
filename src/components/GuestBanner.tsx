@@ -66,7 +66,7 @@ export default function GuestBanner({
       case 'view':
         return 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200';
       case 'comment':
-        return 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200';
+        return 'bg-gradient-to-r from-blue-50 to-navy-50 border-blue-200';
       case 'edit':
         return 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200';
     }
@@ -142,7 +142,7 @@ export default function GuestBanner({
               {onSignUp && (
                 <button
                   onClick={onSignUp}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-navy-700 text-white text-sm font-medium rounded-lg hover:bg-navy-800 transition-colors shadow-sm"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span className="hidden sm:inline">Sign up free</span>
@@ -214,14 +214,14 @@ export default function GuestBanner({
 
               {/* Upgrade CTA */}
               {onSignUp && (
-                <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl flex items-center justify-between">
+                <div className="mt-4 p-4 bg-gradient-to-r from-navy-50 to-navy-50 rounded-xl flex items-center justify-between">
                   <div>
                     <p className="font-medium text-gray-900">Want full access?</p>
                     <p className="text-sm text-gray-600">Create a free account to create your own boards and get full features.</p>
                   </div>
                   <button
                     onClick={onSignUp}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap"
+                    className="flex items-center gap-2 px-4 py-2 bg-navy-700 text-white text-sm font-medium rounded-lg hover:bg-navy-800 transition-colors whitespace-nowrap"
                   >
                     <UserPlus className="w-4 h-4" />
                     Sign up free
@@ -345,7 +345,7 @@ export function GuestFloatingIndicator({
             {onSignUp && (
               <button
                 onClick={onSignUp}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-navy-700 text-white text-sm font-medium rounded-xl hover:bg-navy-800 transition-colors"
               >
                 <UserPlus className="w-4 h-4" />
                 Sign up free

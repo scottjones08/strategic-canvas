@@ -186,7 +186,7 @@ export default function FollowUpEmailModal({
           className="relative w-full max-w-3xl mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
         >
           {/* Header */}
-          <div className="px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white flex items-center justify-between">
+          <div className="px-6 py-4 bg-gradient-to-r from-navy-500 to-navy-500 text-white flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Mail className="w-6 h-6" />
               <h2 className="text-lg font-semibold">Draft Follow-up Email</h2>
@@ -232,17 +232,17 @@ export default function FollowUpEmailModal({
                                 setShowToneMenu(false);
                               }}
                               className={`w-full px-4 py-2 text-left flex items-center gap-3 ${
-                                tone === t ? 'bg-indigo-50' : 'hover:bg-gray-50'
+                                tone === t ? 'bg-navy-50' : 'hover:bg-gray-50'
                               }`}
                             >
                               <span className="text-xl">{toneConfig[t].emoji}</span>
                               <div>
-                                <p className={`text-sm font-medium ${tone === t ? 'text-indigo-700' : 'text-gray-800'}`}>
+                                <p className={`text-sm font-medium ${tone === t ? 'text-navy-800' : 'text-gray-800'}`}>
                                   {toneConfig[t].label}
                                 </p>
                                 <p className="text-xs text-gray-500">{toneConfig[t].description}</p>
                               </div>
-                              {tone === t && <Check className="w-4 h-4 text-indigo-600 ml-auto" />}
+                              {tone === t && <Check className="w-4 h-4 text-navy-700 ml-auto" />}
                             </button>
                           ))}
                         </motion.div>
@@ -280,7 +280,7 @@ export default function FollowUpEmailModal({
               {/* More options button */}
               <button
                 onClick={() => setShowOptionsPanel(!showOptionsPanel)}
-                className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                className="text-sm text-navy-700 hover:text-navy-800 font-medium"
               >
                 {showOptionsPanel ? 'Hide options' : 'More options'}
               </button>
@@ -306,7 +306,7 @@ export default function FollowUpEmailModal({
                         value={recipientName}
                         onChange={(e) => setRecipientName(e.target.value)}
                         placeholder="Team"
-                        className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
                       />
                     </div>
                     <div>
@@ -319,7 +319,7 @@ export default function FollowUpEmailModal({
                         value={senderName}
                         onChange={(e) => setSenderName(e.target.value)}
                         placeholder="Your name"
-                        className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
                       />
                     </div>
                     <div>
@@ -332,7 +332,7 @@ export default function FollowUpEmailModal({
                         value={meetingTitle}
                         onChange={(e) => setMeetingTitle(e.target.value)}
                         placeholder="Project kickoff"
-                        className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
                       />
                     </div>
                     <div>
@@ -345,7 +345,7 @@ export default function FollowUpEmailModal({
                         value={nextMeetingDate}
                         onChange={(e) => setNextMeetingDate(e.target.value)}
                         placeholder="e.g., Friday at 2pm"
-                        className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
                       />
                     </div>
                   </div>
@@ -358,7 +358,7 @@ export default function FollowUpEmailModal({
           <div className="flex-1 overflow-y-auto p-6">
             {isGenerating ? (
               <div className="py-12 text-center">
-                <Loader2 className="w-10 h-10 text-indigo-500 mx-auto mb-4 animate-spin" />
+                <Loader2 className="w-10 h-10 text-navy-500 mx-auto mb-4 animate-spin" />
                 <p className="text-gray-600 font-medium">Generating email...</p>
                 <p className="text-sm text-gray-400 mt-1">
                   {aiApiKey ? 'Using AI for personalized content' : 'Creating from template'}
@@ -372,7 +372,7 @@ export default function FollowUpEmailModal({
                 <p className="text-red-600 font-medium">{error}</p>
                 <button
                   onClick={handleGenerate}
-                  className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
+                  className="mt-4 px-4 py-2 bg-navy-700 text-white rounded-lg text-sm font-medium hover:bg-navy-800"
                 >
                   Try Again
                 </button>
@@ -403,7 +403,7 @@ export default function FollowUpEmailModal({
                         type="text"
                         value={editSubject}
                         onChange={(e) => setEditSubject(e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
                         autoFocus
                       />
                       <button
@@ -447,7 +447,7 @@ export default function FollowUpEmailModal({
                       <textarea
                         value={editBody}
                         onChange={(e) => setEditBody(e.target.value)}
-                        className="w-full h-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm resize-none"
+                        className="w-full h-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500 font-mono text-sm resize-none"
                         autoFocus
                       />
                       <div className="flex justify-end gap-2">
@@ -459,7 +459,7 @@ export default function FollowUpEmailModal({
                         </button>
                         <button
                           onClick={saveBodyEdit}
-                          className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                          className="px-3 py-1.5 text-sm bg-navy-700 text-white rounded-lg hover:bg-navy-800"
                         >
                           Save Changes
                         </button>
@@ -502,7 +502,7 @@ export default function FollowUpEmailModal({
                 {/* AI indicator */}
                 {aiApiKey && (
                   <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                    <Sparkles className="w-3.5 h-3.5 text-navy-500" />
                     <span>Generated with AI assistance</span>
                   </div>
                 )}
@@ -536,7 +536,7 @@ export default function FollowUpEmailModal({
 
                 <button
                   onClick={handleOpenInMailClient}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-navy-700 text-white rounded-lg text-sm font-medium hover:bg-navy-800 transition-colors"
                 >
                   <ExternalLink className="w-4 h-4" />
                   Open in Mail Client
@@ -568,7 +568,7 @@ function ToggleChip({ active, onClick, icon, label, count }: ToggleChipProps) {
       onClick={onClick}
       className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
         active
-          ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+          ? 'bg-navy-100 text-navy-800 border border-navy-200'
           : 'bg-gray-100 text-gray-500 border border-transparent hover:bg-gray-200'
       }`}
     >
@@ -576,7 +576,7 @@ function ToggleChip({ active, onClick, icon, label, count }: ToggleChipProps) {
       <span>{label}</span>
       {count !== undefined && count > 0 && (
         <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-          active ? 'bg-indigo-200' : 'bg-gray-200'
+          active ? 'bg-navy-200' : 'bg-gray-200'
         }`}>
           {count}
         </span>

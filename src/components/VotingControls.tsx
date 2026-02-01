@@ -86,7 +86,7 @@ export const VotingControls: React.FC<VotingControlsProps> = ({
             exit={{ scale: 0, opacity: 0 }}
             className={`absolute -top-2 -right-2 min-w-[24px] h-6 rounded-full flex items-center justify-center text-xs font-bold shadow-lg border-2 border-white z-30 ${
               hasVoted
-                ? 'bg-indigo-500 text-white'
+                ? 'bg-navy-500 text-white'
                 : 'bg-gray-700 text-white'
             }`}
           >
@@ -116,7 +116,7 @@ export const VotingControls: React.FC<VotingControlsProps> = ({
             exit={{ scale: 0, opacity: 0 }}
             className={`min-w-[28px] h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-lg border-2 border-white ${
               hasVoted
-                ? 'bg-indigo-500 text-white'
+                ? 'bg-navy-500 text-white'
                 : votes > 0
                   ? 'bg-gray-700 text-white'
                   : 'bg-gray-200 text-gray-500'
@@ -143,9 +143,9 @@ export const VotingControls: React.FC<VotingControlsProps> = ({
           disabled={!hasVoted && !canVote}
           className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold shadow-lg border-2 border-white transition-colors ${
             hasVoted
-              ? 'bg-indigo-500 text-white hover:bg-indigo-600'
+              ? 'bg-navy-500 text-white hover:bg-navy-700'
               : canVote
-                ? 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
+                ? 'bg-white text-gray-700 hover:bg-navy-50 hover:text-navy-700'
                 : 'bg-gray-100 text-gray-400 cursor-not-allowed'
           }`}
           title={
@@ -199,7 +199,7 @@ export const VoteBadge: React.FC<VoteBadgeProps> = ({ votes, hasVoted, showCount
       animate={{ scale: 1, opacity: 1 }}
       className={`absolute -top-2 -right-2 min-w-[22px] h-[22px] rounded-full flex items-center justify-center text-[11px] font-bold shadow-md border-2 border-white z-30 ${
         hasVoted
-          ? 'bg-indigo-500 text-white'
+          ? 'bg-navy-500 text-white'
           : 'bg-gray-600 text-white'
       }`}
     >

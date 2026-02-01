@@ -229,7 +229,7 @@ export default function MeetingSummaryPanel({
           className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <FileText className="w-5 h-5 text-indigo-600" />
+            <FileText className="w-5 h-5 text-navy-700" />
             <span className="font-medium text-gray-900">Meeting Summary</span>
             <span className="text-sm text-gray-500">{formatLabels[summary.format]}</span>
           </div>
@@ -251,13 +251,13 @@ export default function MeetingSummaryPanel({
       className={`bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden ${className}`}
     >
       {/* Header */}
-      <div className="px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+      <div className="px-6 py-4 bg-gradient-to-r from-navy-500 to-navy-500 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <FileText className="w-6 h-6" />
             <div>
               <h2 className="font-semibold text-lg">Meeting Summary</h2>
-              <div className="flex items-center gap-3 text-sm text-indigo-100">
+              <div className="flex items-center gap-3 text-sm text-navy-100">
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   {summary.generatedAt.toLocaleString()}
@@ -302,7 +302,7 @@ export default function MeetingSummaryPanel({
                           }}
                           className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
                             summary.format === format
-                              ? 'bg-indigo-50 text-indigo-700'
+                              ? 'bg-navy-50 text-navy-800'
                               : 'text-gray-700 hover:bg-gray-50'
                           }`}
                         >
@@ -343,7 +343,7 @@ export default function MeetingSummaryPanel({
       {isGenerating && (
         <div className="px-6 py-8 flex items-center justify-center">
           <div className="text-center">
-            <Loader2 className="w-10 h-10 text-indigo-500 mx-auto mb-3 animate-spin" />
+            <Loader2 className="w-10 h-10 text-navy-500 mx-auto mb-3 animate-spin" />
             <p className="text-gray-600 font-medium">Analyzing transcript...</p>
             <p className="text-sm text-gray-400 mt-1">Extracting key insights</p>
           </div>
@@ -356,7 +356,7 @@ export default function MeetingSummaryPanel({
           {/* Overview */}
           <section>
             <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-5 h-5 text-indigo-500" />
+              <Sparkles className="w-5 h-5 text-navy-500" />
               <h3 className="font-semibold text-gray-900">Overview</h3>
               {onUpdate && (
                 <button
@@ -372,7 +372,7 @@ export default function MeetingSummaryPanel({
                 <textarea
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500 resize-none"
                   rows={3}
                   autoFocus
                 />
@@ -385,7 +385,7 @@ export default function MeetingSummaryPanel({
                   </button>
                   <button
                     onClick={saveEdit}
-                    className="px-3 py-1 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                    className="px-3 py-1 text-sm bg-navy-700 text-white rounded-lg hover:bg-navy-800"
                   >
                     Save
                   </button>
@@ -427,7 +427,7 @@ export default function MeetingSummaryPanel({
           {summary.decisions.length > 0 && (
             <section>
               <div className="flex items-center gap-2 mb-2">
-                <Target className="w-5 h-5 text-purple-500" />
+                <Target className="w-5 h-5 text-navy-500" />
                 <h3 className="font-semibold text-gray-900">Decisions Made</h3>
               </div>
               <ul className="space-y-2">
@@ -443,8 +443,8 @@ export default function MeetingSummaryPanel({
                     onDelete={() => deleteItem('decisions', index)}
                     onChange={setEditValue}
                     canEdit={!!onUpdate}
-                    bulletColor="bg-purple-500"
-                    icon={<CheckCircle className="w-4 h-4 text-purple-500" />}
+                    bulletColor="bg-navy-500"
+                    icon={<CheckCircle className="w-4 h-4 text-navy-500" />}
                   />
                 ))}
               </ul>
@@ -646,7 +646,7 @@ export default function MeetingSummaryPanel({
               {onGenerateEmail && (
                 <button
                   onClick={onGenerateEmail}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-navy-700 text-white rounded-lg text-sm font-medium hover:bg-navy-800 transition-colors"
                 >
                   <Mail className="w-4 h-4" />
                   Draft Follow-up Email
@@ -701,7 +701,7 @@ function EditableListItem({
             type="text"
             value={editValue}
             onChange={(e) => onChange(e.target.value)}
-            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
             autoFocus
           />
         </div>
@@ -787,7 +787,7 @@ function ActionItemRow({
             value={editValue}
             onChange={(e) => onChange(e.target.value)}
             placeholder="Task - Owner"
-            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
             autoFocus
           />
           <p className="text-xs text-gray-400 mt-1">Format: Task description - Owner name</p>

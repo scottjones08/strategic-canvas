@@ -111,7 +111,7 @@ const DocumentsSkeleton = () => (
     {/* Header */}
     <div className="flex items-center justify-between">
       <motion.div className="w-48 h-8 bg-gray-200 rounded" {...pulseAnimation} />
-      <motion.div className="w-32 h-10 bg-indigo-100 rounded-lg" {...pulseAnimation} />
+      <motion.div className="w-32 h-10 bg-navy-100 rounded-lg" {...pulseAnimation} />
     </div>
     {/* Search bar */}
     <motion.div className="w-full h-12 bg-gray-100 rounded-xl" {...pulseAnimation} />
@@ -144,7 +144,7 @@ const TranscriptionSkeleton = () => (
     <div className="p-4 border-b border-gray-100">
       <div className="flex items-center justify-between">
         <motion.div className="w-32 h-6 bg-gray-200 rounded" {...pulseAnimation} />
-        <motion.div className="w-24 h-8 bg-indigo-100 rounded-lg" {...pulseAnimation} />
+        <motion.div className="w-24 h-8 bg-navy-100 rounded-lg" {...pulseAnimation} />
       </div>
     </div>
     {/* Transcript entries */}
@@ -157,7 +157,7 @@ const TranscriptionSkeleton = () => (
           style={{ animationDelay: `${i * 0.15}s` }}
         >
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-indigo-100 rounded-full" />
+            <div className="w-8 h-8 bg-navy-100 rounded-full" />
             <div className="w-24 h-4 bg-gray-200 rounded" />
             <div className="w-16 h-3 bg-gray-100 rounded" />
           </div>
@@ -170,7 +170,7 @@ const TranscriptionSkeleton = () => (
     </div>
     {/* Controls */}
     <div className="p-4 border-t border-gray-100">
-      <motion.div className="w-full h-12 bg-indigo-100 rounded-xl" {...pulseAnimation} />
+      <motion.div className="w-full h-12 bg-navy-100 rounded-xl" {...pulseAnimation} />
     </div>
   </div>
 );
@@ -288,7 +288,7 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
         >
           <div className="relative">
             <motion.div
-              className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-200"
+              className="w-16 h-16 rounded-2xl bg-gradient-to-br from-navy-500 to-navy-600 flex items-center justify-center shadow-lg shadow-navy-200"
               animate={{
                 scale: [1, 1.05, 1],
                 rotate: [0, 2, -2, 0]
@@ -302,7 +302,7 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
             >
-              <div className="w-4 h-4 rounded-full border-2 border-indigo-100 border-t-indigo-500" />
+              <div className="w-4 h-4 rounded-full border-2 border-navy-100 border-t-navy-500" />
             </motion.div>
           </div>
           <motion.p
@@ -334,7 +334,7 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
           className="bg-white/90 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-xl flex items-center gap-3"
         >
           <motion.div
-            className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center"
+            className="w-10 h-10 rounded-xl bg-gradient-to-br from-navy-500 to-navy-600 flex items-center justify-center"
             animate={{ rotate: [0, 5, -5, 0] }}
             transition={{ duration: 2, repeat: Infinity }}
           >
@@ -347,7 +347,7 @@ export const LoadingFallback: React.FC<LoadingFallbackProps> = ({
               style={{ width: 100 }}
             >
               <motion.div
-                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                className="h-full bg-gradient-to-r from-navy-500 to-navy-500 rounded-full"
                 initial={{ x: '-100%' }}
                 animate={{ x: '100%' }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
@@ -375,7 +375,7 @@ export const InlineLoader: React.FC<{ message?: string; size?: 'sm' | 'md' | 'lg
   return (
     <div className="flex items-center gap-2">
       <motion.div
-        className={`${sizeClasses[size]} rounded-full border-indigo-100 border-t-indigo-500`}
+        className={`${sizeClasses[size]} rounded-full border-navy-100 border-t-navy-500`}
         animate={{ rotate: 360 }}
         transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
       />

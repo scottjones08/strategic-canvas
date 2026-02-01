@@ -60,7 +60,7 @@ export default function LoginPage() {
   // Check if Supabase is configured
   if (!isSupabaseConfigured()) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-purple-950 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-navy-950 via-slate-900 to-navy-950 flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -77,7 +77,7 @@ export default function LoginPage() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => navigate('/')}
-            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 transition-colors flex items-center justify-center gap-2"
           >
             Continue to Fan Canvas
             <ArrowRight className="w-4 h-4" />
@@ -137,15 +137,15 @@ export default function LoginPage() {
   // Loading state
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-purple-950 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-navy-950 via-slate-900 to-navy-950 flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="text-center"
         >
           <div className="relative">
-            <div className="w-16 h-16 border-4 border-indigo-500/30 rounded-full" />
-            <div className="absolute inset-0 w-16 h-16 border-4 border-indigo-500 rounded-full border-t-transparent animate-spin" />
+            <div className="w-16 h-16 border-4 border-navy-500/30 rounded-full" />
+            <div className="absolute inset-0 w-16 h-16 border-4 border-navy-500 rounded-full border-t-transparent animate-spin" />
           </div>
           <p className="mt-4 text-white/60 text-sm">Loading...</p>
         </motion.div>
@@ -154,13 +154,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-purple-950 flex">
+    <div className="min-h-screen bg-gradient-to-br from-navy-950 via-slate-900 to-navy-950 flex">
       {/* Left Panel - Features (hidden on mobile) */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-3/5 p-12 flex-col justify-between relative overflow-hidden">
         {/* Background Effects */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-3xl" />
+          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-navy-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-navy-500/10 rounded-full blur-3xl" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-3xl" />
         </div>
 
@@ -171,7 +171,7 @@ export default function LoginPage() {
           className="relative z-10"
         >
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
+            <div className="w-12 h-12 bg-gradient-to-br from-navy-500 to-navy-600 rounded-xl flex items-center justify-center shadow-lg shadow-navy-500/30">
               <Layers className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -192,7 +192,7 @@ export default function LoginPage() {
               className="flex items-start gap-4 group"
             >
               <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center group-hover:bg-white/20 transition-colors">
-                <feature.icon className="w-6 h-6 text-indigo-400" />
+                <feature.icon className="w-6 h-6 text-navy-400" />
               </div>
               <div>
                 <h3 className="text-white font-semibold">{feature.title}</h3>
@@ -213,7 +213,7 @@ export default function LoginPage() {
             "Fan Canvas transformed how our team collaborates on strategy. The visual approach makes complex planning intuitive."
           </p>
           <div className="mt-4 flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+            <div className="w-10 h-10 bg-gradient-to-br from-navy-400 to-navy-500 rounded-full flex items-center justify-center text-white font-bold">
               JD
             </div>
             <div>
@@ -233,7 +233,7 @@ export default function LoginPage() {
         >
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
-            <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/30 mb-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-navy-500 to-navy-600 rounded-xl mx-auto flex items-center justify-center shadow-lg shadow-navy-500/30 mb-4">
               <Layers className="w-7 h-7 text-white" />
             </div>
             <h1 className="text-xl font-bold text-white">Fan Canvas</h1>
@@ -300,7 +300,7 @@ export default function LoginPage() {
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="John Doe"
                         required={mode === 'signup'}
-                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-navy-500 focus:border-transparent transition-all"
                       />
                     </div>
                   </motion.div>
@@ -318,7 +318,7 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@company.com"
                     required
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-navy-500 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
@@ -336,7 +336,7 @@ export default function LoginPage() {
                       placeholder="••••••••"
                       required
                       minLength={6}
-                      className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-navy-500 focus:border-transparent transition-all"
                     />
                     <button
                       type="button"
@@ -367,7 +367,7 @@ export default function LoginPage() {
                         placeholder="••••••••"
                         required={mode === 'signup'}
                         minLength={6}
-                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-navy-500 focus:border-transparent transition-all"
                       />
                     </div>
                   </motion.div>
@@ -378,13 +378,13 @@ export default function LoginPage() {
               {mode === 'login' && (
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                    <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-navy-700 focus:ring-navy-500" />
                     <span className="text-sm text-gray-600">Remember me</span>
                   </label>
                   <button
                     type="button"
                     onClick={() => { setMode('forgot'); setError(null); setSuccess(null); }}
-                    className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                    className="text-sm text-navy-700 hover:text-navy-800 font-medium"
                   >
                     Forgot password?
                   </button>
@@ -397,7 +397,7 @@ export default function LoginPage() {
                 whileTap={{ scale: 0.99 }}
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25"
+                className="w-full py-3 bg-gradient-to-r from-navy-700 to-navy-600 text-white rounded-xl font-semibold hover:from-navy-800 hover:to-navy-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-navy-500/25"
               >
                 {loading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -438,7 +438,7 @@ export default function LoginPage() {
                   Don't have an account?{' '}
                   <button
                     onClick={() => { setMode('signup'); setError(null); setSuccess(null); }}
-                    className="text-indigo-600 hover:text-indigo-700 font-semibold"
+                    className="text-navy-700 hover:text-navy-800 font-semibold"
                   >
                     Sign up for free
                   </button>
@@ -448,7 +448,7 @@ export default function LoginPage() {
                   Already have an account?{' '}
                   <button
                     onClick={() => { setMode('login'); setError(null); setSuccess(null); }}
-                    className="text-indigo-600 hover:text-indigo-700 font-semibold"
+                    className="text-navy-700 hover:text-navy-800 font-semibold"
                   >
                     Sign in
                   </button>
@@ -456,7 +456,7 @@ export default function LoginPage() {
               ) : (
                 <button
                   onClick={() => { setMode('login'); setError(null); setSuccess(null); }}
-                  className="text-indigo-600 hover:text-indigo-700 font-semibold"
+                  className="text-navy-700 hover:text-navy-800 font-semibold"
                 >
                   ← Back to sign in
                 </button>

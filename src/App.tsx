@@ -663,7 +663,7 @@ const Sidebar = ({
       >
       <div className="p-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 bg-gradient-to-br from-navy-500 to-navy-600 rounded-xl flex items-center justify-center flex-shrink-0">
             <Target className="w-5 h-5 text-white" />
           </div>
           {(!isCollapsed || isMobileOpen) && (
@@ -695,17 +695,17 @@ const Sidebar = ({
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative ${
-                isActive ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                isActive ? 'bg-navy-50 text-navy-800' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
-              <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
+              <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-navy-700' : 'text-gray-400 group-hover:text-gray-600'}`} />
               {(!isCollapsed || isMobileOpen) && (
                 <div className="flex-1 text-left">
                   <p className="text-sm font-medium">{item.label}</p>
-                  <p className={`text-xs ${isActive ? 'text-indigo-500' : 'text-gray-400'}`}>{item.description}</p>
+                  <p className={`text-xs ${isActive ? 'text-navy-500' : 'text-gray-400'}`}>{item.description}</p>
                 </div>
               )}
-              {isActive && <motion.div layoutId="activeNav" className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-600 rounded-r-full" />}
+              {isActive && <motion.div layoutId="activeNav" className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-navy-700 rounded-r-full" />}
             </motion.button>
           );
         })}
@@ -717,7 +717,7 @@ const Sidebar = ({
           {(!isCollapsed || isMobileOpen) && <span className="text-sm">Settings</span>}
         </button>
         <div className={`flex items-center gap-3 p-2 rounded-xl bg-gray-50 ${isCollapsed && !isMobileOpen ? 'justify-center' : ''}`}>
-          <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-navy-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
             {userName.charAt(0).toUpperCase()}
           </div>
           {(!isCollapsed || isMobileOpen) && (
@@ -867,7 +867,7 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
         <div className="mb-6 sm:mb-8">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
           <div className="flex gap-2 sm:gap-4 flex-wrap">
-            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowNewBoardModal(true)} className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 bg-indigo-600 text-white rounded-xl text-sm sm:text-base font-medium shadow-lg shadow-indigo-200">
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowNewBoardModal(true)} className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 bg-navy-700 text-white rounded-xl text-sm sm:text-base font-medium shadow-lg shadow-navy-200">
               <Plus className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline">New</span> Board
             </motion.button>
             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => alert('Schedule meeting coming soon! For now, create a board and start a recording session.')} className="hidden sm:flex items-center gap-3 px-6 py-3 bg-white text-gray-700 rounded-xl font-medium border border-gray-200">
@@ -898,7 +898,7 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
                         <select
                           value={selectedClientId}
                           onChange={(e) => setSelectedClientId(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-navy-500"
                         >
                           <option value="">Choose a client...</option>
                           {clients.map(client => (
@@ -909,7 +909,7 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
                       <button
                         type="button"
                         onClick={() => setShowNewClientForm(true)}
-                        className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+                        className="text-sm text-navy-700 hover:text-navy-800 font-medium flex items-center gap-1"
                       >
                         <Plus className="w-4 h-4" /> Add New Client
                       </button>
@@ -927,26 +927,26 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
                         value={newClientName}
                         onChange={(e) => setNewClientName(e.target.value)}
                         placeholder="Client name *"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-navy-500 text-sm"
                       />
                       <input
                         type="text"
                         value={newClientWebsite}
                         onChange={(e) => setNewClientWebsite(e.target.value)}
                         placeholder="Website (optional)"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-navy-500 text-sm"
                       />
                       <input
                         type="text"
                         value={newClientIndustry}
                         onChange={(e) => setNewClientIndustry(e.target.value)}
                         placeholder="Industry (optional)"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-navy-500 text-sm"
                       />
                       <button
                         onClick={handleCreateNewClient}
                         disabled={!newClientName.trim() || isCreatingClient}
-                        className="w-full px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                        className="w-full px-3 py-2 bg-navy-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
                       >
                         {isCreatingClient ? 'Creating...' : 'Create Client'}
                       </button>
@@ -956,16 +956,16 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Board Name *</label>
-                  <input type="text" value={newBoardName} onChange={(e) => setNewBoardName(e.target.value)} placeholder="e.g., Q2 Strategy Planning" className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <input type="text" value={newBoardName} onChange={(e) => setNewBoardName(e.target.value)} placeholder="e.g., Q2 Strategy Planning" className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-navy-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Choose a Template</label>
                   <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto">
                     {BOARD_TEMPLATES.map(t => (
-                      <button key={t.id} onClick={() => setSelectedTemplate(t.id)} className={`p-4 rounded-xl border-2 text-left transition-all ${selectedTemplate === t.id ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                      <button key={t.id} onClick={() => setSelectedTemplate(t.id)} className={`p-4 rounded-xl border-2 text-left transition-all ${selectedTemplate === t.id ? 'border-navy-500 bg-navy-50' : 'border-gray-200 hover:border-gray-300'}`}>
                         <div className="flex items-center gap-3 mb-2">
-                          <t.icon className={`w-5 h-5 ${selectedTemplate === t.id ? 'text-indigo-600' : 'text-gray-500'}`} />
-                          <span className={`font-medium ${selectedTemplate === t.id ? 'text-indigo-900' : 'text-gray-900'}`}>{t.name}</span>
+                          <t.icon className={`w-5 h-5 ${selectedTemplate === t.id ? 'text-navy-700' : 'text-gray-500'}`} />
+                          <span className={`font-medium ${selectedTemplate === t.id ? 'text-navy-900' : 'text-gray-900'}`}>{t.name}</span>
                         </div>
                         <p className="text-xs text-gray-500">{t.description}</p>
                       </button>
@@ -973,7 +973,7 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
                   </div>
                 </div>
                 <div className="flex gap-3 pt-4 mt-2 border-t border-gray-100">
-                  <motion.button whileHover={{ scale: 1.02 }} onClick={handleCreateBoard} disabled={!newBoardName.trim() || isCreatingBoard} className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed">{isCreatingBoard ? 'Creating...' : 'Create Board'}</motion.button>
+                  <motion.button whileHover={{ scale: 1.02 }} onClick={handleCreateBoard} disabled={!newBoardName.trim() || isCreatingBoard} className="flex-1 px-4 py-3 bg-navy-700 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed">{isCreatingBoard ? 'Creating...' : 'Create Board'}</motion.button>
                   <motion.button whileHover={{ scale: 1.02 }} onClick={() => setShowNewBoardModal(false)} className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium">Cancel</motion.button>
                 </div>
               </div>
@@ -1004,12 +1004,12 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                     onClick={() => onOpenBoard(board)}
-                    className="border-b border-gray-50 hover:bg-indigo-50 transition-colors cursor-pointer"
+                    className="border-b border-gray-50 hover:bg-navy-50 transition-colors cursor-pointer"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center">
-                          <FolderKanban className="w-5 h-5 text-indigo-600" />
+                        <div className="w-10 h-10 bg-gradient-to-br from-navy-100 to-navy-100 rounded-lg flex items-center justify-center">
+                          <FolderKanban className="w-5 h-5 text-navy-700" />
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">{board.name}</p>
@@ -1028,7 +1028,7 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${board.progress || 0}%` }} />
+                          <div className="h-full bg-navy-500 rounded-full" style={{ width: `${board.progress || 0}%` }} />
                         </div>
                         <span className="text-sm font-medium text-gray-700">{board.progress || 0}%</span>
                       </div>
@@ -1051,7 +1051,7 @@ const DashboardView = ({ boards, onOpenBoard, onCreateBoard, onDeleteBoard, clie
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={(e) => { e.stopPropagation(); onOpenBoard(board); }}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-100"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-navy-50 text-navy-800 rounded-lg text-sm font-medium hover:bg-navy-100"
                         >
                           Open <ArrowRight className="w-4 h-4" />
                         </motion.button>
@@ -1356,7 +1356,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
       animate={{ scale: 1, opacity: 1, x: node.x, y: node.y, rotate: node.rotation, boxShadow: isDragging ? '0 25px 50px -12px rgba(0, 0, 0, 0.25)' : isFrame || isText || isConnector || node.type === 'drawing' ? 'none' : '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
       transition={isDragging ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 30 }}
       whileHover={{ scale: isSelected || isDragging ? 1 : 1.02, zIndex: 50 }}
-      className={`absolute group ${isDrawingMode ? 'pointer-events-none' : 'pointer-events-auto'} ${isResizing ? '' : 'cursor-grab active:cursor-grabbing'} ${isFrame ? 'rounded-2xl border-2 border-dashed' : isText || isConnector || node.type === 'drawing' ? '' : 'rounded-xl'} ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}
+      className={`absolute group ${isDrawingMode ? 'pointer-events-none' : 'pointer-events-auto'} ${isResizing ? '' : 'cursor-grab active:cursor-grabbing'} ${isFrame ? 'rounded-2xl border-2 border-dashed' : isText || isConnector || node.type === 'drawing' ? '' : 'rounded-xl'} ${isSelected ? 'ring-2 ring-navy-500 ring-offset-2' : ''}`}
       style={{ width: node.width, height: node.height, backgroundColor: isFrame ? `${node.color}80` : isText || isConnector || node.type === 'drawing' ? 'transparent' : node.color, borderColor: isFrame ? node.color : undefined, zIndex: isDragging ? 1000 : isSelected ? 100 : (node.zIndex ?? (isFrame ? 1 : 10)), ...getShapeStyles() }}
       onClick={(e) => { e.stopPropagation(); onSelect(e); }}
       onDoubleClick={handleDoubleClick}
@@ -1377,7 +1377,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
                 const rect = e.currentTarget.getBoundingClientRect();
                 onAISparkle({ x: rect.right + 10, y: rect.top });
               }}
-              className="absolute top-1/2 -left-5 -translate-y-1/2 w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform z-30 border-2 border-white"
+              className="absolute top-1/2 -left-5 -translate-y-1/2 w-8 h-8 bg-gradient-to-br from-navy-500 to-pink-500 rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform z-30 border-2 border-white"
               title="AI Actions"
             >
               <Sparkles className="w-4 h-4 text-white" />
@@ -1395,11 +1395,11 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
               className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2
                          w-8 h-8 rounded-full bg-white border-2 border-gray-300
                          flex items-center justify-center opacity-0 group-hover:opacity-100
-                         hover:border-indigo-500 hover:bg-indigo-100 hover:scale-110
+                         hover:border-navy-500 hover:bg-navy-100 hover:scale-110
                          transition-all z-[60] cursor-crosshair shadow-md"
               title="Click to connect to another element"
             >
-              <ArrowRight className="w-4 h-4 text-indigo-500" />
+              <ArrowRight className="w-4 h-4 text-navy-500" />
             </button>
           )}
         </>
@@ -1473,7 +1473,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
         {node.type === 'bucket' && (
           <div className="p-3 h-full flex flex-col">
             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-200">
-              <Inbox className="w-4 h-4 text-indigo-500" />
+              <Inbox className="w-4 h-4 text-navy-500" />
               <span className="text-sm font-bold text-gray-700">Upload Bucket</span>
             </div>
             {node.bucketImages && node.bucketImages.length > 0 ? (
@@ -1556,7 +1556,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
               <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#dbeafe' }); }} className="w-5 h-5 rounded bg-blue-100 hover:ring-2 ring-gray-300" title="Blue" />
               <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#dcfce7' }); }} className="w-5 h-5 rounded bg-green-100 hover:ring-2 ring-gray-300" title="Green" />
               <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#fce7f3' }); }} className="w-5 h-5 rounded bg-pink-100 hover:ring-2 ring-gray-300" title="Pink" />
-              <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#f3e8ff' }); }} className="w-5 h-5 rounded bg-purple-100 hover:ring-2 ring-gray-300" title="Purple" />
+              <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#f3e8ff' }); }} className="w-5 h-5 rounded bg-navy-100 hover:ring-2 ring-gray-300" title="Purple" />
             </motion.div>
           )}
         </AnimatePresence>
@@ -1942,7 +1942,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
                     <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#dbeafe' }); }} className="w-5 h-5 rounded bg-blue-100 hover:ring-2 ring-gray-300" title="Blue" />
                     <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#dcfce7' }); }} className="w-5 h-5 rounded bg-green-100 hover:ring-2 ring-gray-300" title="Green" />
                     <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#fce7f3' }); }} className="w-5 h-5 rounded bg-pink-100 hover:ring-2 ring-gray-300" title="Pink" />
-                    <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#f3e8ff' }); }} className="w-5 h-5 rounded bg-purple-100 hover:ring-2 ring-gray-300" title="Purple" />
+                    <button onMouseDown={(e) => { e.preventDefault(); onUpdate({ color: '#f3e8ff' }); }} className="w-5 h-5 rounded bg-navy-100 hover:ring-2 ring-gray-300" title="Purple" />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -1953,12 +1953,12 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
 
       {isSelected && (
         <>
-          <div onMouseDown={(e) => handleResizeStart(e, 'se')} className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-white border-2 border-indigo-500 rounded-sm cursor-se-resize z-20 hover:bg-indigo-100" />
-          <div onMouseDown={(e) => handleResizeStart(e, 'sw')} className="absolute -bottom-1.5 -left-1.5 w-4 h-4 bg-white border-2 border-indigo-500 rounded-sm cursor-sw-resize z-20 hover:bg-indigo-100" />
-          <div onMouseDown={(e) => handleResizeStart(e, 'ne')} className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white border-2 border-indigo-500 rounded-sm cursor-ne-resize z-20 hover:bg-indigo-100" />
-          <div onMouseDown={(e) => handleResizeStart(e, 'nw')} className="absolute -top-1.5 -left-1.5 w-4 h-4 bg-white border-2 border-indigo-500 rounded-sm cursor-nw-resize z-20 hover:bg-indigo-100" />
+          <div onMouseDown={(e) => handleResizeStart(e, 'se')} className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-white border-2 border-navy-500 rounded-sm cursor-se-resize z-20 hover:bg-navy-100" />
+          <div onMouseDown={(e) => handleResizeStart(e, 'sw')} className="absolute -bottom-1.5 -left-1.5 w-4 h-4 bg-white border-2 border-navy-500 rounded-sm cursor-sw-resize z-20 hover:bg-navy-100" />
+          <div onMouseDown={(e) => handleResizeStart(e, 'ne')} className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white border-2 border-navy-500 rounded-sm cursor-ne-resize z-20 hover:bg-navy-100" />
+          <div onMouseDown={(e) => handleResizeStart(e, 'nw')} className="absolute -top-1.5 -left-1.5 w-4 h-4 bg-white border-2 border-navy-500 rounded-sm cursor-nw-resize z-20 hover:bg-navy-100" />
           {selectedCount > 1 && (
-            <div className="absolute -top-6 -right-2 bg-indigo-600 text-white text-xs px-2 py-0.5 rounded-full font-medium shadow-lg z-30">
+            <div className="absolute -top-6 -right-2 bg-navy-700 text-white text-xs px-2 py-0.5 rounded-full font-medium shadow-lg z-30">
               {selectedCount} selected
             </div>
           )}
@@ -2058,7 +2058,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
             <button onClick={() => onUpdate({ color: '#dbeafe' })} className="w-6 h-6 rounded bg-blue-100 hover:ring-2 ring-gray-300" title="Blue" />
             <button onClick={() => onUpdate({ color: '#dcfce7' })} className="w-6 h-6 rounded bg-green-100 hover:ring-2 ring-gray-300" title="Green" />
             <button onClick={() => onUpdate({ color: '#fce7f3' })} className="w-6 h-6 rounded bg-pink-100 hover:ring-2 ring-gray-300" title="Pink" />
-            <button onClick={() => onUpdate({ color: '#f3e8ff' })} className="w-6 h-6 rounded bg-purple-100 hover:ring-2 ring-gray-300" title="Purple" />
+            <button onClick={() => onUpdate({ color: '#f3e8ff' })} className="w-6 h-6 rounded bg-navy-100 hover:ring-2 ring-gray-300" title="Purple" />
             <div className="w-px h-5 bg-gray-200 mx-1" />
             <button onClick={() => onUpdate({ locked: !node.locked })} className="p-1.5 hover:bg-gray-100 rounded" title={node.locked ? 'Unlock' : 'Lock'}><Link className="w-4 h-4 text-gray-500" /></button>
             <div className="relative">
@@ -2099,7 +2099,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
 
       {/* Highlight when this node is the connection source */}
       {connectingFrom === node.id && (
-        <div className="absolute inset-0 border-2 border-indigo-500 rounded-lg
+        <div className="absolute inset-0 border-2 border-navy-500 rounded-lg
                         pointer-events-none animate-pulse z-50" />
       )}
 
@@ -2113,12 +2113,12 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
           }}
           onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
           onMouseUp={(e) => { e.stopPropagation(); }}
-          className="absolute inset-[-2px] border-3 border-dashed border-indigo-500
-                     rounded-xl cursor-pointer hover:bg-indigo-200/40
+          className="absolute inset-[-2px] border-3 border-dashed border-navy-500
+                     rounded-xl cursor-pointer hover:bg-navy-200/40
                      flex items-center justify-center pointer-events-auto"
           style={{ zIndex: 9999, backgroundColor: 'rgba(99, 102, 241, 0.15)' }}
         >
-          <div className="bg-indigo-600 text-white rounded-full p-3 shadow-xl animate-pulse">
+          <div className="bg-navy-700 text-white rounded-full p-3 shadow-xl animate-pulse">
             <ArrowRight className="w-6 h-6" />
           </div>
         </div>
@@ -2165,7 +2165,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
           <div className="px-3 py-2 border-b border-gray-100">
             <div className="flex gap-1.5">
               {['#fef3c7', '#fce7f3', '#dbeafe', '#d1fae5', '#f3e8ff', '#fee2e2', '#e0e7ff', '#ffffff'].map(color => (
-                <button key={color} onClick={() => { onUpdate({ color }); setShowContextMenu(false); }} className={`w-6 h-6 rounded-full border-2 ${node.color === color ? 'border-indigo-500 scale-110' : 'border-gray-200'} hover:scale-110 transition-all`} style={{ backgroundColor: color }} />
+                <button key={color} onClick={() => { onUpdate({ color }); setShowContextMenu(false); }} className={`w-6 h-6 rounded-full border-2 ${node.color === color ? 'border-navy-500 scale-110' : 'border-gray-200'} hover:scale-110 transition-all`} style={{ backgroundColor: color }} />
               ))}
             </div>
           </div>
@@ -2194,7 +2194,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
               {node.locked && <span className="ml-auto text-xs text-amber-500">🔒</span>}
             </button>
             {node.type === 'mindmap' && onAddMindmapChild && (
-              <button onClick={() => { onAddMindmapChild(node.id); setShowContextMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-purple-50 flex items-center gap-3 text-purple-700">
+              <button onClick={() => { onAddMindmapChild(node.id); setShowContextMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-navy-50 flex items-center gap-3 text-navy-700">
                 <GitBranch className="w-4 h-4" />
                 <span>Add child node</span>
               </button>
@@ -2913,7 +2913,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   return (
     <div
       ref={canvasRef}
-      className={`relative flex-1 overflow-hidden bg-gray-100 ${isDragOver ? 'ring-4 ring-inset ring-indigo-500 bg-indigo-50' : ''} ${isDrawingMode ? 'cursor-crosshair' : isPanning ? 'cursor-grabbing' : isPanMode || spacePressed ? 'cursor-grab' : 'cursor-default'}`}
+      className={`relative flex-1 overflow-hidden bg-gray-100 ${isDragOver ? 'ring-4 ring-inset ring-navy-500 bg-navy-50' : ''} ${isDrawingMode ? 'cursor-crosshair' : isPanning ? 'cursor-grabbing' : isPanMode || spacePressed ? 'cursor-grab' : 'cursor-default'}`}
       onWheel={handleWheel}
       onClick={() => { if (!isDrawingMode) { onSelectNodes([]); setConnectingFrom(null); } }}
       onDoubleClick={(e) => {
@@ -3048,7 +3048,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       {/* Selection Rectangle (Marquee) */}
       {isLassoing && lassoStart && lassoEnd && (
         <div
-          className="absolute border-2 border-indigo-500 bg-indigo-500/10 pointer-events-none z-40"
+          className="absolute border-2 border-navy-500 bg-navy-500/10 pointer-events-none z-40"
           style={{
             left: Math.min(lassoStart.x, lassoEnd.x),
             top: Math.min(lassoStart.y, lassoEnd.y),
@@ -3060,9 +3060,9 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
 
       {/* Drop Zone Indicator */}
       {isDragOver && (
-        <div className="absolute inset-0 flex items-center justify-center bg-indigo-500/10 pointer-events-none z-50">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 text-center border-2 border-dashed border-indigo-500">
-            <Upload className="w-12 h-12 text-indigo-500 mx-auto mb-3" />
+        <div className="absolute inset-0 flex items-center justify-center bg-navy-500/10 pointer-events-none z-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 text-center border-2 border-dashed border-navy-500">
+            <Upload className="w-12 h-12 text-navy-500 mx-auto mb-3" />
             <p className="text-lg font-semibold text-gray-800">Drop image or video here</p>
             <p className="text-sm text-gray-500 mt-1">Supported: JPG, PNG, GIF, MP4, WebM</p>
           </div>
@@ -3085,13 +3085,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
         </div>
       )}
 
-      {/* Connecting Mode Indicator */}
-      {connectingFrom && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg z-50 flex items-center gap-2">
-          <Minus className="w-4 h-4" />
-          Click another element to connect • <button onClick={() => setConnectingFrom(null)} className="underline">Cancel</button>
-        </div>
-      )}
+      {/* Connecting Mode Indicator - removed for cleaner UI */}
 
       {/* Multi-Selection Toolbar */}
       {selectedNodeIds.length > 1 && !isLassoing && (
@@ -3261,7 +3255,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
         {onSetSelectMode && (
           <button 
             onClick={onSetSelectMode} 
-            className={`hidden sm:block p-2 rounded-lg transition-colors ${!isPanMode && !isDrawingMode ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-600'}`} 
+            className={`hidden sm:block p-2 rounded-lg transition-colors ${!isPanMode && !isDrawingMode ? 'bg-navy-100 text-navy-700' : 'hover:bg-gray-100 text-gray-600'}`} 
             title="Select (V)"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -3297,7 +3291,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
                 (e.target as HTMLInputElement).blur();
               }
             }}
-            className="text-xs sm:text-sm font-medium w-12 sm:w-16 text-center text-gray-700 bg-transparent hover:bg-gray-100 focus:bg-white focus:ring-2 focus:ring-indigo-500 rounded-lg py-1 cursor-pointer focus:cursor-text transition-all"
+            className="text-xs sm:text-sm font-medium w-12 sm:w-16 text-center text-gray-700 bg-transparent hover:bg-gray-100 focus:bg-white focus:ring-2 focus:ring-navy-500 rounded-lg py-1 cursor-pointer focus:cursor-text transition-all"
             title="Click to edit zoom level (10-500%)"
           />
           <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -3560,7 +3554,7 @@ const LassoSelection = ({
   
   return (
     <div
-      className="absolute pointer-events-none border-2 border-indigo-500 bg-indigo-500/10 z-50"
+      className="absolute pointer-events-none border-2 border-navy-500 bg-navy-500/10 z-50"
       style={{ left, top, width, height }}
     />
   );
@@ -3618,7 +3612,7 @@ const VersionHistoryPanel = ({
     >
       <div className="p-4 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <History className="w-5 h-5 text-indigo-600" />
+          <History className="w-5 h-5 text-navy-700" />
           <h3 className="font-semibold text-gray-900">Version History</h3>
         </div>
         <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">
@@ -3636,17 +3630,17 @@ const VersionHistoryPanel = ({
               key={reversedIndex}
               className={`p-3 rounded-lg mb-1 cursor-pointer transition-all ${
                 isCurrentVersion 
-                  ? 'bg-indigo-50 border-2 border-indigo-200' 
+                  ? 'bg-navy-50 border-2 border-navy-200' 
                   : 'hover:bg-gray-50 border-2 border-transparent'
               }`}
               onClick={() => !isCurrentVersion && onRestore(actualIndex)}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-sm font-medium ${isCurrentVersion ? 'text-indigo-700' : 'text-gray-700'}`}>
+                <span className={`text-sm font-medium ${isCurrentVersion ? 'text-navy-800' : 'text-gray-700'}`}>
                   {entry.action}
                 </span>
                 {isCurrentVersion && (
-                  <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Current</span>
+                  <span className="text-xs bg-navy-100 text-navy-800 px-2 py-0.5 rounded-full">Current</span>
                 )}
               </div>
               <div className="text-xs text-gray-400 mt-1">
@@ -3759,7 +3753,7 @@ const VoiceToSticky = ({
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <MicIcon className="w-5 h-5 text-indigo-600" />
+            <MicIcon className="w-5 h-5 text-navy-700" />
             Voice to Sticky
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -3776,7 +3770,7 @@ const VoiceToSticky = ({
             className={`w-24 h-24 rounded-full flex items-center justify-center transition-all ${
               isListening 
                 ? 'bg-red-500 text-white animate-pulse' 
-                : 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200'
+                : 'bg-navy-100 text-navy-700 hover:bg-navy-200'
             }`}
           >
             {isListening ? (
@@ -3797,7 +3791,7 @@ const VoiceToSticky = ({
             <textarea
               value={transcript}
               onChange={(e) => setTranscript(e.target.value)}
-              className="w-full h-32 p-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full h-32 p-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-navy-500"
               placeholder="Your speech will appear here..."
             />
           </div>
@@ -3818,7 +3812,7 @@ const VoiceToSticky = ({
           <button
             onClick={handleCreate}
             disabled={!transcript.trim()}
-            className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-3 bg-navy-700 text-white rounded-xl hover:bg-navy-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Create Sticky
           </button>
@@ -3929,7 +3923,7 @@ const AIToolsPanel = ({
     >
       <div className="p-4 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Wand2 className="w-5 h-5 text-purple-600" />
+          <Wand2 className="w-5 h-5 text-navy-600" />
           <h3 className="font-semibold text-gray-900">AI Tools</h3>
         </div>
         <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">
@@ -3949,7 +3943,7 @@ const AIToolsPanel = ({
             onClick={() => setActiveTab(tab.id as any)}
             className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === tab.id 
-                ? 'text-purple-700 border-b-2 border-purple-600 bg-purple-50' 
+                ? 'text-navy-700 border-b-2 border-navy-600 bg-navy-50' 
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -3971,7 +3965,7 @@ const AIToolsPanel = ({
             <button
               onClick={handleCluster}
               disabled={isProcessing || stickyNotes.length < 2}
-              className="w-full py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-3 bg-navy-600 text-white rounded-xl hover:bg-navy-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
               {isProcessing ? 'Analyzing...' : 'Find Clusters'}
@@ -3991,7 +3985,7 @@ const AIToolsPanel = ({
                 value={ideaPrompt}
                 onChange={(e) => setIdeaPrompt(e.target.value)}
                 placeholder="e.g., improve customer experience"
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500"
               />
             </div>
             <div className="mb-4">
@@ -4027,7 +4021,7 @@ const AIToolsPanel = ({
             <button
               onClick={handleGenerateIdeas}
               disabled={isProcessing}
-              className="w-full py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-3 bg-navy-600 text-white rounded-xl hover:bg-navy-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lightbulb className="w-4 h-4" />}
               {isProcessing ? 'Generating...' : 'Generate Ideas'}
@@ -4046,7 +4040,7 @@ const AIToolsPanel = ({
             <button
               onClick={() => { setIsProcessing(true); setTimeout(() => { onAutoGroup(); setIsProcessing(false); onClose(); }, 1500); }}
               disabled={isProcessing || stickyNotes.length < 3}
-              className="w-full py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-3 bg-navy-600 text-white rounded-xl hover:bg-navy-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layout className="w-4 h-4" />}
               {isProcessing ? 'Grouping...' : 'Auto-Group Notes'}
@@ -4103,10 +4097,10 @@ const ExportModal = ({
             <button
               key={format.id}
               onClick={() => { onExport(format.id); onClose(); }}
-              className="w-full flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group"
+              className="w-full flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-navy-300 hover:bg-navy-50 transition-all group"
             >
-              <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-indigo-100">
-                <format.icon className="w-5 h-5 text-gray-600 group-hover:text-indigo-600" />
+              <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-navy-100">
+                <format.icon className="w-5 h-5 text-gray-600 group-hover:text-navy-700" />
               </div>
               <div className="text-left">
                 <p className="font-medium text-gray-900">{format.name}</p>
@@ -4194,7 +4188,7 @@ const _TranscriptPanel = ({
 
   return (
     <motion.div initial={{ x: 400, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="absolute right-4 top-4 w-96 bg-white rounded-2xl shadow-2xl overflow-hidden z-40 max-h-[calc(100vh-200px)] flex flex-col border border-gray-200">
-      <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+      <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-navy-500 to-navy-500 text-white">
         <div className="flex items-center gap-3">
           <FileText className="w-5 h-5" />
           <h3 className="font-semibold">Live Transcript</h3>
@@ -4233,8 +4227,8 @@ const _TranscriptPanel = ({
         </AnimatePresence>
         {interimText && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.7 }} className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-200 flex-shrink-0 flex items-center justify-center">
-              <Mic className="w-4 h-4 text-indigo-600 animate-pulse" />
+            <div className="w-8 h-8 rounded-full bg-navy-200 flex-shrink-0 flex items-center justify-center">
+              <Mic className="w-4 h-4 text-navy-700 animate-pulse" />
             </div>
             <p className="text-sm text-gray-500 italic flex-1">{interimText}...</p>
           </motion.div>
@@ -4265,13 +4259,13 @@ const ParsedItemsPanel = ({ items, onAddItem, onDismissItem, onAddAll, isVisible
     idea: { icon: Lightbulb, color: 'text-yellow-600 bg-yellow-100', label: 'Idea' },
     action: { icon: CheckSquare, color: 'text-green-600 bg-green-100', label: 'Action' },
     question: { icon: MessageSquare, color: 'text-blue-600 bg-blue-100', label: 'Question' },
-    decision: { icon: Check, color: 'text-purple-600 bg-purple-100', label: 'Decision' },
+    decision: { icon: Check, color: 'text-navy-600 bg-navy-100', label: 'Decision' },
     risk: { icon: AlertCircle, color: 'text-red-600 bg-red-100', label: 'Risk' },
   };
 
   return (
     <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="absolute bottom-24 right-4 w-96 bg-white rounded-2xl shadow-2xl overflow-hidden z-40 border border-gray-200">
-      <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-purple-500 to-indigo-500 text-white">
+      <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-navy-500 to-navy-500 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5" />
@@ -4340,12 +4334,12 @@ const TemplateModal = ({ isOpen, onClose, onSelectTemplate }: { isOpen: boolean;
   const getCategoryColor = (category: TemplateCategory): string => {
     const colors: Record<TemplateCategory, string> = {
       strategy: 'bg-blue-100 text-blue-700',
-      design: 'bg-purple-100 text-purple-700',
+      design: 'bg-navy-100 text-navy-700',
       workflow: 'bg-amber-100 text-amber-700',
       agile: 'bg-green-100 text-green-700',
       meetings: 'bg-pink-100 text-pink-700',
       research: 'bg-cyan-100 text-cyan-700',
-      planning: 'bg-indigo-100 text-indigo-700',
+      planning: 'bg-navy-100 text-navy-800',
     };
     return colors[category] || 'bg-gray-100 text-gray-700';
   };
@@ -4370,7 +4364,7 @@ const TemplateModal = ({ isOpen, onClose, onSelectTemplate }: { isOpen: boolean;
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search templates..."
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500"
             />
           </div>
         </div>
@@ -4385,7 +4379,7 @@ const TemplateModal = ({ isOpen, onClose, onSelectTemplate }: { isOpen: boolean;
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center gap-2 transition-all ${
                   selectedCategory === cat.id 
-                    ? 'bg-indigo-100 text-indigo-700 font-medium' 
+                    ? 'bg-navy-100 text-navy-800 font-medium' 
                     : 'hover:bg-gray-100 text-gray-700'
                 }`}
               >
@@ -4414,11 +4408,11 @@ const TemplateModal = ({ isOpen, onClose, onSelectTemplate }: { isOpen: boolean;
                     whileHover={{ scale: 1.02, y: -2 }} 
                     whileTap={{ scale: 0.98 }}
                     onClick={() => { onSelectTemplate(template); onClose(); }} 
-                    className="flex flex-col items-start p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:shadow-lg text-left bg-white transition-all"
+                    className="flex flex-col items-start p-4 rounded-xl border border-gray-200 hover:border-navy-300 hover:shadow-lg text-left bg-white transition-all"
                   >
                     <div className="flex items-start gap-3 w-full mb-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Icon className="w-6 h-6 text-indigo-600" />
+                      <div className="w-12 h-12 bg-gradient-to-br from-navy-100 to-navy-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Icon className="w-6 h-6 text-navy-700" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-gray-900 truncate">{template.name}</p>
@@ -4505,7 +4499,7 @@ const MediaModal = ({ type, onClose, onEmbed }: { type: 'youtube' | 'image'; onC
       <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-2xl p-6 w-[500px]" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            {type === 'youtube' ? <Youtube className="w-6 h-6 text-red-500" /> : <Image className="w-6 h-6 text-indigo-500" />}
+            {type === 'youtube' ? <Youtube className="w-6 h-6 text-red-500" /> : <Image className="w-6 h-6 text-navy-500" />}
             <h2 className="text-xl font-bold text-gray-900">{type === 'youtube' ? 'Embed YouTube Video' : 'Embed Image'}</h2>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
@@ -4517,7 +4511,7 @@ const MediaModal = ({ type, onClose, onEmbed }: { type: 'youtube' | 'image'; onC
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'}`}
+              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${isDragging ? 'border-navy-500 bg-navy-50' : 'border-gray-300 hover:border-gray-400'}`}
             >
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])} />
               {preview ? (
@@ -4537,11 +4531,11 @@ const MediaModal = ({ type, onClose, onEmbed }: { type: 'youtube' | 'image'; onC
           <div className="relative">
             {type === 'image' && <div className="flex items-center gap-3 my-4"><div className="flex-1 h-px bg-gray-200" /><span className="text-sm text-gray-500">or paste URL</span><div className="flex-1 h-px bg-gray-200" /></div>}
             <label className="block text-sm font-medium text-gray-700 mb-2">{type === 'youtube' ? 'YouTube URL' : 'Image URL'}</label>
-            <input type="text" value={url} onChange={(e) => { setUrl(e.target.value); setError(''); setPreview(null); }} placeholder={type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com/image.jpg'} className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input type="text" value={url} onChange={(e) => { setUrl(e.target.value); setError(''); setPreview(null); }} placeholder={type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com/image.jpg'} className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-navy-500" />
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </div>
           <div className="flex gap-3">
-            <motion.button whileHover={{ scale: 1.02 }} onClick={handleSubmit} className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-medium">Embed</motion.button>
+            <motion.button whileHover={{ scale: 1.02 }} onClick={handleSubmit} className="flex-1 px-4 py-3 bg-navy-700 text-white rounded-xl font-medium">Embed</motion.button>
             <motion.button whileHover={{ scale: 1.02 }} onClick={onClose} className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium">Cancel</motion.button>
           </div>
         </div>
@@ -4564,21 +4558,21 @@ const QRCodeModal = ({ boardId, onClose, onCreateBucket }: { boardId: string; on
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-2xl p-6 w-[450px]" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3"><QrCode className="w-6 h-6 text-indigo-500" /><h2 className="text-xl font-bold text-gray-900">Photo Upload QR Code</h2></div>
+          <div className="flex items-center gap-3"><QrCode className="w-6 h-6 text-navy-500" /><h2 className="text-xl font-bold text-gray-900">Photo Upload QR Code</h2></div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
         </div>
         <div className="text-center space-y-4">
           {qrCodeUrl ? <div className="bg-gray-50 rounded-2xl p-6 inline-block"><img src={qrCodeUrl} alt="QR Code" className="w-48 h-48 mx-auto" /></div> : <div className="w-48 h-48 bg-gray-100 rounded-2xl animate-pulse mx-auto" />}
-          <div className="text-left bg-indigo-50 rounded-xl p-4">
-            <h3 className="font-semibold text-indigo-900 mb-2 flex items-center gap-2"><Sparkles className="w-4 h-4" />How it works</h3>
-            <ol className="text-sm text-indigo-700 space-y-1">
+          <div className="text-left bg-navy-50 rounded-xl p-4">
+            <h3 className="font-semibold text-navy-900 mb-2 flex items-center gap-2"><Sparkles className="w-4 h-4" />How it works</h3>
+            <ol className="text-sm text-navy-800 space-y-1">
               <li>1. Scan this QR code with your phone</li>
               <li>2. Take a photo of a whiteboard or document</li>
               <li>3. Upload it - no login required!</li>
               <li>4. The image appears in your bucket on the board</li>
             </ol>
           </div>
-          <motion.button whileHover={{ scale: 1.02 }} onClick={() => { onCreateBucket(bucketId); onClose(); }} className="w-full px-4 py-3 bg-indigo-600 text-white rounded-xl font-medium flex items-center justify-center gap-2">
+          <motion.button whileHover={{ scale: 1.02 }} onClick={() => { onCreateBucket(bucketId); onClose(); }} className="w-full px-4 py-3 bg-navy-700 text-white rounded-xl font-medium flex items-center justify-center gap-2">
             <Inbox className="w-5 h-5" />Add Bucket to Board
           </motion.button>
         </div>
@@ -4819,8 +4813,8 @@ const FacilitationTimer = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isRunning ? 'bg-orange-100' : 'bg-indigo-100'}`}>
-            <Timer className={`w-4 h-4 ${isRunning ? 'text-orange-600' : 'text-indigo-600'}`} />
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isRunning ? 'bg-orange-100' : 'bg-navy-100'}`}>
+            <Timer className={`w-4 h-4 ${isRunning ? 'text-orange-600' : 'text-navy-700'}`} />
           </div>
           <div>
             <h3 className="font-semibold text-gray-800 text-sm">Session Timer</h3>
@@ -4839,7 +4833,7 @@ const FacilitationTimer = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       <div className={`text-5xl font-mono font-bold text-center py-5 rounded-xl mb-3 transition-colors ${
         timeLeft === 0 ? 'bg-red-50 text-red-600 animate-pulse' :
         timeLeft < 60 ? 'bg-orange-50 text-orange-600' :
-        isRunning ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-50 text-gray-800'
+        isRunning ? 'bg-navy-50 text-navy-800' : 'bg-gray-50 text-gray-800'
       }`}>
         {formatTime(timeLeft)}
       </div>
@@ -4874,7 +4868,7 @@ const FacilitationTimer = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
             onClick={() => setPreset(mins)}
             className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
               presetMinutes === mins
-                ? 'bg-indigo-500 text-white'
+                ? 'bg-navy-500 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
@@ -4930,7 +4924,7 @@ const AIChatPanel = ({
       className="absolute right-4 top-4 w-[380px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/80 z-[150] flex flex-col max-h-[calc(100vh-120px)]"
     >
       {/* Header with gradient */}
-      <div className="p-3.5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-t-2xl">
+      <div className="p-3.5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-navy-600 to-navy-700 text-white rounded-t-2xl">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
             <Brain className="w-4 h-4" />
@@ -4947,14 +4941,14 @@ const AIChatPanel = ({
 
       {/* Selected nodes indicator */}
       {selectedNodes.length > 0 && (
-        <div className="px-4 py-2.5 bg-purple-50/80 border-b border-purple-100/50 text-xs text-purple-700 flex items-center gap-2">
-          <div className="w-5 h-5 rounded bg-purple-200 flex items-center justify-center text-purple-700 font-bold text-[10px]">
+        <div className="px-4 py-2.5 bg-navy-50/80 border-b border-navy-100/50 text-xs text-navy-700 flex items-center gap-2">
+          <div className="w-5 h-5 rounded bg-navy-200 flex items-center justify-center text-navy-700 font-bold text-[10px]">
             {selectedNodes.length}
           </div>
           <div>
             <span className="font-medium">element{selectedNodes.length > 1 ? 's' : ''} selected</span>
             {selectedNodes.length === 1 && selectedNodes[0].content && (
-              <p className="truncate text-purple-500 mt-0.5">"{selectedNodes[0].content.substring(0, 40)}..."</p>
+              <p className="truncate text-navy-500 mt-0.5">"{selectedNodes[0].content.substring(0, 40)}..."</p>
             )}
           </div>
         </div>
@@ -4970,7 +4964,7 @@ const AIChatPanel = ({
         )}
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
+            <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${msg.role === 'user' ? 'bg-navy-700 text-white' : 'bg-gray-100 text-gray-800'}`}>
               {msg.isLoading ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -5019,7 +5013,7 @@ const AIChatPanel = ({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="What would you like to ask?"
-            className="flex-1 px-4 py-2.5 bg-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="flex-1 px-4 py-2.5 bg-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
             disabled={isLoading}
           />
           <motion.button
@@ -5027,7 +5021,7 @@ const AIChatPanel = ({
             whileTap={{ scale: 0.95 }}
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className="p-2.5 bg-indigo-600 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2.5 bg-navy-700 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send className="w-5 h-5" />
           </motion.button>
@@ -5049,9 +5043,9 @@ const AISparkleMenu = ({
     { id: 'generate', label: 'Generate ideas', icon: Lightbulb, color: 'text-yellow-500' },
     { id: 'rewrite', label: 'Rewrite', icon: PenLine, color: 'text-blue-500' },
     { id: 'translate', label: 'Translate', icon: Languages, color: 'text-green-500' },
-    { id: 'spelling', label: 'Fix grammar & spelling', icon: SpellCheck, color: 'text-purple-500' },
+    { id: 'spelling', label: 'Fix grammar & spelling', icon: SpellCheck, color: 'text-navy-500' },
     { id: 'summarize', label: 'Summarize', icon: FileText, color: 'text-orange-500' },
-    { id: 'mindmap', label: 'Create mind map', icon: GitBranch, color: 'text-indigo-500' },
+    { id: 'mindmap', label: 'Create mind map', icon: GitBranch, color: 'text-navy-500' },
   ];
 
   return (
@@ -5063,7 +5057,7 @@ const AISparkleMenu = ({
       style={{ left: position.x, top: position.y }}
     >
       <div className="px-3 py-2 border-b border-gray-100 flex items-center gap-2">
-        <Sparkles className="w-4 h-4 text-purple-500" />
+        <Sparkles className="w-4 h-4 text-navy-500" />
         <span className="text-sm font-semibold text-gray-700">AI Actions</span>
       </div>
       {actions.map((action) => (
@@ -5212,6 +5206,34 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     
     loadHistory();
   }, [board?.id]);
+
+  // Subscribe to Supabase realtime updates for this board (for multi-user sync)
+  useEffect(() => {
+    if (!board?.id || !isSupabaseConfigured() || !supabase) return;
+    
+    const channel = supabase
+      .channel(`board-db-meeting-${board.id}`)
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'canvas_boards', filter: `id=eq.${board.id}` },
+        (payload) => {
+          // If another user updated the board, sync the visual nodes
+          if (payload.new && (payload.new as any).visual_nodes) {
+            const newVisualNodes = (payload.new as any).visual_nodes;
+            // Only update if nodes are different (avoid echo)
+            if (JSON.stringify(newVisualNodes) !== JSON.stringify(board.visualNodes)) {
+              onUpdateBoard({ visualNodes: newVisualNodes });
+            }
+          }
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [board?.id, board?.visualNodes, onUpdateBoard]);
 
   // New feature states
   const [gridSnap, setGridSnap] = useState(false);
@@ -6285,13 +6307,13 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
                 onChange={(e) => setEditingUserNameValue(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSaveUserName(editingUserNameValue); }}
                 placeholder="Your name..."
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-navy-500 mb-4"
                 autoFocus
               />
               <div className="flex gap-3">
                 <button
                   onClick={() => handleSaveUserName(editingUserNameValue)}
-                  className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+                  className="flex-1 px-4 py-3 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 transition-colors"
                 >
                   Join Board
                 </button>
@@ -6331,7 +6353,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
                     setIsEditingName(false);
                   }
                 }}
-                className="font-bold text-gray-900 bg-white border border-indigo-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full max-w-[200px]"
+                className="font-bold text-gray-900 bg-white border border-navy-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-navy-500 w-full max-w-[200px]"
                 autoFocus
               />
             ) : (
@@ -6390,7 +6412,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             onClick={handleSave} 
             disabled={isGeneratingSummary}
             className={`p-2 sm:px-3 sm:py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${
-              isGeneratingSummary ? 'bg-purple-100 text-purple-700' :
+              isGeneratingSummary ? 'bg-navy-100 text-navy-700' :
               saved ? 'bg-green-100 text-green-700' : 
               'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
@@ -6405,7 +6427,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             <span className="hidden sm:inline">{isGeneratingSummary ? 'Generating...' : saved ? 'Saved!' : 'Save'}</span>
           </motion.button>
           {/* AI button - icon only on mobile */}
-          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowAIPanel(!showAIPanel)} className={`p-2 sm:px-3 sm:py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${showAIPanel ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'}`}><Brain className="w-4 h-4" /><span className="hidden sm:inline">AI Assistant</span></motion.button>
+          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowAIPanel(!showAIPanel)} className={`p-2 sm:px-3 sm:py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${showAIPanel ? 'bg-navy-600 text-white' : 'bg-navy-100 text-navy-700 hover:bg-navy-200'}`}><Brain className="w-4 h-4" /><span className="hidden sm:inline">AI Assistant</span></motion.button>
           {/* Client Comments Button - hidden on mobile */}
           {clientComments.length > 0 && (
             <motion.button 
@@ -6423,7 +6445,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             </motion.button>
           )}
           {/* Share button - icon only on mobile */}
-          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowShareModal(true)} className="p-2 sm:px-4 sm:py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-indigo-200"><Share2 className="w-4 h-4" /><span className="hidden sm:inline">Share</span></motion.button>
+          <motion.button whileHover={{ scale: 1.05 }} onClick={() => setShowShareModal(true)} className="p-2 sm:px-4 sm:py-2 bg-navy-700 text-white rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-navy-200"><Share2 className="w-4 h-4" /><span className="hidden sm:inline">Share</span></motion.button>
         </div>
       </header>
 
@@ -6434,7 +6456,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           animate={{ scale: 1 }}
           whileTap={{ scale: 0.95 }}
           onClick={(e) => { e.stopPropagation(); setShowMobileToolbar(!showMobileToolbar); }}
-          className="sm:hidden absolute left-3 bottom-3 z-[110] w-12 h-12 bg-indigo-600 text-white rounded-full shadow-lg shadow-indigo-300 flex items-center justify-center touch-manipulation"
+          className="sm:hidden absolute left-3 bottom-3 z-[110] w-12 h-12 bg-navy-700 text-white rounded-full shadow-lg shadow-navy-300 flex items-center justify-center touch-manipulation"
         >
           {showMobileToolbar ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
         </motion.button>
@@ -6453,7 +6475,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   onClick={() => tool.hasPicker ? setActivePicker(activePicker === tool.id ? null : tool.id) : handleAddNode(tool.id)}
-                  className={`p-3 hover:bg-gray-100 rounded-xl group relative w-full ${activePicker === tool.id ? 'bg-indigo-50 ring-2 ring-indigo-500' : ''}`}
+                  className={`p-3 hover:bg-gray-100 rounded-xl group relative w-full ${activePicker === tool.id ? 'bg-navy-50 ring-2 ring-navy-500' : ''}`}
                   title={tool.label}
                 >
                   <tool.icon className="w-5 h-5 text-gray-700" />
@@ -6481,7 +6503,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
                           <button
                             key={s.shape}
                             onClick={() => handleAddNode(tool.id, { shape: s.shape })}
-                            className="flex-1 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-indigo-300 transition-colors text-center"
+                            className="flex-1 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-navy-300 transition-colors text-center"
                             title={s.label}
                           >
                             <span className="text-lg">{s.icon}</span>
@@ -6500,7 +6522,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
                           <button
                             key={color}
                             onClick={() => handleAddNode(tool.id, { color })}
-                            className="w-9 h-9 rounded-lg border-2 border-gray-200 hover:border-indigo-500 hover:scale-110 transition-all"
+                            className="w-9 h-9 rounded-lg border-2 border-gray-200 hover:border-navy-500 hover:scale-110 transition-all"
                             style={{ backgroundColor: color }}
                           />
                         ))}
@@ -6528,7 +6550,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
             <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Media</p>
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowMediaModal('youtube')} className="p-3 hover:bg-gray-100 rounded-xl group relative"><Youtube className="w-5 h-5 text-red-500" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">YouTube Video</div></motion.button>
-            <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowMediaModal('image')} className="p-3 hover:bg-gray-100 rounded-xl group relative"><Image className="w-5 h-5 text-indigo-500" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Embed Image</div></motion.button>
+            <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowMediaModal('image')} className="p-3 hover:bg-gray-100 rounded-xl group relative"><Image className="w-5 h-5 text-navy-500" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Embed Image</div></motion.button>
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowMediaModal('qr')} className="p-3 hover:bg-gray-100 rounded-xl group relative"><QrCode className="w-5 h-5 text-green-500" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">QR Photo Upload</div></motion.button>
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200 relative">
@@ -6623,7 +6645,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
               className="p-3 hover:bg-gray-100 rounded-xl group relative"
               title="Mind Map"
             >
-              <GitBranch className="w-5 h-5 text-purple-600" />
+              <GitBranch className="w-5 h-5 text-navy-600" />
               <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Create Mind Map</div>
             </motion.button>
           </div>
@@ -6757,10 +6779,10 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => setShowVersionHistory(!showVersionHistory)}
-              className={`p-3 rounded-xl group relative ${showVersionHistory ? 'bg-indigo-100' : 'hover:bg-gray-100'}`}
+              className={`p-3 rounded-xl group relative ${showVersionHistory ? 'bg-navy-100' : 'hover:bg-gray-100'}`}
               title="Version History"
             >
-              <History className={`w-5 h-5 ${showVersionHistory ? 'text-indigo-600' : 'text-gray-700'}`} />
+              <History className={`w-5 h-5 ${showVersionHistory ? 'text-navy-700' : 'text-gray-700'}`} />
               <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Version History</div>
             </motion.button>
           </div>
@@ -6795,10 +6817,10 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => setShowAITools(!showAITools)}
-              className={`p-3 rounded-xl group relative ${showAITools ? 'bg-purple-100 ring-2 ring-purple-500' : 'hover:bg-gray-100'}`}
+              className={`p-3 rounded-xl group relative ${showAITools ? 'bg-navy-100 ring-2 ring-navy-500' : 'hover:bg-gray-100'}`}
               title="AI Tools"
             >
-              <Wand2 className={`w-5 h-5 ${showAITools ? 'text-purple-600' : 'text-gray-700'}`} />
+              <Wand2 className={`w-5 h-5 ${showAITools ? 'text-navy-600' : 'text-gray-700'}`} />
               <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">AI Tools</div>
             </motion.button>
           </div>
@@ -6818,10 +6840,10 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => setShowFacilitatorTools(!showFacilitatorTools)}
-              className={`p-3 rounded-xl group relative ${showFacilitatorTools ? 'bg-indigo-100 ring-2 ring-indigo-500' : 'hover:bg-gray-100'}`}
+              className={`p-3 rounded-xl group relative ${showFacilitatorTools ? 'bg-navy-100 ring-2 ring-navy-500' : 'hover:bg-gray-100'}`}
               title="Facilitator Tools"
             >
-              <Users className="w-5 h-5 ${showFacilitatorTools ? 'text-indigo-600' : 'text-gray-700'}" />
+              <Users className="w-5 h-5 ${showFacilitatorTools ? 'text-navy-700' : 'text-gray-700'}" />
               <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Facilitator Tools</div>
             </motion.button>
           </div>
@@ -7304,7 +7326,7 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange, documents,
               <h1 className="text-lg sm:text-xl font-bold text-gray-900">Clients</h1>
               <p className="text-xs text-gray-500">{clients.length} total</p>
             </div>
-            <button onClick={() => setShowAddModal(true)} className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+            <button onClick={() => setShowAddModal(true)} className="p-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800 transition-colors">
               <Plus className="w-4 h-4" />
             </button>
           </div>
@@ -7315,7 +7337,7 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange, documents,
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search clients..."
-              className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
             />
           </div>
           <div className="flex gap-1 mt-3">
@@ -7323,7 +7345,7 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange, documents,
               <button
                 key={status}
                 onClick={() => setFilterStatus(status)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filterStatus === status ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filterStatus === status ? 'bg-navy-100 text-navy-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
                 {status.charAt(0).toUpperCase() + status.slice(1)}
               </button>
@@ -7337,7 +7359,7 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange, documents,
               key={client.id}
               whileHover={{ scale: 1.01 }}
               onClick={() => setSelectedClientId(client.id)}
-              className={`p-3 rounded-xl cursor-pointer transition-all ${selectedClientId === client.id ? 'bg-indigo-50 border-2 border-indigo-200' : 'bg-white border border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}
+              className={`p-3 rounded-xl cursor-pointer transition-all ${selectedClientId === client.id ? 'bg-navy-50 border-2 border-navy-200' : 'bg-white border border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: client.color }}>
@@ -7428,7 +7450,7 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange, documents,
                   <FolderKanban className="w-4 h-4 text-gray-400" />
                   Boards ({clientBoards.length})
                 </h3>
-                <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
+                <button className="text-sm text-navy-700 hover:text-navy-800 font-medium flex items-center gap-1">
                   <Plus className="w-4 h-4" /> New Board
                 </button>
               </div>
@@ -7440,7 +7462,7 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange, documents,
                       key={board.id}
                       whileHover={{ scale: 1.01 }}
                       onClick={() => onOpenBoard(board)}
-                      className="p-3 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/50 cursor-pointer transition-all flex items-center justify-between"
+                      className="p-3 rounded-lg border border-gray-100 hover:border-navy-200 hover:bg-navy-50/50 cursor-pointer transition-all flex items-center justify-between"
                     >
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${board.status === 'active' ? 'bg-green-100' : board.status === 'completed' ? 'bg-blue-100' : 'bg-gray-100'}`}>
@@ -7464,7 +7486,7 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange, documents,
                 <div className="text-center py-8 text-gray-400">
                   <FolderOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No boards assigned to this client</p>
-                  <button className="mt-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium">Create first board</button>
+                  <button className="mt-2 text-sm text-navy-700 hover:text-navy-800 font-medium">Create first board</button>
                 </div>
               )}
             </div>
@@ -7485,7 +7507,7 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange, documents,
                       key={doc.id}
                       whileHover={{ scale: 1.01 }}
                       onClick={() => onOpenDocument?.(doc)}
-                      className="p-3 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/50 cursor-pointer transition-all flex items-center justify-between"
+                      className="p-3 rounded-lg border border-gray-100 hover:border-navy-200 hover:bg-navy-50/50 cursor-pointer transition-all flex items-center justify-between"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
@@ -7522,7 +7544,7 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange, documents,
                   {clientNotes.map(note => (
                     <div
                       key={note.id}
-                      className="p-3 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/50 cursor-pointer transition-all"
+                      className="p-3 rounded-lg border border-gray-100 hover:border-navy-200 hover:bg-navy-50/50 cursor-pointer transition-all"
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-lg">{note.icon}</span>
@@ -7564,26 +7586,26 @@ const ClientsView = ({ boards, onOpenBoard, clients, onClientsChange, documents,
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Client Name *</label>
-                    <input name="name" type="text" required className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Enter client name" />
+                    <input name="name" type="text" required className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500" placeholder="Enter client name" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
-                    <input name="company" type="text" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Company name" />
+                    <input name="company" type="text" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500" placeholder="Company name" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                      <input name="email" type="email" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="email@example.com" />
+                      <input name="email" type="email" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500" placeholder="email@example.com" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                      <input name="phone" type="tel" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="555-0100" />
+                      <input name="phone" type="tel" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500" placeholder="555-0100" />
                     </div>
                   </div>
                 </div>
                 <div className="flex gap-3 mt-6">
                   <button type="button" onClick={() => setShowAddModal(false)} disabled={isLoading} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50">Cancel</button>
-                  <button type="submit" disabled={isLoading} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">
+                  <button type="submit" disabled={isLoading} className="flex-1 px-4 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800 transition-colors disabled:opacity-50">
                     {isLoading ? 'Adding...' : 'Add Client'}
                   </button>
                 </div>
@@ -7779,19 +7801,17 @@ export default function App() {
       setActiveBoard(updatedBoard);
       setBoards(prev => {
         const newBoards = prev.map(b => b.id === activeBoard.id ? updatedBoard : b);
-        // Auto-save with debounce (1.5s after changes stop)
-        if (autoSaveTimeoutRef.current) {
-          clearTimeout(autoSaveTimeoutRef.current);
-        }
-        setSaveStatus('saving');
-        autoSaveTimeoutRef.current = setTimeout(async () => {
+        
+        // Immediate sync to Supabase for real-time collaboration
+        // Use a micro-task to ensure state is updated first
+        Promise.resolve().then(async () => {
           try {
-            // Save to localStorage
+            // Save to localStorage immediately
             localStorage.setItem('fan-canvas-boards', JSON.stringify(newBoards));
-            console.log('Auto-saved board to localStorage:', updatedBoard.name);
 
-            // Save to Supabase if configured and tables exist
+            // Sync to Supabase immediately if configured
             if (isSupabaseConfigured() && supabaseTablesExist) {
+              setSaveStatus('saving');
               await boardsApi.update(updatedBoard.id, {
                 name: updatedBoard.name,
                 visual_nodes: updatedBoard.visualNodes,
@@ -7800,31 +7820,23 @@ export default function App() {
                 pan_y: updatedBoard.panY || 0,
                 last_activity: new Date().toISOString()
               });
-              console.log('Auto-saved board to Supabase:', updatedBoard.name);
-            }
-            
-            // Update save status
-            setSaveStatus('saved');
-            setLastSaved(new Date());
-            
-            // Reset to idle after 3 seconds
-            setTimeout(() => setSaveStatus('idle'), 3000);
-          } catch (error: any) {
-            // Check if table doesn't exist (PGRST205 error)
-            if (error?.code === 'PGRST205') {
-              console.warn('Supabase tables not set up. Run database/supabase_setup.sql in your Supabase SQL Editor.');
-              setSupabaseTablesExist(false);
-              // Still saved locally
-              setSaveStatus('offline');
+              setSaveStatus('saved');
               setLastSaved(new Date());
+              setTimeout(() => setSaveStatus('idle'), 2000);
+            }
+          } catch (error: any) {
+            if (error?.code === 'PGRST205') {
+              console.warn('Supabase tables not set up.');
+              setSupabaseTablesExist(false);
+              setSaveStatus('offline');
             } else {
-              console.error('Failed to save board to Supabase:', error);
+              console.error('Failed to save board:', error);
               setSaveStatus('error');
             }
-            // Reset to idle after 5 seconds
-            setTimeout(() => setSaveStatus('idle'), 5000);
+            setTimeout(() => setSaveStatus('idle'), 3000);
           }
-        }, 500); // 500ms debounce for faster real-time collaboration
+        });
+        
         return newBoards;
       });
     }
@@ -8693,7 +8705,7 @@ ${transcriptContent}`;
             <p className="text-gray-600 text-center mb-6">{sharedBoardError}</p>
             <button
               onClick={() => setSharedBoardError(null)}
-              className="w-full px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+              className="w-full px-6 py-3 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 transition-colors"
             >
               Go to Dashboard
             </button>
@@ -8750,14 +8762,14 @@ ${transcriptContent}`;
       {currentView === 'meeting' && !activeBoard && (
         <div className="flex-1 flex items-center justify-center bg-gray-50">
           <div className="text-center max-w-md px-6">
-            <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <FolderKanban className="w-8 h-8 text-indigo-600" />
+            <div className="w-16 h-16 bg-navy-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <FolderKanban className="w-8 h-8 text-navy-700" />
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">No Board Selected</h2>
             <p className="text-gray-600 mb-6">Select a board from the dashboard or create a new one to get started.</p>
             <button
               onClick={() => setCurrentView('dashboard')}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+              className="px-6 py-3 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 transition-colors"
             >
               Go to Dashboard
             </button>

@@ -192,10 +192,10 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-white">
+          <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-navy-50 to-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                <div className="w-10 h-10 bg-gradient-to-br from-navy-500 to-navy-600 rounded-xl flex items-center justify-center shadow-lg shadow-navy-200">
                   <Keyboard className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -220,7 +220,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
                 placeholder="Search shortcuts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-gray-400"
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500 focus:border-transparent transition-all placeholder:text-gray-400"
               />
               {searchQuery && (
                 <button
@@ -255,7 +255,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
                   >
                     {/* Category Header */}
                     <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                      <span className="text-indigo-600">{category.icon}</span>
+                      <span className="text-navy-700">{category.icon}</span>
                       <h3 className="font-semibold text-gray-800">{category.name}</h3>
                     </div>
 
@@ -271,7 +271,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
                         >
                           <div className="flex items-center gap-2">
                             {shortcut.icon && (
-                              <span className="text-gray-400 group-hover:text-indigo-500 transition-colors">
+                              <span className="text-gray-400 group-hover:text-navy-500 transition-colors">
                                 {shortcut.icon}
                               </span>
                             )}
@@ -307,7 +307,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
               </div>
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                className="px-4 py-2 bg-navy-700 text-white rounded-lg text-sm font-medium hover:bg-navy-800 transition-colors"
               >
                 Got it
               </button>

@@ -262,7 +262,7 @@ export default function FacilitatorTools({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-gradient-to-br from-indigo-900/95 to-purple-900/95 z-[1000] flex items-center justify-center"
+        className="fixed inset-0 bg-gradient-to-br from-navy-900/95 to-navy-900/95 z-[1000] flex items-center justify-center"
       >
         <div className="text-center text-white">
           <motion.div
@@ -302,7 +302,7 @@ export default function FacilitatorTools({
             ? 'bg-red-500 text-white animate-pulse' 
             : 'bg-white/95 border border-gray-200'
         }`}>
-          <Timer className={`w-5 h-5 ${timer.remainingSeconds <= 10 ? 'text-white' : 'text-indigo-600'}`} />
+          <Timer className={`w-5 h-5 ${timer.remainingSeconds <= 10 ? 'text-white' : 'text-navy-700'}`} />
           <span className={`text-2xl font-mono font-bold ${timer.remainingSeconds <= 10 ? 'text-white' : 'text-gray-900'}`}>
             {formatTime(timer.remainingSeconds)}
           </span>
@@ -326,7 +326,7 @@ export default function FacilitatorTools({
         onClick={() => setIsExpanded(!isExpanded)}
         className={`flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-lg transition-all ${
           isExpanded
-            ? 'bg-indigo-600 text-white'
+            ? 'bg-navy-700 text-white'
             : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
         }`}
       >
@@ -345,7 +345,7 @@ export default function FacilitatorTools({
             className="absolute top-14 right-0 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden"
           >
             {/* Header */}
-            <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-indigo-500 to-purple-500">
+            <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-navy-500 to-navy-500">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-white">
                   <Users className="w-5 h-5" />
@@ -363,7 +363,7 @@ export default function FacilitatorTools({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <Megaphone className="w-4 h-4 text-indigo-600" />
+                    <Megaphone className="w-4 h-4 text-navy-700" />
                     <span className="text-sm font-medium text-gray-700">Summon All</span>
                   </div>
                 </div>
@@ -378,7 +378,7 @@ export default function FacilitatorTools({
                   className={`w-full py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
                     lastSummonTime
                       ? 'bg-green-100 text-green-700'
-                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                      : 'bg-navy-700 text-white hover:bg-navy-800'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {lastSummonTime ? (
@@ -436,12 +436,12 @@ export default function FacilitatorTools({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <Timer className="w-4 h-4 text-indigo-600" />
+                    <Timer className="w-4 h-4 text-navy-700" />
                     <span className="text-sm font-medium text-gray-700">Countdown Timer</span>
                   </div>
                   <button
                     onClick={() => setSoundEnabled(!soundEnabled)}
-                    className={`p-1.5 rounded-lg ${soundEnabled ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-400'}`}
+                    className={`p-1.5 rounded-lg ${soundEnabled ? 'bg-navy-100 text-navy-700' : 'bg-gray-100 text-gray-400'}`}
                     title={soundEnabled ? 'Sound enabled' : 'Sound disabled'}
                   >
                     <Volume2 className="w-3.5 h-3.5" />
@@ -462,7 +462,7 @@ export default function FacilitatorTools({
                     {/* Progress bar */}
                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
                       <motion.div
-                        className={`h-full ${timer.remainingSeconds <= 10 ? 'bg-red-500' : 'bg-indigo-500'}`}
+                        className={`h-full ${timer.remainingSeconds <= 10 ? 'bg-red-500' : 'bg-navy-500'}`}
                         initial={{ width: 0 }}
                         animate={{ width: `${timerProgress}%` }}
                         transition={{ duration: 0.5 }}
@@ -508,7 +508,7 @@ export default function FacilitatorTools({
                           key={minutes}
                           onClick={() => handleStartTimer(minutes)}
                           disabled={!isConnected}
-                          className="py-2 px-3 bg-gray-100 hover:bg-indigo-100 text-gray-700 hover:text-indigo-700 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
+                          className="py-2 px-3 bg-gray-100 hover:bg-navy-100 text-gray-700 hover:text-navy-800 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
                         >
                           {minutes}m
                         </button>
@@ -524,12 +524,12 @@ export default function FacilitatorTools({
                         placeholder="Custom (min)"
                         min="1"
                         max="120"
-                        className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
                       />
                       <button
                         onClick={handleCustomTimer}
                         disabled={!customMinutes || !isConnected}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        className="px-4 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                       >
                         <Play className="w-4 h-4" />
                         Start
@@ -563,7 +563,7 @@ export default function FacilitatorTools({
               : 'bg-white border border-gray-200'
           }`}
         >
-          <Timer className={`w-4 h-4 ${timer.remainingSeconds <= 10 ? 'text-white' : 'text-indigo-600'}`} />
+          <Timer className={`w-4 h-4 ${timer.remainingSeconds <= 10 ? 'text-white' : 'text-navy-700'}`} />
           <span className={`font-mono font-bold ${timer.remainingSeconds <= 10 ? 'text-white' : 'text-gray-900'}`}>
             {formatTime(timer.remainingSeconds)}
           </span>

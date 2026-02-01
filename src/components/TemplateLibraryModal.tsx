@@ -46,8 +46,8 @@ const categoryIcons: Record<TemplateCategory, typeof Layout> = {
 // Premium category colors for filter buttons
 const categoryButtonColors: Record<TemplateCategory, { active: string; inactive: string }> = {
   strategy: { 
-    active: 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-200', 
-    inactive: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100' 
+    active: 'bg-gradient-to-r from-navy-500 to-navy-700 text-white shadow-lg shadow-navy-200', 
+    inactive: 'bg-navy-50 text-navy-800 hover:bg-navy-100' 
   },
   agile: { 
     active: 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-200', 
@@ -62,8 +62,8 @@ const categoryButtonColors: Record<TemplateCategory, { active: string; inactive:
     inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' 
   },
   planning: { 
-    active: 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg shadow-purple-200', 
-    inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' 
+    active: 'bg-gradient-to-r from-navy-500 to-navy-600 text-white shadow-lg shadow-navy-200', 
+    inactive: 'bg-navy-50 text-navy-700 hover:bg-navy-100' 
   },
 };
 
@@ -161,7 +161,7 @@ export default function TemplateLibraryModal({
                     <ArrowLeft className="w-5 h-5 text-slate-600" />
                   </motion.button>
                 ) : (
-                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                  <div className="w-12 h-12 bg-gradient-to-br from-navy-500 via-navy-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-navy-200">
                     <Sparkles className="w-6 h-6 text-white" />
                   </div>
                 )}
@@ -217,7 +217,7 @@ export default function TemplateLibraryModal({
               <div className="px-6 py-4 border-t border-slate-100 bg-white">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center shadow-sm">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-navy-100 to-navy-100 flex items-center justify-center shadow-sm">
                       <span className="text-3xl">{previewTemplate.icon}</span>
                     </div>
                     <div>
@@ -249,7 +249,7 @@ export default function TemplateLibraryModal({
                         onSelectTemplate(previewTemplate);
                         onClose();
                       }}
-                      className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-xl shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 transition-all duration-200"
+                      className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-navy-500 to-navy-600 text-white font-semibold rounded-xl shadow-lg shadow-navy-200 hover:shadow-xl hover:shadow-navy-300 transition-all duration-200"
                     >
                       <Zap className="w-4 h-4" />
                       Use Template
@@ -270,7 +270,7 @@ export default function TemplateLibraryModal({
                     placeholder="Search templates by name, tag, or description..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 shadow-sm placeholder:text-slate-400"
+                    className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-navy-500 focus:border-transparent transition-all duration-200 shadow-sm placeholder:text-slate-400"
                   />
                 </div>
 
@@ -343,7 +343,7 @@ export default function TemplateLibraryModal({
                       })}
                       className={`relative bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-2xl border-2 border-dashed overflow-hidden cursor-pointer transition-all duration-300 p-6 flex flex-col items-center justify-center min-h-[300px] ${
                         selectedTemplate?.id === 'blank'
-                          ? 'border-indigo-500 ring-2 ring-indigo-200 shadow-xl'
+                          ? 'border-navy-500 ring-2 ring-navy-200 shadow-xl'
                           : 'border-slate-300 hover:border-slate-400'
                       }`}
                     >
@@ -370,7 +370,7 @@ export default function TemplateLibraryModal({
                         <motion.div 
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className="absolute top-4 right-4 w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg"
+                          className="absolute top-4 right-4 w-8 h-8 bg-gradient-to-br from-navy-500 to-navy-600 rounded-full flex items-center justify-center shadow-lg"
                         >
                           <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -411,9 +411,9 @@ export default function TemplateLibraryModal({
                       <motion.span 
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-2 text-sm text-indigo-600 font-medium bg-indigo-50 px-3 py-1 rounded-full"
+                        className="flex items-center gap-2 text-sm text-navy-700 font-medium bg-navy-50 px-3 py-1 rounded-full"
                       >
-                        <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+                        <span className="w-2 h-2 bg-navy-500 rounded-full animate-pulse" />
                         Selected: {selectedTemplate.name}
                       </motion.span>
                     )}
@@ -433,7 +433,7 @@ export default function TemplateLibraryModal({
                       disabled={!selectedTemplate}
                       className={`flex items-center gap-2 px-6 py-2.5 font-semibold rounded-xl transition-all duration-200 ${
                         selectedTemplate
-                          ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300'
+                          ? 'bg-gradient-to-r from-navy-500 to-navy-600 text-white shadow-lg shadow-navy-200 hover:shadow-xl hover:shadow-navy-300'
                           : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                       }`}
                     >

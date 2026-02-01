@@ -595,7 +595,7 @@ export const SignatureRequestModal: React.FC<SignatureRequestModalProps> = ({
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+        <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-600 to-navy-700 text-white">
           <div className="flex items-center gap-3">
             <FileSignature size={24} />
             <h2 className="text-xl font-semibold">Create Signature Request</h2>
@@ -899,7 +899,7 @@ export const SignatureRequestModal: React.FC<SignatureRequestModalProps> = ({
                       .filter(f => f.pageNumber === currentPage)
                       .map(field => {
                         const signerIndex = signers.findIndex(s => s.id === field.signerId);
-                        const colors = ['bg-blue-200 border-blue-400', 'bg-green-200 border-green-400', 'bg-purple-200 border-purple-400', 'bg-orange-200 border-orange-400'];
+                        const colors = ['bg-blue-200 border-blue-400', 'bg-green-200 border-green-400', 'bg-navy-200 border-navy-400', 'bg-orange-200 border-orange-400'];
                         
                         return (
                           <div

@@ -161,7 +161,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                 if (showSearch) setSearchQuery('');
               }}
               className={`p-1.5 rounded-lg transition-colors ${
-                showSearch ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-200 text-gray-500'
+                showSearch ? 'bg-navy-100 text-navy-700' : 'hover:bg-gray-200 text-gray-500'
               }`}
             >
               <Search className="w-4 h-4" />
@@ -192,7 +192,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search emojis..."
-                  className="w-full px-3 py-1.5 bg-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full px-3 py-1.5 bg-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-navy-200"
                 />
               </div>
             </motion.div>
@@ -241,7 +241,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                   onClick={() => setActiveCategory(key as keyof typeof EMOJI_CATEGORIES)}
                   className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 text-xs ${
                     activeCategory === key
-                      ? 'bg-indigo-100 text-indigo-600'
+                      ? 'bg-navy-100 text-navy-700'
                       : 'hover:bg-gray-100 text-gray-500'
                   }`}
                   title={category.label}

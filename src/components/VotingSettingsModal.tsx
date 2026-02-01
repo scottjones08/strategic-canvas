@@ -82,8 +82,8 @@ export const VotingSettingsModal: React.FC<VotingSettingsModalProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                  <Vote className="w-5 h-5 text-indigo-600" />
+                <div className="w-10 h-10 rounded-xl bg-navy-100 flex items-center justify-center">
+                  <Vote className="w-5 h-5 text-navy-700" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Voting Settings</h2>
@@ -193,7 +193,7 @@ export const VotingSettingsModal: React.FC<VotingSettingsModalProps> = ({
                       disabled={!settings.enabled}
                       className={`py-2 px-1 rounded-lg text-xs font-medium transition-all ${
                         settings.maxVotesPerPerson === value
-                          ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-500'
+                          ? 'bg-navy-100 text-navy-800 ring-2 ring-navy-500'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       } ${!settings.enabled ? 'cursor-not-allowed' : ''}`}
                     >
@@ -292,7 +292,7 @@ export const VotingSettingsModal: React.FC<VotingSettingsModalProps> = ({
             <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
               <button
                 onClick={onClose}
-                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors"
+                className="w-full py-3 bg-navy-700 text-white rounded-xl font-semibold hover:bg-navy-800 transition-colors"
               >
                 Done
               </button>
@@ -338,7 +338,7 @@ const SettingToggle: React.FC<SettingToggleProps> = ({
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
       className={`relative w-11 h-6 rounded-full transition-colors ${
-        checked ? 'bg-indigo-600' : 'bg-gray-200'
+        checked ? 'bg-navy-700' : 'bg-gray-200'
       } ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
     >
       <motion.div

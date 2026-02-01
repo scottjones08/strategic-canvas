@@ -316,7 +316,7 @@ export default function TranscriptionPanel({
           }`}
         >
           <div className={`relative flex items-center justify-center w-6 h-6 rounded-lg ${
-            isRecording ? 'bg-white/20' : isProcessing ? 'bg-white/20' : 'bg-indigo-100'
+            isRecording ? 'bg-white/20' : isProcessing ? 'bg-white/20' : 'bg-navy-100'
           }`}>
             {isRecording ? (
               <>
@@ -324,7 +324,7 @@ export default function TranscriptionPanel({
                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-white rounded-full animate-ping" />
               </>
             ) : (
-              <FileText className={`w-3.5 h-3.5 ${isProcessing ? 'text-white' : 'text-indigo-600'}`} />
+              <FileText className={`w-3.5 h-3.5 ${isProcessing ? 'text-white' : 'text-navy-700'}`} />
             )}
           </div>
           <div className="flex flex-col items-start">
@@ -433,7 +433,7 @@ export default function TranscriptionPanel({
                       key={segment.id}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className={`flex gap-3 p-3 rounded-xl ${isLatest ? 'bg-white shadow-md border-l-4 border-indigo-500' : 'bg-white/50'}`}
+                      className={`flex gap-3 p-3 rounded-xl ${isLatest ? 'bg-white shadow-md border-l-4 border-navy-500' : 'bg-white/50'}`}
                     >
                       <div
                         className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
@@ -450,7 +450,7 @@ export default function TranscriptionPanel({
                             {formatTimestamp(segment.startTime)}
                           </span>
                           {isLatest && (
-                            <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium animate-pulse">
+                            <span className="px-2 py-0.5 bg-navy-100 text-navy-800 rounded-full text-xs font-medium animate-pulse">
                               Latest
                             </span>
                           )}
@@ -520,7 +520,7 @@ export default function TranscriptionPanel({
       </button>
 
       {/* Header */}
-      <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+      <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-navy-500 to-navy-500 text-white">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <FileText className="w-5 h-5" />
@@ -605,7 +605,7 @@ export default function TranscriptionPanel({
               ) : isRecording ? (
                 <StopCircle className="w-5 h-5 text-white" />
               ) : (
-                <Mic className="w-5 h-5 text-indigo-600" />
+                <Mic className="w-5 h-5 text-navy-700" />
               )}
             </button>
           </div>
@@ -631,7 +631,7 @@ export default function TranscriptionPanel({
                   value={config?.apiKey || ''}
                   onChange={(e) => updateConfig({ apiKey: e.target.value })}
                   placeholder="Enter your API key for speaker diarization"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   Get a free key at{' '}
@@ -639,7 +639,7 @@ export default function TranscriptionPanel({
                     href="https://www.assemblyai.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-indigo-600 hover:underline"
+                    className="text-navy-700 hover:underline"
                   >
                     assemblyai.com
                   </a>
@@ -653,7 +653,7 @@ export default function TranscriptionPanel({
                 <button
                   onClick={() => updateConfig({ enableDiarization: !config?.enableDiarization })}
                   className={`relative w-12 h-6 rounded-full transition-colors ${
-                    config?.enableDiarization ? 'bg-indigo-600' : 'bg-gray-300'
+                    config?.enableDiarization ? 'bg-navy-700' : 'bg-gray-300'
                   }`}
                 >
                   <span
@@ -671,7 +671,7 @@ export default function TranscriptionPanel({
                 <button
                   onClick={() => setShowTimestamps(!showTimestamps)}
                   className={`relative w-12 h-6 rounded-full transition-colors ${
-                    showTimestamps ? 'bg-indigo-600' : 'bg-gray-300'
+                    showTimestamps ? 'bg-navy-700' : 'bg-gray-300'
                   }`}
                 >
                   <span
@@ -690,7 +690,7 @@ export default function TranscriptionPanel({
                 <label
                   className={`flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
                     isConfigured
-                      ? 'border-gray-300 hover:border-indigo-400 hover:bg-indigo-50'
+                      ? 'border-gray-300 hover:border-navy-400 hover:bg-navy-50'
                       : 'border-gray-200 bg-gray-100 cursor-not-allowed'
                   }`}
                 >
@@ -756,7 +756,7 @@ export default function TranscriptionPanel({
                         if (e.key === 'Enter') handleSpeakerNameSave(speaker.id);
                         if (e.key === 'Escape') setShowSpeakerEdit(null);
                       }}
-                      className="px-2 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 w-24"
+                      className="px-2 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-navy-500 w-24"
                       autoFocus
                     />
                     <button
@@ -805,7 +805,7 @@ export default function TranscriptionPanel({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search transcript..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
             />
             {searchQuery && (
               <button
@@ -833,7 +833,7 @@ export default function TranscriptionPanel({
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className={`flex gap-3 p-2 rounded-lg transition-colors ${
-                    isHighlighted ? 'bg-indigo-50' : 'hover:bg-gray-50'
+                    isHighlighted ? 'bg-navy-50' : 'hover:bg-gray-50'
                   }`}
                   onClick={() => setHighlightedSegment(segment.id)}
                 >
@@ -876,7 +876,7 @@ export default function TranscriptionPanel({
         ) : isProcessing ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <Loader2 className="w-12 h-12 text-indigo-500 mx-auto mb-4 animate-spin" />
+              <Loader2 className="w-12 h-12 text-navy-500 mx-auto mb-4 animate-spin" />
               <p className="text-sm text-gray-600 font-medium">{uploadProgress || 'Processing...'}</p>
             </div>
           </div>
@@ -1003,7 +1003,7 @@ export default function TranscriptionPanel({
               {onGenerateWhiteboard && (
                 <button
                   onClick={handleGenerateWhiteboard}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm font-medium"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-navy-100 text-navy-700 rounded-lg hover:bg-navy-200 transition-colors text-sm font-medium"
                   title="Extract items and add to whiteboard"
                 >
                   <Wand2 className="w-4 h-4" />
@@ -1027,7 +1027,7 @@ export default function TranscriptionPanel({
               {onCreateNote && (
                 <button
                   onClick={handleSaveAsNote}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-navy-700 text-white rounded-lg hover:bg-navy-800 transition-colors text-sm font-medium"
                 >
                   <FileText className="w-4 h-4" />
                   Save as Note

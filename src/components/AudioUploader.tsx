@@ -148,9 +148,9 @@ export default function AudioUploader({
 
   const getFileIcon = (file: File) => {
     if (file.type.startsWith('video/')) {
-      return <FileVideo className="w-8 h-8 text-purple-500" />;
+      return <FileVideo className="w-8 h-8 text-navy-500" />;
     }
-    return <FileAudio className="w-8 h-8 text-indigo-500" />;
+    return <FileAudio className="w-8 h-8 text-navy-500" />;
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -183,7 +183,7 @@ export default function AudioUploader({
                 ? 'border-red-300 bg-red-50'
                 : uploadStatus === 'complete'
                 ? 'border-green-300 bg-green-50'
-                : 'border-indigo-300 bg-indigo-50'
+                : 'border-navy-300 bg-navy-50'
             }`}
           >
             <div className="flex items-start gap-4">
@@ -199,12 +199,12 @@ export default function AudioUploader({
                 {isProcessing && (
                   <div className="mt-2">
                     <div className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
-                      <span className="text-sm text-indigo-600">{progress || 'Processing...'}</span>
+                      <Loader2 className="w-4 h-4 text-navy-700 animate-spin" />
+                      <span className="text-sm text-navy-700">{progress || 'Processing...'}</span>
                     </div>
-                    <div className="mt-2 h-1.5 bg-indigo-100 rounded-full overflow-hidden">
+                    <div className="mt-2 h-1.5 bg-navy-100 rounded-full overflow-hidden">
                       <motion.div
-                        className="h-full bg-indigo-600"
+                        className="h-full bg-navy-700"
                         initial={{ width: '0%' }}
                         animate={{ width: '100%' }}
                         transition={{ duration: 30, ease: 'linear' }}
@@ -255,18 +255,18 @@ export default function AudioUploader({
               disabled || isProcessing
                 ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
                 : isDragOver
-                ? 'border-indigo-500 bg-indigo-50'
-                : 'border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50/50'
+                ? 'border-navy-500 bg-navy-50'
+                : 'border-gray-300 bg-white hover:border-navy-400 hover:bg-navy-50/50'
             }`}
           >
             <div className="flex flex-col items-center text-center">
               {/* Icon */}
               <div
                 className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${
-                  isDragOver ? 'bg-indigo-100' : 'bg-gray-100'
+                  isDragOver ? 'bg-navy-100' : 'bg-gray-100'
                 }`}
               >
-                <Upload className={`w-8 h-8 ${isDragOver ? 'text-indigo-600' : 'text-gray-500'}`} />
+                <Upload className={`w-8 h-8 ${isDragOver ? 'text-navy-700' : 'text-gray-500'}`} />
               </div>
 
               {/* Text */}
@@ -302,9 +302,9 @@ export default function AudioUploader({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-indigo-500/10 rounded-xl flex items-center justify-center"
+                  className="absolute inset-0 bg-navy-500/10 rounded-xl flex items-center justify-center"
                 >
-                  <div className="text-indigo-600 font-medium">Release to upload</div>
+                  <div className="text-navy-700 font-medium">Release to upload</div>
                 </motion.div>
               )}
             </AnimatePresence>

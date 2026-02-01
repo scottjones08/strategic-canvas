@@ -343,7 +343,7 @@ export default function TranscriptToWhiteboardModal({
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-purple-500 to-indigo-500 text-white">
+        <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-navy-500 to-navy-500 text-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
@@ -369,7 +369,7 @@ export default function TranscriptToWhiteboardModal({
         <div className="flex-1 overflow-y-auto p-6">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-16">
-              <Loader2 className="w-12 h-12 text-indigo-500 animate-spin mb-4" />
+              <Loader2 className="w-12 h-12 text-navy-500 animate-spin mb-4" />
               <p className="text-gray-600 font-medium">Analyzing transcript...</p>
               <p className="text-sm text-gray-400 mt-1">
                 Extracting ideas, actions, and insights
@@ -381,7 +381,7 @@ export default function TranscriptToWhiteboardModal({
               <p className="text-gray-600 font-medium">{error}</p>
               <button
                 onClick={extractItems}
-                className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                className="mt-4 px-4 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800"
               >
                 Try Again
               </button>
@@ -397,16 +397,16 @@ export default function TranscriptToWhiteboardModal({
           ) : extractionResult ? (
             <>
               {/* Summary */}
-              <div className="mb-6 p-4 bg-indigo-50 rounded-xl">
+              <div className="mb-6 p-4 bg-navy-50 rounded-xl">
                 <div className="flex items-start gap-3">
-                  <Sparkles className="w-5 h-5 text-indigo-600 mt-0.5" />
+                  <Sparkles className="w-5 h-5 text-navy-700 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-indigo-900">
+                    <p className="text-sm font-medium text-navy-900">
                       Found {extractionResult.objects.length} items across{' '}
                       {Object.values(itemsByCategory).filter((arr: WhiteboardObject[]) => arr.length > 0).length} categories
                     </p>
                     {extractionResult.participants && extractionResult.participants.length > 0 && (
-                      <p className="text-xs text-indigo-700 mt-1">
+                      <p className="text-xs text-navy-800 mt-1">
                         Participants: {extractionResult.participants.join(', ')}
                       </p>
                     )}
@@ -419,7 +419,7 @@ export default function TranscriptToWhiteboardModal({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={selectAll}
-                    className="px-3 py-1.5 text-sm text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                    className="px-3 py-1.5 text-sm text-navy-700 hover:bg-navy-50 rounded-lg transition-colors"
                   >
                     Select All
                   </button>
@@ -466,10 +466,10 @@ export default function TranscriptToWhiteboardModal({
                             }}
                             className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors ${
                               allSelected
-                                ? 'bg-indigo-600 border-indigo-600'
+                                ? 'bg-navy-700 border-navy-700'
                                 : someSelected
-                                ? 'bg-indigo-200 border-indigo-400'
-                                : 'border-gray-300 hover:border-indigo-400'
+                                ? 'bg-navy-200 border-navy-400'
+                                : 'border-gray-300 hover:border-navy-400'
                             }`}
                           >
                             {(allSelected || someSelected) && (
@@ -514,14 +514,14 @@ export default function TranscriptToWhiteboardModal({
                                     onClick={() => toggleItem(item.id)}
                                     className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
                                       isSelected
-                                        ? 'bg-indigo-50 hover:bg-indigo-100'
+                                        ? 'bg-navy-50 hover:bg-navy-100'
                                         : 'hover:bg-gray-50'
                                     }`}
                                   >
                                     <button
                                       className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border-2 transition-colors mt-0.5 ${
                                         isSelected
-                                          ? 'bg-indigo-600 border-indigo-600'
+                                          ? 'bg-navy-700 border-navy-700'
                                           : 'border-gray-300'
                                       }`}
                                     >
@@ -574,15 +574,15 @@ export default function TranscriptToWhiteboardModal({
                       onClick={() => setLayout(opt.id)}
                       className={`flex-1 p-3 rounded-xl border-2 transition-all ${
                         layout === opt.id
-                          ? 'border-indigo-500 bg-indigo-50'
+                          ? 'border-navy-500 bg-navy-50'
                           : 'border-gray-200 hover:border-gray-300 bg-white'
                       }`}
                     >
                       <opt.icon className={`w-5 h-5 mx-auto mb-1 ${
-                        layout === opt.id ? 'text-indigo-600' : 'text-gray-400'
+                        layout === opt.id ? 'text-navy-700' : 'text-gray-400'
                       }`} />
                       <p className={`text-sm font-medium ${
-                        layout === opt.id ? 'text-indigo-700' : 'text-gray-700'
+                        layout === opt.id ? 'text-navy-800' : 'text-gray-700'
                       }`}>
                         {opt.label}
                       </p>
@@ -607,7 +607,7 @@ export default function TranscriptToWhiteboardModal({
             <button
               onClick={handleAddToWhiteboard}
               disabled={selectedItems.size === 0 || isLoading}
-              className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+              className="px-6 py-2.5 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
             >
               <Plus className="w-4 h-4" />
               Add {selectedItems.size} Items to Whiteboard

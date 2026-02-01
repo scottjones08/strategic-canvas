@@ -250,7 +250,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
             }}
           >
             <div
-              className="w-full h-full rounded-xl border-2 border-indigo-400 animate-pulse"
+              className="w-full h-full rounded-xl border-2 border-navy-400 animate-pulse"
               style={{
                 boxShadow: '0 0 0 4px rgba(99, 102, 241, 0.2), 0 0 20px rgba(99, 102, 241, 0.3)',
               }}
@@ -282,7 +282,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
             }}
           >
             {/* Header with gradient */}
-            <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 px-6 py-4">
+            <div className="bg-gradient-to-r from-navy-500 via-navy-500 to-pink-500 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {isFirstStep ? (
@@ -355,7 +355,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={isLastStep ? onComplete : onNext}
-                    className="flex items-center gap-1 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30 transition-shadow"
+                    className="flex items-center gap-1 px-5 py-2.5 bg-gradient-to-r from-navy-500 to-navy-500 text-white rounded-xl font-semibold shadow-lg shadow-navy-500/25 hover:shadow-xl hover:shadow-navy-500/30 transition-shadow"
                   >
                     {isLastStep ? (
                       <>

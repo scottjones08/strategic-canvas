@@ -145,7 +145,7 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
                   className={`
                     w-4 h-4 rounded-full border-2 transition-all
                     ${node.color === color.bg 
-                      ? 'border-indigo-500 ring-1 ring-indigo-100' 
+                      ? 'border-navy-500 ring-1 ring-navy-100' 
                       : 'border-transparent hover:scale-110'
                     }
                   `}
@@ -163,7 +163,7 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
                   <select
                     value={node.fontSize || 14}
                     onChange={(e) => onUpdate({ fontSize: parseInt(e.target.value) })}
-                    className="text-xs px-1.5 py-0.5 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="text-xs px-1.5 py-0.5 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-navy-500"
                   >
                     {FONT_SIZES.map(size => (
                       <option key={size} value={size}>{size}px</option>
@@ -208,14 +208,14 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
                 type="number"
                 value={Math.round(node.width)}
                 onChange={(e) => onUpdate({ width: parseInt(e.target.value) || 100 })}
-                className="w-12 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-12 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-navy-500"
               />
               <span className="text-[10px] text-gray-500 ml-1">H</span>
               <input
                 type="number"
                 value={Math.round(node.height)}
                 onChange={(e) => onUpdate({ height: parseInt(e.target.value) || 100 })}
-                className="w-12 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-12 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-navy-500"
               />
             </div>
           </div>
@@ -241,7 +241,7 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
                           className={`
                             w-7 h-7 rounded-full border-2 transition-all
                             ${node.color === color.bg 
-                              ? 'border-indigo-500 ring-2 ring-indigo-100' 
+                              ? 'border-navy-500 ring-2 ring-navy-100' 
                               : 'border-transparent hover:scale-110'
                             }
                           `}
@@ -264,7 +264,7 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
                       step="0.1"
                       value={node.opacity ?? 1}
                       onChange={(e) => onUpdate({ opacity: parseFloat(e.target.value) })}
-                      className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-navy-700"
                     />
                   </div>
 
@@ -278,7 +278,7 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
                         max="180"
                         value={node.rotation || 0}
                         onChange={(e) => onUpdate({ rotation: parseInt(e.target.value) })}
-                        className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                        className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-navy-700"
                       />
                       <span className="text-sm font-medium w-10">{node.rotation || 0}°</span>
                     </div>
@@ -296,7 +296,7 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
                             className={`
                               px-2 py-1 text-xs rounded-lg border capitalize
                               ${node.shapeType === shape 
-                                ? 'border-indigo-500 bg-indigo-50 text-indigo-600' 
+                                ? 'border-navy-500 bg-navy-50 text-navy-700' 
                                 : 'border-gray-200 hover:border-gray-300'
                               }
                             `}
@@ -335,7 +335,7 @@ const IconButton: React.FC<IconButtonProps> = ({ icon, onClick, title, active, d
       ${danger 
         ? 'text-red-600 hover:bg-red-50' 
         : active 
-          ? 'text-indigo-600 bg-indigo-50' 
+          ? 'text-navy-700 bg-navy-50' 
           : 'text-gray-600 hover:bg-gray-100'
       }
     `}
@@ -357,7 +357,7 @@ const StyleButton: React.FC<StyleButtonProps> = ({ icon, active, onClick }) => (
     className={`
       p-1 rounded transition-colors
       ${active 
-        ? 'bg-indigo-100 text-indigo-600' 
+        ? 'bg-navy-100 text-navy-700' 
         : 'text-gray-600 hover:bg-gray-100'
       }
     `}

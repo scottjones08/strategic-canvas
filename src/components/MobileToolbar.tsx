@@ -196,7 +196,7 @@ export const MobileToolbar: React.FC<MobileToolbarProps> = ({
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 100, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-              className="mx-3 mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl shadow-xl overflow-hidden"
+              className="mx-3 mb-2 bg-gradient-to-r from-navy-700 to-navy-600 text-white rounded-2xl shadow-xl overflow-hidden"
             >
               <div className="flex items-center justify-between px-3 py-2.5">
                 <div className="flex items-center gap-2">
@@ -286,7 +286,7 @@ export const MobileToolbar: React.FC<MobileToolbarProps> = ({
                   flex flex-col items-center gap-1 p-2.5 rounded-xl min-w-[56px] min-h-[56px]
                   transition-all duration-150 active:scale-95
                   ${activeTool === tool.id 
-                    ? 'bg-indigo-100 text-indigo-600 shadow-inner' 
+                    ? 'bg-navy-100 text-navy-700 shadow-inner' 
                     : 'text-gray-600 active:bg-gray-100'
                   }
                 `}
@@ -463,14 +463,14 @@ export const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                 className={`
                                   h-14 rounded-xl border-2 transition-all active:scale-95
                                   ${selectedColor === color.bg 
-                                    ? 'border-indigo-500 ring-2 ring-indigo-200' 
+                                    ? 'border-navy-500 ring-2 ring-navy-200' 
                                     : 'border-transparent'
                                   }
                                 `}
                                 style={{ backgroundColor: color.bg }}
                               >
                                 {selectedColor === color.bg && (
-                                  <Check className="w-5 h-5 text-indigo-600 mx-auto" />
+                                  <Check className="w-5 h-5 text-navy-700 mx-auto" />
                                 )}
                               </button>
                             ))}
@@ -501,7 +501,7 @@ export const MobileToolbar: React.FC<MobileToolbarProps> = ({
                                 className={`
                                   flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all active:scale-95
                                   ${selectedShape === shape.type 
-                                    ? 'border-indigo-500 bg-indigo-50' 
+                                    ? 'border-navy-500 bg-navy-50' 
                                     : 'border-gray-200 bg-white'
                                   }
                                 `}
@@ -662,7 +662,7 @@ const TabButton: React.FC<{
     className={`
       flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors
       ${active 
-        ? 'text-indigo-600 border-b-2 border-indigo-600' 
+        ? 'text-navy-700 border-b-2 border-navy-700' 
         : 'text-gray-500 hover:text-gray-700'
       }
     `}
@@ -685,7 +685,7 @@ const ToolButton: React.FC<{
     className={`
       flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 min-h-[72px] transition-all active:scale-95
       ${active 
-        ? 'border-indigo-500 bg-indigo-50 text-indigo-600' 
+        ? 'border-navy-500 bg-navy-50 text-navy-700' 
         : 'border-gray-100 bg-white text-gray-600 hover:border-gray-200'
       }
     `}
@@ -718,7 +718,7 @@ const ActionButton: React.FC<{
       ${disabled 
         ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
         : variant === 'primary'
-          ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+          ? 'bg-navy-50 text-navy-700 hover:bg-navy-100'
           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
       }
     `}
@@ -735,7 +735,7 @@ const AlignButton: React.FC<{
 }> = ({ icon, onClick }) => (
   <button
     onClick={onClick}
-    className="p-3 bg-white rounded-xl border border-gray-200 flex items-center justify-center hover:border-indigo-300 active:scale-95 transition-all"
+    className="p-3 bg-white rounded-xl border border-gray-200 flex items-center justify-center hover:border-navy-300 active:scale-95 transition-all"
   >
     {icon}
   </button>
@@ -753,14 +753,14 @@ const ToggleRow: React.FC<{
     className="w-full flex items-center justify-between p-3 bg-white rounded-xl hover:bg-gray-50 transition-colors"
   >
     <div className="flex items-center gap-3">
-      <div className={`${active ? 'text-indigo-600' : 'text-gray-500'}`}>
+      <div className={`${active ? 'text-navy-700' : 'text-gray-500'}`}>
         {icon}
       </div>
       <span className="font-medium text-gray-700">{label}</span>
     </div>
     <div className={`
       w-11 h-6 rounded-full transition-colors relative
-      ${active ? 'bg-indigo-600' : 'bg-gray-200'}
+      ${active ? 'bg-navy-700' : 'bg-gray-200'}
     `}>
       <div className={`
         absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform

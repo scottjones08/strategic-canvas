@@ -249,7 +249,7 @@ export default function UnifiedSidebar({
               <span className={`absolute -top-1 -right-1 min-w-[18px] h-[18px] text-[10px] font-bold rounded-full flex items-center justify-center px-1 ${
                 tab.id === 'transcript' && isRecording
                   ? 'bg-white text-red-600'
-                  : 'bg-indigo-500 text-white'
+                  : 'bg-navy-500 text-white'
               }`}>
                 {tab.badge}
               </span>
@@ -288,7 +288,7 @@ export default function UnifiedSidebar({
                   activeTab === tab.id
                     ? tab.id === 'transcript' && isRecording
                       ? 'bg-red-500 text-white'
-                      : 'bg-indigo-100 text-indigo-700'
+                      : 'bg-navy-100 text-navy-800'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
@@ -299,7 +299,7 @@ export default function UnifiedSidebar({
                     activeTab === tab.id
                       ? tab.id === 'transcript' && isRecording
                         ? 'bg-white/30 text-white'
-                        : 'bg-indigo-500 text-white'
+                        : 'bg-navy-500 text-white'
                       : 'bg-gray-200 text-gray-600'
                   }`}>
                     {tab.badge}
@@ -343,7 +343,7 @@ export default function UnifiedSidebar({
                           ? 'bg-red-500 hover:bg-red-600 animate-pulse'
                           : isProcessing
                           ? 'bg-gray-300 cursor-not-allowed'
-                          : 'bg-indigo-500 hover:bg-indigo-600'
+                          : 'bg-navy-500 hover:bg-navy-700'
                       }`}
                     >
                       {isProcessing ? (
@@ -393,7 +393,7 @@ export default function UnifiedSidebar({
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className={`flex gap-3 p-3 rounded-xl ${
-                          isLatest && isRecording ? 'bg-indigo-50 border-l-2 border-indigo-500' : 'hover:bg-gray-50'
+                          isLatest && isRecording ? 'bg-navy-50 border-l-2 border-navy-500' : 'hover:bg-gray-50'
                         }`}
                       >
                         <div
@@ -450,7 +450,7 @@ export default function UnifiedSidebar({
                       }
                     }}
                     placeholder="Add new action item..."
-                    className="flex-1 px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="flex-1 px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
                   />
                   <motion.button
                     whileHover={{ scale: 1.05 }}
@@ -461,7 +461,7 @@ export default function UnifiedSidebar({
                         setNewAction('');
                       }
                     }}
-                    className="px-4 py-2.5 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600"
+                    className="px-4 py-2.5 bg-navy-500 text-white rounded-xl hover:bg-navy-700"
                   >
                     <Plus className="w-4 h-4" />
                   </motion.button>
@@ -578,7 +578,7 @@ export default function UnifiedSidebar({
               className="h-full flex flex-col"
             >
               {/* Current user */}
-              <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+              <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-navy-50 to-navy-50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div
@@ -663,15 +663,15 @@ export default function UnifiedSidebar({
                     key={index}
                     onClick={() => onRestoreHistory(index)}
                     className={`w-full p-4 text-left border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                      index === currentHistoryIndex ? 'bg-indigo-50 border-l-2 border-l-indigo-500' : ''
+                      index === currentHistoryIndex ? 'bg-navy-50 border-l-2 border-l-navy-500' : ''
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className={`text-sm ${index === currentHistoryIndex ? 'font-semibold text-indigo-700' : 'text-gray-700'}`}>
+                      <span className={`text-sm ${index === currentHistoryIndex ? 'font-semibold text-navy-800' : 'text-gray-700'}`}>
                         {entry.action}
                       </span>
                       {index === currentHistoryIndex && (
-                        <span className="text-[10px] bg-indigo-500 text-white px-2 py-0.5 rounded-full font-medium">
+                        <span className="text-[10px] bg-navy-500 text-white px-2 py-0.5 rounded-full font-medium">
                           Current
                         </span>
                       )}

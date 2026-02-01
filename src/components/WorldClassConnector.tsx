@@ -494,7 +494,7 @@ export const WorldClassConnector: React.FC<ConnectorProps> = ({
             bg-white/95 backdrop-blur-sm border shadow-sm
             transition-all duration-200
             focus:outline-none focus:ring-2 focus:ring-offset-1
-            ${isSelected ? 'border-indigo-300 focus:ring-indigo-400' : 'border-gray-200 focus:ring-gray-300'}
+            ${isSelected ? 'border-navy-300 focus:ring-navy-400' : 'border-gray-200 focus:ring-gray-300'}
           `}
           style={{ color }}
           onClick={(e) => {
@@ -563,7 +563,7 @@ export const WorldClassConnector: React.FC<ConnectorProps> = ({
                   className={`
                     w-6 h-6 rounded-full transition-all duration-150
                     hover:scale-110 hover:shadow-md
-                    ${color === hex ? 'ring-2 ring-offset-2 ring-indigo-500 scale-110' : ''}
+                    ${color === hex ? 'ring-2 ring-offset-2 ring-navy-500 scale-110' : ''}
                   `}
                   style={{ backgroundColor: hex }}
                   title={name}

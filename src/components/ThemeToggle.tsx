@@ -79,7 +79,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
               exit={{ opacity: 0, rotate: 90, scale: 0.5 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
             >
-              <Moon className={`${iconSizes[size]} text-indigo-500`} />
+              <Moon className={`${iconSizes[size]} text-navy-500`} />
             </motion.div>
           ) : (
             <motion.div
@@ -100,7 +100,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
             absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100
             transition-opacity duration-300 pointer-events-none
             ${isDark
-              ? 'bg-gradient-to-br from-indigo-500/10 to-purple-500/10'
+              ? 'bg-gradient-to-br from-navy-500/10 to-navy-500/10'
               : 'bg-gradient-to-br from-amber-500/10 to-orange-500/10'
             }
           `}
@@ -115,7 +115,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
       {(['light', 'system', 'dark'] as Theme[]).map((t) => {
         const isActive = theme === t;
         const Icon = t === 'light' ? Sun : t === 'dark' ? Moon : Monitor;
-        const iconColor = t === 'light' ? 'text-amber-500' : t === 'dark' ? 'text-indigo-500' : 'text-gray-500';
+        const iconColor = t === 'light' ? 'text-amber-500' : t === 'dark' ? 'text-navy-500' : 'text-gray-500';
 
         return (
           <button
@@ -157,7 +157,7 @@ export const ThemeToggleSwitch: React.FC<{
         relative w-14 h-7 rounded-full p-0.5
         transition-colors duration-300
         ${isDark
-          ? 'bg-indigo-600'
+          ? 'bg-navy-700'
           : 'bg-gray-300'
         }
         ${className}
@@ -181,7 +181,7 @@ export const ThemeToggleSwitch: React.FC<{
               exit={{ opacity: 0, scale: 0.5 }}
               transition={{ duration: 0.15 }}
             >
-              <Moon className="w-3.5 h-3.5 text-indigo-600" />
+              <Moon className="w-3.5 h-3.5 text-navy-700" />
             </motion.div>
           ) : (
             <motion.div

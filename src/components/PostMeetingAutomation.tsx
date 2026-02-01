@@ -218,7 +218,7 @@ export default function PostMeetingAutomation({
               <button
                 onClick={handleGenerateSummary}
                 disabled={isGeneratingSummary}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-indigo-200 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-navy-700 to-navy-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-navy-200 transition-all disabled:opacity-50"
               >
                 {isGeneratingSummary ? (
                   <>
@@ -244,7 +244,7 @@ export default function PostMeetingAutomation({
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-sm font-medium transition-all relative ${
                 activeTab === tab.id
-                  ? 'text-indigo-600 bg-indigo-50'
+                  ? 'text-navy-700 bg-navy-50'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
             >
@@ -252,7 +252,7 @@ export default function PostMeetingAutomation({
               <span>{tab.label}</span>
               {tab.count !== undefined && tab.count > 0 && (
                 <span className={`px-1.5 py-0.5 text-xs rounded-full ${
-                  activeTab === tab.id ? 'bg-indigo-200 text-indigo-700' : 'bg-gray-200 text-gray-600'
+                  activeTab === tab.id ? 'bg-navy-200 text-navy-800' : 'bg-gray-200 text-gray-600'
                 }`}>
                   {tab.count}
                 </span>
@@ -260,7 +260,7 @@ export default function PostMeetingAutomation({
               {activeTab === tab.id && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-navy-700"
                 />
               )}
             </button>
@@ -411,7 +411,7 @@ function SummaryTab({ summary, isGenerating, onGenerate, onUpdate }: SummaryTabP
       >
         <div className="relative">
           <motion.div
-            className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center"
+            className="w-20 h-20 rounded-2xl bg-gradient-to-br from-navy-500 to-navy-600 flex items-center justify-center"
             animate={{ rotate: [0, 5, -5, 0], scale: [1, 1.05, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
           >
@@ -422,7 +422,7 @@ function SummaryTab({ summary, isGenerating, onGenerate, onUpdate }: SummaryTabP
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
           >
-            <Loader2 className="w-5 h-5 text-indigo-600" />
+            <Loader2 className="w-5 h-5 text-navy-700" />
           </motion.div>
         </div>
         <h3 className="mt-6 text-lg font-semibold text-gray-900">Generating AI Summary...</h3>
@@ -466,7 +466,7 @@ function SummaryTab({ summary, isGenerating, onGenerate, onUpdate }: SummaryTabP
         </p>
         <button
           onClick={onGenerate}
-          className="mt-6 flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+          className="mt-6 flex items-center gap-2 px-6 py-3 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 transition-colors"
         >
           <Sparkles className="w-5 h-5" />
           Generate Summary
@@ -486,8 +486,8 @@ function SummaryTab({ summary, isGenerating, onGenerate, onUpdate }: SummaryTabP
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-indigo-600" />
+            <div className="w-10 h-10 rounded-xl bg-navy-100 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-navy-700" />
             </div>
             <div>
               <h3 className="font-semibold text-gray-900">Executive Summary</h3>
@@ -508,7 +508,7 @@ function SummaryTab({ summary, isGenerating, onGenerate, onUpdate }: SummaryTabP
               <textarea
                 value={editValue}
                 onChange={(e) => setEditValue(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500 resize-none"
                 rows={4}
                 autoFocus
               />
@@ -521,7 +521,7 @@ function SummaryTab({ summary, isGenerating, onGenerate, onUpdate }: SummaryTabP
                 </button>
                 <button
                   onClick={saveEdit}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                  className="px-4 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800"
                 >
                   Save
                 </button>
@@ -559,8 +559,8 @@ function SummaryTab({ summary, isGenerating, onGenerate, onUpdate }: SummaryTabP
         <SummarySectionCard
           title="Decisions Made"
           icon={Target}
-          iconColor="text-purple-500"
-          iconBg="bg-purple-50"
+          iconColor="text-navy-500"
+          iconBg="bg-navy-50"
           items={summary.decisions}
           editingSection={editingSection}
           editIndex={editIndex}
@@ -573,7 +573,7 @@ function SummaryTab({ summary, isGenerating, onGenerate, onUpdate }: SummaryTabP
             const updated = { ...summary, decisions: summary.decisions.filter((_, i) => i !== index) };
             onUpdate(updated);
           }}
-          iconElement={<CheckCircle className="w-4 h-4 text-purple-500" />}
+          iconElement={<CheckCircle className="w-4 h-4 text-navy-500" />}
         />
 
         {/* Next Steps */}
@@ -694,7 +694,7 @@ function ActionItemsTab({ actionItems, participants, onUpdate, onSave, showNotif
                 onClick={() => setFilter(p)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   filter === p
-                    ? 'bg-indigo-100 text-indigo-700'
+                    ? 'bg-navy-100 text-navy-800'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
@@ -711,7 +711,7 @@ function ActionItemsTab({ actionItems, participants, onUpdate, onSave, showNotif
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search tasks..."
-              className="pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-48"
+              className="pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-500 w-48"
             />
           </div>
         </div>
@@ -719,7 +719,7 @@ function ActionItemsTab({ actionItems, participants, onUpdate, onSave, showNotif
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsAdding(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-navy-700 text-white rounded-xl text-sm font-medium hover:bg-navy-800 transition-colors"
           >
             <Plus className="w-4 h-4" />
             Add Task
@@ -781,14 +781,14 @@ function ActionItemsTab({ actionItems, participants, onUpdate, onSave, showNotif
                 value={newTask}
                 onChange={(e) => setNewTask(e.target.value)}
                 placeholder="Task description..."
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500"
                 autoFocus
               />
               <div className="grid grid-cols-3 gap-4">
                 <select
                   value={newOwner}
                   onChange={(e) => setNewOwner(e.target.value)}
-                  className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500 text-sm"
                 >
                   <option value="">Assign to...</option>
                   {participants.map((p) => (
@@ -798,7 +798,7 @@ function ActionItemsTab({ actionItems, participants, onUpdate, onSave, showNotif
                 <select
                   value={newPriority}
                   onChange={(e) => setNewPriority(e.target.value as ActionItem['priority'])}
-                  className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500 text-sm"
                 >
                   <option value="high">High Priority</option>
                   <option value="medium">Medium Priority</option>
@@ -808,7 +808,7 @@ function ActionItemsTab({ actionItems, participants, onUpdate, onSave, showNotif
                   type="date"
                   value={newDueDate}
                   onChange={(e) => setNewDueDate(e.target.value)}
-                  className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500 text-sm"
                 />
               </div>
               <div className="flex justify-end gap-2">
@@ -821,7 +821,7 @@ function ActionItemsTab({ actionItems, participants, onUpdate, onSave, showNotif
                 <button
                   onClick={addActionItem}
                   disabled={!newTask.trim()}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800 disabled:opacity-50"
                 >
                   Add Action Item
                 </button>
@@ -865,7 +865,7 @@ function ActionItemsTab({ actionItems, participants, onUpdate, onSave, showNotif
                       <select
                         value={item.owner || ''}
                         onChange={(e) => updateItem(originalIndex, { owner: e.target.value || undefined })}
-                        className="text-xs px-2 py-1 bg-white/80 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="text-xs px-2 py-1 bg-white/80 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
                       >
                         <option value="">Unassigned</option>
                         {participants.map((p) => (
@@ -878,7 +878,7 @@ function ActionItemsTab({ actionItems, participants, onUpdate, onSave, showNotif
                         type="date"
                         value={item.dueDate || ''}
                         onChange={(e) => updateItem(originalIndex, { dueDate: e.target.value || undefined })}
-                        className="text-xs px-2 py-1 bg-white/80 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="text-xs px-2 py-1 bg-white/80 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
                       />
 
                       {/* Priority */}
@@ -1009,7 +1009,7 @@ function EmailTab({ summary, participants, email, setEmail, isSending, setIsSend
       {/* Email Composer Card */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-navy-500 to-navy-500 text-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Mail className="w-6 h-6" />
@@ -1057,7 +1057,7 @@ function EmailTab({ summary, participants, email, setEmail, isSending, setIsSend
                   disabled={isGenerating}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                     tone === t
-                      ? 'bg-indigo-100 text-indigo-700'
+                      ? 'bg-navy-100 text-navy-800'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -1105,7 +1105,7 @@ function EmailTab({ summary, participants, email, setEmail, isSending, setIsSend
                                 setSelectedRecipients(selectedRecipients.filter(r => r !== p.email));
                               }
                             }}
-                            className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                            className="w-4 h-4 text-navy-700 rounded focus:ring-navy-500"
                           />
                           <div>
                             <p className="text-sm font-medium text-gray-900">{p.name}</p>
@@ -1124,7 +1124,7 @@ function EmailTab({ summary, participants, email, setEmail, isSending, setIsSend
         {/* Email Preview */}
         {isGenerating ? (
           <div className="p-12 text-center">
-            <Loader2 className="w-10 h-10 text-indigo-500 mx-auto mb-4 animate-spin" />
+            <Loader2 className="w-10 h-10 text-navy-500 mx-auto mb-4 animate-spin" />
             <p className="text-gray-600 font-medium">Generating personalized email...</p>
             <p className="text-sm text-gray-400 mt-1">Using AI to craft the perfect message</p>
           </div>
@@ -1138,7 +1138,7 @@ function EmailTab({ summary, participants, email, setEmail, isSending, setIsSend
                   type="text"
                   value={editedSubject}
                   onChange={(e) => setEditedSubject(e.target.value)}
-                  className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
                 />
               ) : (
                 <p className="mt-1 text-gray-900 font-medium">{email.subject}</p>
@@ -1152,7 +1152,7 @@ function EmailTab({ summary, participants, email, setEmail, isSending, setIsSend
                 <textarea
                   value={editedBody}
                   onChange={(e) => setEditedBody(e.target.value)}
-                  className="w-full mt-2 h-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm resize-none"
+                  className="w-full mt-2 h-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500 font-mono text-sm resize-none"
                 />
               ) : (
                 <div className="mt-2 prose prose-sm max-w-none whitespace-pre-wrap">
@@ -1194,7 +1194,7 @@ function EmailTab({ summary, participants, email, setEmail, isSending, setIsSend
               <button
                 onClick={handleSend}
                 disabled={isSending || selectedRecipients.length === 0}
-                className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-2 bg-navy-700 text-white rounded-xl text-sm font-medium hover:bg-navy-800 transition-colors disabled:opacity-50"
               >
                 {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 {isSending ? 'Sending...' : 'Send Email'}
@@ -1297,20 +1297,20 @@ function ExportTab({ summary, actionItems, transcript, isExporting, setIsExporti
               onClick={() => setSelectedFormat(format.id as typeof selectedFormat)}
               className={`flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all ${
                 selectedFormat === format.id
-                  ? 'border-indigo-500 bg-indigo-50'
+                  ? 'border-navy-500 bg-navy-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                selectedFormat === format.id ? 'bg-indigo-100' : 'bg-gray-100'
+                selectedFormat === format.id ? 'bg-navy-100' : 'bg-gray-100'
               }`}>
-                <format.icon className={`w-6 h-6 ${selectedFormat === format.id ? 'text-indigo-600' : 'text-gray-600'}`} />
+                <format.icon className={`w-6 h-6 ${selectedFormat === format.id ? 'text-navy-700' : 'text-gray-600'}`} />
               </div>
               <div>
-                <p className={`font-medium ${selectedFormat === format.id ? 'text-indigo-900' : 'text-gray-900'}`}>
+                <p className={`font-medium ${selectedFormat === format.id ? 'text-navy-900' : 'text-gray-900'}`}>
                   {format.label}
                 </p>
-                <p className={`text-sm ${selectedFormat === format.id ? 'text-indigo-600' : 'text-gray-500'}`}>
+                <p className={`text-sm ${selectedFormat === format.id ? 'text-navy-700' : 'text-gray-500'}`}>
                   {format.description}
                 </p>
               </div>
@@ -1322,7 +1322,7 @@ function ExportTab({ summary, actionItems, transcript, isExporting, setIsExporti
           <button
             onClick={exportData}
             disabled={isExporting}
-            className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-3 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 transition-colors disabled:opacity-50"
           >
             {isExporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
             {isExporting ? 'Exporting...' : `Export as ${selectedFormat.toUpperCase()}`}
@@ -1493,7 +1493,7 @@ function AnalyticsTab({ transcript, meetingDuration, participants, summary, acti
                       initial={{ width: 0 }}
                       animate={{ width: `${percentage}%` }}
                       transition={{ duration: 1, delay: 0.2 }}
-                      className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                      className="h-full bg-gradient-to-r from-navy-500 to-navy-500 rounded-full"
                     />
                   </div>
                 </div>
@@ -1556,7 +1556,7 @@ function AnalyticsTab({ transcript, meetingDuration, participants, summary, acti
                 transition={{ delay: i * 0.1 }}
                 className="relative pl-12"
               >
-                <div className="absolute left-2 top-1.5 w-4 h-4 rounded-full bg-indigo-500 border-2 border-white shadow" />
+                <div className="absolute left-2 top-1.5 w-4 h-4 rounded-full bg-navy-500 border-2 border-white shadow" />
                 <div className="text-sm">
                   <span className="font-medium text-gray-900">{segment.speaker}</span>
                   <span className="text-gray-400 ml-2">{segment.timestamp.toLocaleTimeString()}</span>
@@ -1633,7 +1633,7 @@ function SummarySectionCard({
                     type="text"
                     value={editValue}
                     onChange={(e) => onChange(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
                     autoFocus
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') onSave();
@@ -1692,12 +1692,12 @@ interface StatCardProps {
 
 function StatCard({ label, value, icon: Icon, color }: StatCardProps) {
   const colorClasses: Record<string, { bg: string; icon: string }> = {
-    indigo: { bg: 'bg-indigo-50', icon: 'text-indigo-600' },
+    indigo: { bg: 'bg-navy-50', icon: 'text-navy-700' },
     blue: { bg: 'bg-blue-50', icon: 'text-blue-600' },
     green: { bg: 'bg-green-50', icon: 'text-green-600' },
     red: { bg: 'bg-red-50', icon: 'text-red-600' },
     orange: { bg: 'bg-orange-50', icon: 'text-orange-600' },
-    purple: { bg: 'bg-purple-50', icon: 'text-purple-600' },
+    purple: { bg: 'bg-navy-50', icon: 'text-navy-600' },
   };
 
   const colors = colorClasses[color] || colorClasses.indigo;
@@ -1728,7 +1728,7 @@ interface AnalyticsCardProps {
 function AnalyticsCard({ label, value, subtext, icon: Icon, color }: AnalyticsCardProps) {
   const colorClasses: Record<string, { bg: string; text: string; icon: string }> = {
     blue: { bg: 'bg-blue-50', text: 'text-blue-900', icon: 'text-blue-600' },
-    purple: { bg: 'bg-purple-50', text: 'text-purple-900', icon: 'text-purple-600' },
+    purple: { bg: 'bg-navy-50', text: 'text-navy-900', icon: 'text-navy-600' },
     green: { bg: 'bg-green-50', text: 'text-green-900', icon: 'text-green-600' },
     orange: { bg: 'bg-orange-50', text: 'text-orange-900', icon: 'text-orange-600' },
   };
@@ -1760,7 +1760,7 @@ function IntegrationCard({ name, description, icon, onClick }: IntegrationCardPr
   return (
     <button
       onClick={onClick}
-      className="flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left"
+      className="flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-navy-300 hover:bg-navy-50 transition-all text-left"
     >
       <span className="text-3xl">{icon}</span>
       <div>

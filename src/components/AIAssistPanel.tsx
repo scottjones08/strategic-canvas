@@ -218,7 +218,7 @@ export const AIAssistPanel: React.FC<AIAssistPanelProps> = ({
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
+        <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-navy-500 via-navy-500 to-pink-500">
           <div className="flex items-center gap-2">
             <motion.div
               animate={{ rotate: [0, 15, -15, 0] }}
@@ -319,7 +319,7 @@ export const AIAssistPanel: React.FC<AIAssistPanelProps> = ({
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
                       placeholder="e.g., marketing strategies for a new product launch"
-                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none bg-white/50"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500 focus:border-transparent resize-none bg-white/50"
                       rows={3}
                     />
                   </div>
@@ -334,7 +334,7 @@ export const AIAssistPanel: React.FC<AIAssistPanelProps> = ({
                       max="10"
                       value={stickyCount}
                       onChange={(e) => setStickyCount(parseInt(e.target.value))}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-navy-700"
                     />
                   </div>
                 </div>
@@ -372,7 +372,7 @@ export const AIAssistPanel: React.FC<AIAssistPanelProps> = ({
                       </span>
                       <button
                         onClick={handleAddAllStickies}
-                        className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+                        className="text-xs text-navy-700 hover:text-navy-800 font-medium flex items-center gap-1"
                       >
                         <Plus className="w-3 h-3" />
                         Add All
@@ -457,7 +457,7 @@ export const AIAssistPanel: React.FC<AIAssistPanelProps> = ({
                           nodeIds: c.nodeIds,
                           color: c.suggestedColor
                         })))}
-                        className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+                        className="text-xs text-navy-700 hover:text-navy-800 font-medium flex items-center gap-1"
                       >
                         <Plus className="w-3 h-3" />
                         Create Frames
@@ -558,7 +558,7 @@ export const AIAssistPanel: React.FC<AIAssistPanelProps> = ({
                           {summary.keyThemes.map((theme, i) => (
                             <span
                               key={i}
-                              className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full"
+                              className="px-2 py-1 bg-navy-100 text-navy-800 text-xs font-medium rounded-full"
                             >
                               {theme}
                             </span>
@@ -594,7 +594,7 @@ export const AIAssistPanel: React.FC<AIAssistPanelProps> = ({
                               key={i}
                               className="flex items-start gap-2 text-xs text-gray-600"
                             >
-                              <Target className="w-3 h-3 text-indigo-500 mt-0.5 flex-shrink-0" />
+                              <Target className="w-3 h-3 text-navy-500 mt-0.5 flex-shrink-0" />
                               <span>{suggestion}</span>
                             </div>
                           ))}
@@ -629,8 +629,8 @@ export const AIAssistPanel: React.FC<AIAssistPanelProps> = ({
                 <BackButton onClick={() => handleModeChange('menu')} />
 
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="p-2 rounded-xl bg-purple-100">
-                    <Wand2 className="w-5 h-5 text-purple-600" />
+                  <div className="p-2 rounded-xl bg-navy-100">
+                    <Wand2 className="w-5 h-5 text-navy-600" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">Expand Idea</h3>
@@ -663,7 +663,7 @@ export const AIAssistPanel: React.FC<AIAssistPanelProps> = ({
                       <button
                         onClick={handleExpand}
                         disabled={isLoading || !selectedNodes[0]?.content}
-                        className="w-full py-2.5 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-xl hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                        className="w-full py-2.5 px-4 bg-gradient-to-r from-navy-500 to-pink-500 text-white font-medium rounded-xl hover:from-navy-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                       >
                         {isLoading ? (
                           <>
@@ -736,7 +736,7 @@ export const AIAssistPanel: React.FC<AIAssistPanelProps> = ({
                                 className={`px-2 py-1 text-xs font-medium rounded-full transition-all ${
                                   addedItems.has(i + 200)
                                     ? 'bg-green-100 text-green-700'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-indigo-100 hover:text-indigo-700'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-navy-100 hover:text-navy-800'
                                 }`}
                               >
                                 {addedItems.has(i + 200) ? (
@@ -806,7 +806,7 @@ const AIMenuButton: React.FC<AIMenuButtonProps> = ({
     amber: 'bg-amber-50 text-amber-600 group-hover:bg-amber-100',
     blue: 'bg-blue-50 text-blue-600 group-hover:bg-blue-100',
     green: 'bg-green-50 text-green-600 group-hover:bg-green-100',
-    purple: 'bg-purple-50 text-purple-600 group-hover:bg-purple-100'
+    purple: 'bg-navy-50 text-navy-600 group-hover:bg-navy-100'
   };
 
   return (
@@ -882,7 +882,7 @@ const GeneratedStickyCard: React.FC<GeneratedStickyCardProps> = ({
       className={`p-1 rounded-md transition-all flex-shrink-0 ${
         isAdded
           ? 'bg-green-100 text-green-600'
-          : 'bg-white/50 hover:bg-white text-gray-500 hover:text-indigo-600'
+          : 'bg-white/50 hover:bg-white text-gray-500 hover:text-navy-700'
       }`}
     >
       {isAdded ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
@@ -912,7 +912,7 @@ const ClusterCard: React.FC<ClusterCardProps> = ({ cluster, onHighlight }) => (
     <p className="text-xs text-gray-600 mb-2">{cluster.description}</p>
     <button
       onClick={onHighlight}
-      className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+      className="text-xs text-navy-700 hover:text-navy-800 font-medium flex items-center gap-1"
     >
       <ArrowRight className="w-3 h-3" />
       Highlight on board
@@ -971,7 +971,7 @@ const ExpandedItemCard: React.FC<ExpandedItemCardProps> = ({
       className={`p-1 rounded-md transition-all flex-shrink-0 ${
         isAdded
           ? 'bg-green-100 text-green-600'
-          : 'hover:bg-white text-gray-400 hover:text-indigo-600'
+          : 'hover:bg-white text-gray-400 hover:text-navy-700'
       }`}
     >
       {isAdded ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}

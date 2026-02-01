@@ -379,7 +379,7 @@ export function OfficeEditor({
             title="Collaborators"
           >
             <Users className="w-5 h-5 text-gray-600" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-600 text-white text-[10px] rounded-full flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-navy-700 text-white text-[10px] rounded-full flex items-center justify-center">
               1
             </span>
           </button>
@@ -471,7 +471,7 @@ export function OfficeEditor({
               className="absolute inset-0 bg-white flex items-center justify-center z-10"
             >
               <div className="text-center">
-                <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto" />
+                <Loader2 className="w-12 h-12 text-navy-700 animate-spin mx-auto" />
                 <p className="mt-4 text-gray-600">Loading document...</p>
               </div>
             </motion.div>
@@ -493,7 +493,7 @@ export function OfficeEditor({
                   {onDownload && (
                     <button
                       onClick={() => onDownload(document)}
-                      className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800"
                     >
                       <Download className="w-4 h-4" />
                       Download Document
@@ -513,7 +513,7 @@ export function OfficeEditor({
               
               {/* Setup Instructions */}
               <details className="mt-6 text-left">
-                <summary className="text-sm text-indigo-600 cursor-pointer hover:underline">
+                <summary className="text-sm text-navy-700 cursor-pointer hover:underline">
                   Setup OnlyOffice Document Server
                 </summary>
                 <div className="mt-2 p-4 bg-gray-50 rounded-lg text-xs text-gray-600 font-mono">
@@ -567,7 +567,7 @@ function FallbackViewer({ document }: { document: OfficeDocument }) {
         <button
           onClick={() => setViewerType('microsoft')}
           className={`px-3 py-1 text-xs rounded ${
-            viewerType === 'microsoft' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'
+            viewerType === 'microsoft' ? 'bg-navy-700 text-white' : 'bg-gray-200 text-gray-600'
           }`}
         >
           Microsoft
@@ -575,7 +575,7 @@ function FallbackViewer({ document }: { document: OfficeDocument }) {
         <button
           onClick={() => setViewerType('google')}
           className={`px-3 py-1 text-xs rounded ${
-            viewerType === 'google' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'
+            viewerType === 'google' ? 'bg-navy-700 text-white' : 'bg-gray-200 text-gray-600'
           }`}
         >
           Google

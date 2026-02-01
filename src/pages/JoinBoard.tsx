@@ -99,7 +99,7 @@ export default function JoinBoard() {
           animate={{ opacity: 1 }}
           className="text-center"
         >
-          <Loader2 className="w-12 h-12 text-indigo-400 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-navy-400 animate-spin mx-auto mb-4" />
           <p className="text-white/60">Verifying board...</p>
         </motion.div>
       </div>
@@ -143,12 +143,12 @@ export default function JoinBoard() {
       >
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-gradient-to-br from-navy-500 to-navy-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Target className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">Join Whiteboard</h1>
           {boardName && (
-            <p className="text-indigo-300 font-medium mb-2">"{boardName}"</p>
+            <p className="text-navy-300 font-medium mb-2">"{boardName}"</p>
           )}
           <p className="text-white/60">
             You've been invited to collaborate on this whiteboard
@@ -167,7 +167,7 @@ export default function JoinBoard() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter your name"
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-navy-500 focus:border-transparent"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && name.trim()) {
@@ -183,7 +183,7 @@ export default function JoinBoard() {
           <button
             onClick={handleJoin}
             disabled={!name.trim() || isJoining}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-medium hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-navy-500 to-navy-600 text-white rounded-xl font-medium hover:from-navy-700 hover:to-navy-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             {isJoining ? (
               <>

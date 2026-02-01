@@ -175,7 +175,7 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
                   transition-all duration-150 cursor-pointer select-none
                   ${
                     hasUserReacted(reaction.emoji)
-                      ? 'bg-indigo-100 border-2 border-indigo-400 text-indigo-700'
+                      ? 'bg-navy-100 border-2 border-navy-400 text-navy-800'
                       : 'bg-gray-100 border-2 border-transparent hover:bg-gray-200 text-gray-700'
                   }
                 `}

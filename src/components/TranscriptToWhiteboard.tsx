@@ -196,7 +196,7 @@ export default function TranscriptToWhiteboard({
         className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col"
       >
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-purple-500 to-indigo-600 text-white">
+        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-navy-500 to-navy-700 text-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
@@ -261,13 +261,13 @@ export default function TranscriptToWhiteboard({
                   onClick={() => setUseAI(false)}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
                     !useAI
-                      ? 'border-purple-500 bg-purple-50'
+                      ? 'border-navy-500 bg-navy-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <LayoutGrid className={`w-5 h-5 ${!useAI ? 'text-purple-600' : 'text-gray-500'}`} />
-                    <span className={`font-medium ${!useAI ? 'text-purple-900' : 'text-gray-900'}`}>
+                    <LayoutGrid className={`w-5 h-5 ${!useAI ? 'text-navy-600' : 'text-gray-500'}`} />
+                    <span className={`font-medium ${!useAI ? 'text-navy-900' : 'text-gray-900'}`}>
                       Pattern Matching
                     </span>
                   </div>
@@ -281,15 +281,15 @@ export default function TranscriptToWhiteboard({
                   disabled={!aiApiKey}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
                     useAI && aiApiKey
-                      ? 'border-purple-500 bg-purple-50'
+                      ? 'border-navy-500 bg-navy-50'
                       : !aiApiKey
                       ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <Sparkles className={`w-5 h-5 ${useAI ? 'text-purple-600' : 'text-gray-500'}`} />
-                    <span className={`font-medium ${useAI ? 'text-purple-900' : 'text-gray-900'}`}>
+                    <Sparkles className={`w-5 h-5 ${useAI ? 'text-navy-600' : 'text-gray-500'}`} />
+                    <span className={`font-medium ${useAI ? 'text-navy-900' : 'text-gray-900'}`}>
                       AI-Powered
                     </span>
                     {!aiApiKey && (
@@ -327,7 +327,7 @@ export default function TranscriptToWhiteboard({
               <button
                 onClick={handleExtract}
                 disabled={isExtracting}
-                className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-navy-600 to-navy-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 {isExtracting ? (
                   <>
@@ -389,7 +389,7 @@ export default function TranscriptToWhiteboard({
               <button
                 onClick={() => setPreviewMode(!previewMode)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors shrink-0 ${
-                  previewMode ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'
+                  previewMode ? 'bg-navy-100 text-navy-800' : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
                 {previewMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -454,7 +454,7 @@ export default function TranscriptToWhiteboard({
                           onClick={() => toggleSelection(obj.id)}
                           className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
                             isSelected
-                              ? 'border-indigo-500 shadow-md'
+                              ? 'border-navy-500 shadow-md'
                               : 'border-transparent hover:border-gray-200'
                           }`}
                           style={{ backgroundColor: isSelected ? config.color : `${config.color}60` }}
@@ -462,7 +462,7 @@ export default function TranscriptToWhiteboard({
                           <div className="flex items-start gap-3">
                             {/* Selection checkbox */}
                             <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                              isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-gray-300 bg-white'
+                              isSelected ? 'bg-navy-500 border-navy-500' : 'border-gray-300 bg-white'
                             }`}>
                               {isSelected && <Check className="w-3 h-3 text-white" />}
                             </div>
@@ -525,7 +525,7 @@ export default function TranscriptToWhiteboard({
                 <button
                   onClick={handleAddToWhiteboard}
                   disabled={selectedIds.size === 0}
-                  className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-6 py-2 bg-navy-700 text-white rounded-lg font-medium hover:bg-navy-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Check className="w-4 h-4" />
                   Add to Whiteboard

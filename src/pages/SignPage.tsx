@@ -126,7 +126,7 @@ export default function SignPage() {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto" />
+          <Loader2 className="w-12 h-12 text-navy-700 animate-spin mx-auto" />
           <p className="mt-4 text-gray-600">Loading document...</p>
         </div>
       </div>
@@ -167,7 +167,7 @@ export default function SignPage() {
       <header className="bg-white border-b sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <FileText className="w-6 h-6 text-indigo-600" />
+            <FileText className="w-6 h-6 text-navy-700" />
             <div>
               <h1 className="font-semibold text-gray-900">{request.title}</h1>
               <p className="text-sm text-gray-500">
@@ -181,7 +181,7 @@ export default function SignPage() {
             <div className="hidden sm:flex items-center gap-2">
               <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
                 <motion.div
-                  className="h-full bg-indigo-600 rounded-full"
+                  className="h-full bg-navy-700 rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${progress}%` }}
                 />
@@ -201,7 +201,7 @@ export default function SignPage() {
             <button
               onClick={handleComplete}
               disabled={progress < 100 || isSubmitting}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-4 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isSubmitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -277,7 +277,7 @@ export default function SignPage() {
                     onLoadSuccess={onDocumentLoadSuccess}
                     loading={
                       <div className="flex items-center justify-center p-8">
-                        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                        <Loader2 className="w-8 h-8 text-navy-700 animate-spin" />
                       </div>
                     }
                   >
@@ -336,9 +336,9 @@ export default function SignPage() {
           </div>
 
           {request.message && (
-            <div className="mt-6 p-4 bg-indigo-50 rounded-lg">
-              <h3 className="text-sm font-medium text-indigo-900 mb-2">Message from sender</h3>
-              <p className="text-sm text-indigo-700">{request.message}</p>
+            <div className="mt-6 p-4 bg-navy-50 rounded-lg">
+              <h3 className="text-sm font-medium text-navy-900 mb-2">Message from sender</h3>
+              <p className="text-sm text-navy-800">{request.message}</p>
             </div>
           )}
         </aside>
@@ -407,7 +407,7 @@ export default function SignPage() {
               </p>
               <button
                 onClick={() => window.close()}
-                className="mt-6 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                className="mt-6 px-6 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800"
               >
                 Close Window
               </button>
@@ -449,7 +449,7 @@ function SignatureFieldOverlay({ field, scale, onClick }: SignatureFieldOverlayP
       className={`border-2 border-dashed rounded transition-colors ${
         field.value
           ? 'border-green-500 bg-green-100/50 cursor-default'
-          : 'border-indigo-500 bg-indigo-100/50 hover:bg-indigo-200/50 cursor-pointer'
+          : 'border-navy-500 bg-navy-100/50 hover:bg-navy-200/50 cursor-pointer'
       }`}
       whileHover={!field.value ? { scale: 1.02 } : undefined}
       whileTap={!field.value ? { scale: 0.98 } : undefined}
@@ -467,7 +467,7 @@ function SignatureFieldOverlay({ field, scale, onClick }: SignatureFieldOverlayP
         )
       ) : (
         // Show placeholder
-        <div className="w-full h-full flex items-center justify-center text-indigo-600">
+        <div className="w-full h-full flex items-center justify-center text-navy-700">
           <FieldTypeIcon type={field.type} />
           <span className="ml-1 text-xs capitalize">{field.type}</span>
         </div>
@@ -537,7 +537,7 @@ function DeclineModal({ onConfirm, onCancel, isSubmitting }: DeclineModalProps) 
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder="Enter your reason (optional)"
-          className="w-full px-3 py-2 border rounded-lg resize-none h-24 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="w-full px-3 py-2 border rounded-lg resize-none h-24 focus:ring-2 focus:ring-navy-500 focus:border-navy-500"
         />
 
         <div className="flex justify-end gap-3 mt-4">

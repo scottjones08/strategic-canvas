@@ -80,7 +80,7 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         await page.render({
           canvasContext: context,
           viewport: viewport,
-          canvas: canvas,
+          canvas: canvas as any,
         }).promise;
 
         setPageImage(canvas.toDataURL());

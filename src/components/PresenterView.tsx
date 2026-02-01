@@ -63,7 +63,7 @@ const SlidePreview = ({
       <div className="flex items-center justify-between mb-2">
         <p className="text-gray-400 text-sm">{label}</p>
         {isActive && (
-          <span className="px-2 py-0.5 bg-indigo-500 text-white text-xs rounded-full">
+          <span className="px-2 py-0.5 bg-navy-500 text-white text-xs rounded-full">
             Current
           </span>
         )}
@@ -262,7 +262,7 @@ export function PresenterView({
                 onClick={() => onGoTo(i)}
                 className={`w-full p-2 rounded-lg text-left transition-colors ${
                   i === currentSlide 
-                    ? 'bg-indigo-600 text-white' 
+                    ? 'bg-navy-700 text-white' 
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
               >
@@ -302,7 +302,7 @@ export function PresenterView({
         <button
           onClick={onNext}
           disabled={currentSlide === slides.length - 1}
-          className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white"
+          className="flex items-center gap-2 px-6 py-3 bg-navy-700 hover:bg-navy-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white"
         >
           Next
           <ChevronRight className="w-5 h-5" />

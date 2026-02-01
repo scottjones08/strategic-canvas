@@ -21,8 +21,6 @@ import {
   UserPlus,
   Link2,
   Check,
-  Wifi,
-  WifiOff,
   Target,
   ListTodo,
   FileText,
@@ -185,7 +183,7 @@ const ParticipantRow = memo(({
       exit={{ opacity: 0, x: 20 }}
       className={`
         flex items-center gap-3 p-3 rounded-xl transition-all
-        ${isFollowing ? 'bg-indigo-50 ring-2 ring-indigo-200' : 'hover:bg-gray-50'}
+        ${isFollowing ? 'bg-navy-50 ring-2 ring-navy-200' : 'hover:bg-gray-50'}
         ${!isCurrentUser && onFollow ? 'group cursor-pointer' : ''}
       `}
       onClick={!isCurrentUser ? onFollow : undefined}
@@ -279,7 +277,7 @@ const ParticipantRow = memo(({
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className="flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-600 rounded-full text-xs font-medium"
+              className="flex items-center gap-1 px-2 py-1 bg-navy-100 text-navy-700 rounded-full text-xs font-medium"
             >
               <Target className="w-3 h-3" />
               Following
@@ -681,7 +679,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
       {/* Panel content */}
       <div className="h-full bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-l-2xl rounded-r-none shadow-2xl border border-r-0 border-gray-200 flex flex-col overflow-hidden">
         {/* Header with recording status */}
-        <div className={`p-4 border-b ${isRecording ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-indigo-500 to-purple-500'}`}>
+        <div className={`p-4 border-b ${isRecording ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-navy-500 to-navy-500'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isRecording ? 'bg-white/20' : 'bg-white/20'}`}>
@@ -712,12 +710,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Connection status */}
-              <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${
-                isConnected ? 'bg-white/20 text-white' : 'bg-red-100/50 text-red-100'
-              }`}>
-                {isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-              </div>
+              {/* Connection status hidden - synced automatically */}
 
               {/* Settings */}
               <button
@@ -775,7 +768,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                     ? 'bg-white text-red-600 hover:bg-red-50'
                     : isProcessing
                     ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-white text-indigo-600 hover:bg-indigo-50'
+                    : 'bg-white text-navy-700 hover:bg-navy-50'
                 }`}
               >
                 {isProcessing ? (
@@ -809,7 +802,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                     value={config?.apiKey || ''}
                     onChange={(e) => updateConfig({ apiKey: e.target.value })}
                     placeholder="Enter your API key for speaker diarization"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
                   />
                   <p className="mt-1 text-xs text-gray-500">
                     Get a free key at{' '}
@@ -817,7 +810,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                       href="https://www.assemblyai.com"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-indigo-600 hover:underline"
+                      className="text-navy-700 hover:underline"
                     >
                       assemblyai.com
                     </a>
@@ -831,7 +824,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                   <button
                     onClick={() => updateConfig({ enableDiarization: !config?.enableDiarization })}
                     className={`relative w-12 h-6 rounded-full transition-colors ${
-                      config?.enableDiarization ? 'bg-indigo-600' : 'bg-gray-300'
+                      config?.enableDiarization ? 'bg-navy-700' : 'bg-gray-300'
                     }`}
                   >
                     <span
@@ -849,7 +842,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                   <button
                     onClick={() => setShowTimestamps(!showTimestamps)}
                     className={`relative w-12 h-6 rounded-full transition-colors ${
-                      showTimestamps ? 'bg-indigo-600' : 'bg-gray-300'
+                      showTimestamps ? 'bg-navy-700' : 'bg-gray-300'
                     }`}
                   >
                     <span
@@ -868,7 +861,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                   <label
                     className={`flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
                       isConfigured
-                        ? 'border-gray-300 hover:border-indigo-400 hover:bg-indigo-50'
+                        ? 'border-gray-300 hover:border-navy-400 hover:bg-navy-50'
                         : 'border-gray-200 bg-gray-100 cursor-not-allowed'
                     }`}
                   >
@@ -941,7 +934,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                     activeTab === tab.id
                       ? tab.id === 'transcript' && isRecording
                         ? 'bg-white text-red-600 animate-pulse'
-                        : 'bg-indigo-500 text-white'
+                        : 'bg-navy-500 text-white'
                       : tab.id === 'transcript' && isRecording
                         ? 'bg-red-500 text-white animate-pulse'
                         : 'bg-gray-300 text-gray-700'
@@ -990,7 +983,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                     >
                       Saved
                       {savedTranscripts.length > 0 && (
-                        <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px]">
+                        <span className="px-1.5 py-0.5 bg-navy-100 text-navy-800 rounded-full text-[10px]">
                           {savedTranscripts.length}
                         </span>
                       )}
@@ -1000,7 +993,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                   {transcript && transcript.segments.length > 0 && !isRecording && !showSavedTranscripts && !viewingTranscript && onSaveTranscript && (
                     <button
                       onClick={handleSaveCurrentTranscript}
-                      className="flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium hover:bg-indigo-200 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 bg-navy-100 text-navy-800 rounded-lg text-xs font-medium hover:bg-navy-200 transition-colors"
                     >
                       <Save className="w-3 h-3" />
                       Save
@@ -1116,12 +1109,12 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                       {/* Handle legacy format (entries array) */}
                       {!viewingTranscript.transcript && viewingTranscript.entries?.map((entry) => (
                         <div key={entry.id} className="flex gap-3 p-3 rounded-xl hover:bg-gray-50">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 bg-indigo-500">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 bg-navy-500">
                             {entry.speaker?.charAt(0) || 'S'}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-sm text-indigo-600">
+                              <span className="font-medium text-sm text-navy-700">
                                 Speaker {entry.speaker || '1'}
                               </span>
                               <span className="text-xs text-gray-400">
@@ -1156,7 +1149,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                                   if (e.key === 'Enter') handleSpeakerNameSave(speaker.id);
                                   if (e.key === 'Escape') setShowSpeakerEdit(null);
                                 }}
-                                className="px-2 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 w-24"
+                                className="px-2 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-navy-500 w-24"
                                 autoFocus
                               />
                               <button
@@ -1205,7 +1198,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search transcript..."
-                        className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
                       />
                       {searchQuery && (
                         <button
@@ -1233,7 +1226,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             className={`flex gap-3 p-3 rounded-xl transition-colors ${
-                              isLatest && isRecording ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'hover:bg-gray-50'
+                              isLatest && isRecording ? 'bg-navy-50 border-l-4 border-navy-500' : 'hover:bg-gray-50'
                             }`}
                           >
                             <div
@@ -1262,7 +1255,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                                   </span>
                                 )}
                                 {isLatest && isRecording && (
-                                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-medium animate-pulse">
+                                  <span className="px-2 py-0.5 bg-navy-100 text-navy-800 rounded-full text-[10px] font-medium animate-pulse">
                                     Latest
                                   </span>
                                 )}
@@ -1278,7 +1271,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                   ) : isProcessing ? (
                     <div className="flex items-center justify-center py-12">
                       <div className="text-center">
-                        <Loader2 className="w-12 h-12 text-indigo-500 mx-auto mb-4 animate-spin" />
+                        <Loader2 className="w-12 h-12 text-navy-500 mx-auto mb-4 animate-spin" />
                         <p className="text-sm text-gray-600 font-medium">{uploadProgress || 'Processing...'}</p>
                       </div>
                     </div>
@@ -1403,7 +1396,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                         {onGenerateWhiteboard && (
                           <button
                             onClick={handleGenerateWhiteboard}
-                            className="flex items-center gap-1 px-2 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-xs font-medium"
+                            className="flex items-center gap-1 px-2 py-1.5 bg-navy-100 text-navy-700 rounded-lg hover:bg-navy-200 transition-colors text-xs font-medium"
                             title="Extract items and add to whiteboard"
                           >
                             <Wand2 className="w-3.5 h-3.5" />
@@ -1415,7 +1408,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                         {onCreateNote && (
                           <button
                             onClick={handleSaveAsNote}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-xs font-medium"
+                            className="flex items-center gap-1 px-3 py-1.5 bg-navy-700 text-white rounded-lg hover:bg-navy-800 transition-colors text-xs font-medium"
                           >
                             <Save className="w-3.5 h-3.5" />
                             Save
@@ -1446,7 +1439,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                     className={`
                       flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
                       ${showCursors
-                        ? 'bg-indigo-100 text-indigo-700'
+                        ? 'bg-navy-100 text-navy-800'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }
                     `}
@@ -1538,7 +1531,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                   {onInvite && (
                     <button
                       onClick={onInvite}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium transition-colors"
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-navy-700 hover:bg-navy-800 text-white rounded-lg text-xs font-medium transition-colors"
                     >
                       <UserPlus className="w-3.5 h-3.5" />
                       Invite people
@@ -1571,7 +1564,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                         }
                       }}
                       placeholder="Add action item..."
-                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500"
                     />
                     <motion.button
                       whileHover={{ scale: 1.05 }}
@@ -1582,7 +1575,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                           setNewAction('');
                         }
                       }}
-                      className="px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
+                      className="px-3 py-2 bg-navy-500 text-white rounded-lg hover:bg-navy-700"
                     >
                       <Plus className="w-4 h-4" />
                     </motion.button>
@@ -1710,15 +1703,15 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                       key={index}
                       onClick={() => onRestoreHistory?.(index)}
                       className={`w-full p-3 text-left border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                        index === currentHistoryIndex ? 'bg-indigo-50 border-l-2 border-l-indigo-500' : ''
+                        index === currentHistoryIndex ? 'bg-navy-50 border-l-2 border-l-navy-500' : ''
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className={`text-sm ${index === currentHistoryIndex ? 'font-semibold text-indigo-700' : 'text-gray-700'}`}>
+                        <span className={`text-sm ${index === currentHistoryIndex ? 'font-semibold text-navy-800' : 'text-gray-700'}`}>
                           {entry.action}
                         </span>
                         {index === currentHistoryIndex && (
-                          <span className="text-[10px] bg-indigo-500 text-white px-2 py-0.5 rounded-full font-medium">
+                          <span className="text-[10px] bg-navy-500 text-white px-2 py-0.5 rounded-full font-medium">
                             Current
                           </span>
                         )}
@@ -1761,7 +1754,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
                 <span className="absolute -top-2 -right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
               )}
               {pendingActionsCount > 0 && !isRecording && (
-                <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-indigo-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-navy-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                   {pendingActionsCount}
                 </span>
               )}

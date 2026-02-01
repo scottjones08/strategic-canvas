@@ -435,7 +435,7 @@ export default function ClientView() {
     return (
       <div className="h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-indigo-500 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-navy-500 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Loading board...</p>
         </div>
       </div>
@@ -467,7 +467,7 @@ export default function ClientView() {
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
                 placeholder="Enter password"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500"
                 autoFocus
               />
               {passwordError && (
@@ -479,7 +479,7 @@ export default function ClientView() {
             </div>
             <button
               onClick={handlePasswordSubmit}
-              className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+              className="w-full py-3 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 transition-colors"
             >
               View Board
             </button>
@@ -527,7 +527,7 @@ export default function ClientView() {
               className="w-6 h-6 sm:w-8 sm:h-8 object-contain flex-shrink-0"
             />
           ) : (
-            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-navy-500 to-navy-600 rounded-lg flex items-center justify-center flex-shrink-0">
               <Target className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
             </div>
           )}

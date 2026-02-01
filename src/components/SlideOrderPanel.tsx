@@ -46,7 +46,7 @@ const DraggableSlideItem = ({
       isExcluded 
         ? 'bg-gray-100 opacity-60' 
         : isCurrent 
-          ? 'bg-indigo-50 border-2 border-indigo-200' 
+          ? 'bg-navy-50 border-2 border-navy-200' 
           : 'bg-white border border-gray-200 hover:border-gray-300'
     }`}
   >
@@ -79,7 +79,7 @@ const DraggableSlideItem = ({
           e.stopPropagation();
           onStartFrom();
         }}
-        className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-indigo-600"
+        className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-navy-700"
         title="Start from this slide"
       >
         <Play className="w-4 h-4" />
@@ -183,7 +183,7 @@ export function SlideOrderPanel({
               <div className="flex-1" />
               <button
                 onClick={() => onStartPresentation(0)}
-                className="flex items-center gap-2 px-4 py-1.5 text-sm bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-medium"
+                className="flex items-center gap-2 px-4 py-1.5 text-sm bg-navy-700 text-white hover:bg-navy-800 rounded-lg font-medium"
               >
                 <Play className="w-4 h-4" />
                 Present

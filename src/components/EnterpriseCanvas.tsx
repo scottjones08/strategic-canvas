@@ -846,7 +846,7 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute border-2 border-indigo-500 bg-indigo-500/10 pointer-events-none z-50"
+            className="absolute border-2 border-navy-500 bg-navy-500/10 pointer-events-none z-50"
             style={{
               left: Math.min(lassoStart.x, lassoEnd.x),
               top: Math.min(lassoStart.y, lassoEnd.y),
@@ -895,7 +895,7 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
 
       {/* Grid snap indicator */}
       {gridSnap && (
-        <div className="absolute top-4 right-4 flex items-center gap-2 bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full text-xs font-medium">
+        <div className="absolute top-4 right-4 flex items-center gap-2 bg-navy-50 text-navy-700 px-3 py-1.5 rounded-full text-xs font-medium">
           <Magnet className="w-3.5 h-3.5" />
           Snap to grid
         </div>

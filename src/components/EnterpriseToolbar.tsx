@@ -240,7 +240,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
             ) : (
               <button
                 onClick={() => setIsEditingName(true)}
-                className="text-sm font-semibold text-gray-900 hover:text-indigo-600 transition-colors"
+                className="text-sm font-semibold text-gray-900 hover:text-navy-700 transition-colors"
               >
                 {boardName}
               </button>
@@ -254,7 +254,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
             className="flex items-center gap-1.5 sm:gap-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 px-2 sm:px-3 py-1.5 sm:py-2 hover:bg-gray-50 transition-colors"
           >
             <div className="flex -space-x-1.5 sm:-space-x-2">
-              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-500 border-2 border-white flex items-center justify-center text-white text-[10px] sm:text-xs font-medium">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-navy-500 border-2 border-white flex items-center justify-center text-white text-[10px] sm:text-xs font-medium">
                 S
               </div>
               {participantCount > 1 && (
@@ -595,19 +595,19 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="flex items-center gap-2 bg-indigo-600 text-white rounded-xl shadow-lg px-3 py-2 pointer-events-auto shrink-0"
+              className="flex items-center gap-2 bg-navy-700 text-white rounded-xl shadow-lg px-3 py-2 pointer-events-auto shrink-0"
             >
               <span className="text-sm font-medium px-2">
                 {selectedCount} selected
               </span>
               
-              <div className="w-px h-5 bg-indigo-400" />
+              <div className="w-px h-5 bg-navy-400" />
               
               {/* Alignment */}
               <div className="relative">
                 <button
                   onClick={() => setShowAlignMenu(!showAlignMenu)}
-                  className="p-1.5 hover:bg-indigo-500 rounded-lg transition-colors"
+                  className="p-1.5 hover:bg-navy-500 rounded-lg transition-colors"
                 >
                   <AlignCenter className="w-4 h-4" />
                 </button>
@@ -649,7 +649,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
               
               <button
                 onClick={onDuplicateSelected}
-                className="p-1.5 hover:bg-indigo-500 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-navy-500 rounded-lg transition-colors"
                 title="Duplicate (Ctrl+D)"
               >
                 <Copy className="w-4 h-4" />
@@ -679,7 +679,7 @@ export const EnterpriseToolbar: React.FC<EnterpriseToolbarProps> = ({
         
         <button
           onClick={onStartPresentation}
-          className="flex items-center gap-1.5 sm:gap-2 bg-indigo-600 text-white rounded-lg sm:rounded-xl shadow-lg px-2 sm:px-4 py-1.5 sm:py-2 hover:bg-indigo-700 transition-colors"
+          className="flex items-center gap-1.5 sm:gap-2 bg-navy-700 text-white rounded-lg sm:rounded-xl shadow-lg px-2 sm:px-4 py-1.5 sm:py-2 hover:bg-navy-800 transition-colors"
         >
           <Presentation className="w-4 h-4 sm:w-5 sm:h-5" />
           <span className="text-xs sm:text-sm font-medium hidden sm:inline">Present</span>
@@ -735,7 +735,7 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
       rounded-lg sm:rounded-xl transition-all flex-shrink-0
       touch-target
       ${active 
-        ? 'bg-indigo-100 text-indigo-600 shadow-inner' 
+        ? 'bg-navy-100 text-navy-700 shadow-inner' 
         : 'hover:bg-gray-100 text-gray-600'
       }
       ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}

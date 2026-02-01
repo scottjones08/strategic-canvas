@@ -11,7 +11,7 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Users, Share2, MoreHorizontal, Maximize2, Map as MapIcon, Eye, EyeOff, Wifi, WifiOff, Youtube, Image, X, Upload, Table2, Plus, Inbox, Link as LinkIcon, ExternalLink, FolderOpen, Hand, MousePointer2, Type, GitBranch } from 'lucide-react';
+import { ArrowLeft, Users, Share2, MoreHorizontal, Maximize2, Map as MapIcon, Eye, EyeOff, Youtube, Image, X, Upload, Table2, Plus, Inbox, Link as LinkIcon, ExternalLink, FolderOpen, Hand, MousePointer2, Type, GitBranch } from 'lucide-react';
 import type { Board, VisualNode } from '../types/board';
 import type { ConnectorPath, Waypoint } from '../lib/connector-engine';
 import { EnterpriseCanvas, EnterpriseCanvasRef } from './EnterpriseCanvas';
@@ -150,11 +150,8 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       },
       onConnectionChange: (connected) => {
         setIsConnected(connected);
-        if (!connected) {
-          setConnectionError('Connection lost. Reconnecting...');
-        } else {
-          setConnectionError(null);
-        }
+        // Connection status is hidden in UI - synced automatically
+        setConnectionError(null);
       },
       onEditStart: (editUserId, nodeId) => {
         setOtherUsers(currentUsers => {
@@ -196,7 +193,38 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       manager.unsubscribe();
       collaborationRef.current = null;
     };
-  }, [board.id, userId, userName, userColor]);
+  }, [board.id, userId, userName, userColor, onUpdateBoard]);
+  
+  // Subscribe to Supabase realtime updates for this board
+  useEffect(() => {
+    if (!board.id) return;
+    
+    // Import supabase dynamically to avoid issues if not configured
+    import('../lib/supabase').then(({ supabase, isSupabaseConfigured }) => {
+      if (!isSupabaseConfigured() || !supabase) return;
+      
+      const channel = supabase
+        .channel(`board-db-${board.id}`)
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'canvas_boards', filter: `id=eq.${board.id}` },
+          (payload) => {
+            // If another user updated the board, sync the visual nodes
+            if (payload.new && (payload.new as any).visual_nodes) {
+              const newVisualNodes = (payload.new as any).visual_nodes;
+              // Only update if nodes are different (avoid echo)
+              if (JSON.stringify(newVisualNodes) !== JSON.stringify(board.visualNodes)) {
+                onUpdateBoard({ visualNodes: newVisualNodes });
+              }
+            }
+          }
+        )
+        .subscribe();
+      
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    });
+  }, [board.id, board.visualNodes, onUpdateBoard]);
   
   // Track cursor movement (throttled)
   const handleCursorMove = useCallback((e: React.MouseEvent) => {
@@ -970,39 +998,19 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           <span className="hidden sm:inline text-sm">Back</span>
         </button>
         
-        {/* Connection status indicator - mobile optimized */}
+        {/* Connection status indicator - hidden, but keep connection logic active */}
         <div className="absolute top-2 sm:top-4 left-14 sm:left-24 z-40 flex items-center gap-1.5 sm:gap-2">
           {/* Toggle left panel */}
           {!showLeftPanel && (
             <button
               onClick={() => setShowLeftPanel(true)}
-              className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 text-[10px] sm:text-xs font-medium hover:bg-indigo-200 transition-colors"
+              className="px-2 py-1 rounded-full bg-navy-100 text-navy-800 text-[10px] sm:text-xs font-medium hover:bg-navy-200 transition-colors"
             >
               <span className="sm:hidden">Panel</span>
               <span className="hidden sm:inline">Show Panel</span>
             </button>
           )}
-          <div className={`flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
-            isDemoMode
-              ? 'bg-purple-100 text-purple-700'
-              : isConnected 
-                ? 'bg-green-100 text-green-700' 
-                : 'bg-yellow-100 text-yellow-700'
-          }`}>
-            {isDemoMode ? (
-              <span className="hidden sm:inline">✨ Demo Mode</span>
-            ) : (
-              <>
-                {isConnected ? <Wifi className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <WifiOff className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
-                <span className="hidden sm:inline">{isConnected ? 'Live' : 'Connecting...'}</span>
-              </>
-            )}
-          </div>
-          {connectionError && !isDemoMode && (
-            <div className="hidden sm:block px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs">
-              {connectionError}
-            </div>
-          )}
+          {/* Connection status hidden - synced automatically */}
         </div>
         
         {/* User presence list - top right area - hidden on mobile */}
@@ -1385,7 +1393,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="absolute bottom-20 sm:bottom-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-full shadow-lg"
+              className="absolute bottom-20 sm:bottom-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2 bg-navy-700 text-white rounded-full shadow-lg"
             >
               <GitBranch className="w-4 h-4" />
               <span className="text-sm font-medium">
@@ -1395,7 +1403,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
               </span>
               <button
                 onClick={() => { setActiveTool('select'); setConnectorStart(null); setConnectorStartEdge(null); setConnectorPreviewPos(null); }}
-                className="ml-2 p-1 hover:bg-indigo-700 rounded-full transition-colors"
+                className="ml-2 p-1 hover:bg-navy-800 rounded-full transition-colors"
                 title="Cancel (ESC)"
               >
                 <X className="w-4 h-4" />
@@ -1419,7 +1427,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
                 height: 150
               });
             }}
-            className="w-12 h-12 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center"
+            className="w-12 h-12 bg-navy-700 text-white rounded-full shadow-lg flex items-center justify-center"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1608,7 +1616,7 @@ const MediaModal = ({ type, onClose, onEmbed }: {
             {type === 'youtube' ? (
               <Youtube className="w-6 h-6 text-red-500" />
             ) : (
-              <Image className="w-6 h-6 text-indigo-500" />
+              <Image className="w-6 h-6 text-navy-500" />
             )}
             <h2 className="text-xl font-bold text-gray-900">
               {type === 'youtube' ? 'Embed YouTube Video' : 'Embed Image'}
@@ -1627,7 +1635,7 @@ const MediaModal = ({ type, onClose, onEmbed }: {
               onDragLeave={handleDragLeave}
               onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-                isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'
+                isDragging ? 'border-navy-500 bg-navy-50' : 'border-gray-300 hover:border-gray-400'
               }`}
             >
               <input 
@@ -1668,7 +1676,7 @@ const MediaModal = ({ type, onClose, onEmbed }: {
               value={url} 
               onChange={(e) => { setUrl(e.target.value); setError(''); setPreview(null); }} 
               placeholder={type === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://example.com/image.jpg'} 
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-navy-500" 
             />
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </div>
@@ -1677,7 +1685,7 @@ const MediaModal = ({ type, onClose, onEmbed }: {
             <motion.button 
               whileHover={{ scale: 1.02 }} 
               onClick={handleSubmit} 
-              className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-medium"
+              className="flex-1 px-4 py-3 bg-navy-700 text-white rounded-xl font-medium"
             >
               Embed
             </motion.button>
@@ -2075,7 +2083,7 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center text-gray-500">
-                  <Image className="w-12 h-12 mx-auto mb-2 text-indigo-500" />
+                  <Image className="w-12 h-12 mx-auto mb-2 text-navy-500" />
                   <p>No image URL</p>
                 </div>
               </div>
@@ -2123,7 +2131,7 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
             style={{ backgroundColor: node.color }}
           >
             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-200">
-              <FolderOpen className="w-4 h-4 text-indigo-500" />
+              <FolderOpen className="w-4 h-4 text-navy-500" />
               <input
                 type="text"
                 value={node.content}
@@ -2153,7 +2161,7 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
               </div>
             ) : (
               <div 
-                className="flex-1 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-colors"
+                className="flex-1 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-navy-400 hover:bg-navy-50/50 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   const input = document.createElement('input');
@@ -2209,7 +2217,7 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
                   };
                   input.click();
                 }}
-                className="mt-2 w-full py-1.5 text-xs text-gray-500 hover:text-indigo-600 hover:bg-white/50 rounded border border-dashed border-gray-300 flex items-center justify-center gap-1"
+                className="mt-2 w-full py-1.5 text-xs text-gray-500 hover:text-navy-700 hover:bg-white/50 rounded border border-dashed border-gray-300 flex items-center justify-center gap-1"
               >
                 <Plus className="w-3 h-3" /> Add Images
               </button>
@@ -2322,7 +2330,7 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
   const getBorderClass = () => {
     if (isConnectorStart) return 'ring-2 ring-green-500 ring-offset-2';
     if (isConnectorStart && isHovered) return 'ring-2 ring-green-400 ring-offset-2';
-    if (isSelected) return 'ring-2 ring-indigo-500 ring-offset-2';
+    if (isSelected) return 'ring-2 ring-navy-500 ring-offset-2';
     return '';
   };
 
@@ -2380,8 +2388,8 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
                 };
               }
               return {
-                bg: 'bg-indigo-500',
-                hover: 'hover:bg-indigo-400',
+                bg: 'bg-navy-500',
+                hover: 'hover:bg-navy-400',
                 ring: '0 0 0 3px rgba(99, 102, 241, 0.25)',
                 scale: 'scale-100',
               };
@@ -2441,19 +2449,19 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
       {isSelected && !isConnectorMode && (
         <>
           <div 
-            className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm cursor-nw-resize hover:bg-indigo-100"
+            className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-navy-500 rounded-sm cursor-nw-resize hover:bg-navy-100"
             onMouseDown={(e) => handleResizeStart(e, 'nw')}
           />
           <div 
-            className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm cursor-ne-resize hover:bg-indigo-100"
+            className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-navy-500 rounded-sm cursor-ne-resize hover:bg-navy-100"
             onMouseDown={(e) => handleResizeStart(e, 'ne')}
           />
           <div 
-            className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm cursor-sw-resize hover:bg-indigo-100"
+            className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-navy-500 rounded-sm cursor-sw-resize hover:bg-navy-100"
             onMouseDown={(e) => handleResizeStart(e, 'sw')}
           />
           <div 
-            className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-indigo-500 rounded-sm cursor-se-resize hover:bg-indigo-100"
+            className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-navy-500 rounded-sm cursor-se-resize hover:bg-navy-100"
             onMouseDown={(e) => handleResizeStart(e, 'se')}
           />
         </>
@@ -2668,7 +2676,7 @@ const MobileToolButton: React.FC<MobileToolButtonProps> = ({ icon, label, onClic
     onClick={onClick}
     className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
       active 
-        ? 'text-indigo-600 bg-indigo-50' 
+        ? 'text-navy-700 bg-navy-50' 
         : 'text-gray-600 hover:bg-gray-100'
     }`}
   >

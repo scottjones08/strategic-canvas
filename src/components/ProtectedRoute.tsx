@@ -63,8 +63,8 @@ export default function ProtectedRoute({
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center gap-4"
         >
-          <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center">
-            <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+          <div className="w-16 h-16 bg-navy-100 rounded-2xl flex items-center justify-center">
+            <Loader2 className="w-8 h-8 text-navy-700 animate-spin" />
           </div>
           <p className="text-gray-600 font-medium">Loading...</p>
         </motion.div>
@@ -132,7 +132,7 @@ export default function ProtectedRoute({
           </p>
           <button
             onClick={() => window.location.href = '/'}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+            className="px-6 py-3 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 transition-colors"
           >
             Go to Dashboard
           </button>
@@ -159,7 +159,7 @@ export default function ProtectedRoute({
           </p>
           <button
             onClick={() => window.location.href = '/'}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+            className="px-6 py-3 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 transition-colors"
           >
             Go to Dashboard
           </button>
@@ -186,7 +186,7 @@ export default function ProtectedRoute({
           </p>
           <button
             onClick={() => window.location.href = '/'}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+            className="px-6 py-3 bg-navy-700 text-white rounded-xl font-medium hover:bg-navy-800 transition-colors"
           >
             Go to Dashboard
           </button>
