@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -28,6 +28,8 @@ import {
 } from '../lib/client-portal';
 import ClientCommentPin from '../components/ClientCommentPin';
 import ClientCommentsPanel from '../components/ClientCommentsPanel';
+import { useSmoothPanZoom } from '../hooks/useSmoothPanZoom';
+import { getNearestEdgePoint } from '../lib/connector-engine';
 
 // Note: Board loading now uses getBoardForShareLink which fetches from Supabase
 
@@ -166,21 +168,20 @@ export default function ClientView() {
     await loadBoardData(shareLink);
   };
 
-  // Canvas interactions
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      setZoom((z) => Math.min(Math.max(z * delta, 0.1), 5));
-    } else {
-      setPanX((x) => x - e.deltaX);
-      setPanY((y) => y - e.deltaY);
-    }
-  }, []);
+  const { handleWheel, stop: stopSmoothPanZoom } = useSmoothPanZoom({
+    canvasRef,
+    panX,
+    panY,
+    zoom,
+    setPanX,
+    setPanY,
+    setZoom
+  });
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
       // Middle click or shift+click for panning
+      stopSmoothPanZoom();
       setIsPanning(true);
       setPanStart({ x: e.clientX, y: e.clientY, panX, panY });
     }
@@ -204,6 +205,7 @@ export default function ClientView() {
     if (e.touches.length === 1) {
       // Single touch for panning (when not adding comment)
       if (!isAddingComment) {
+        stopSmoothPanZoom();
         setIsPanning(true);
         setPanStart({ x: e.touches[0].clientX, y: e.touches[0].clientY, panX, panY });
       }
@@ -312,12 +314,16 @@ export default function ClientView() {
       const fromNode = board?.visualNodes.find((n: any) => n.id === conn.connectorFrom);
       const toNode = board?.visualNodes.find((n: any) => n.id === conn.connectorTo);
       if (!fromNode || !toNode) return null;
+      const fromCenter = { x: fromNode.x + fromNode.width / 2, y: fromNode.y + fromNode.height / 2 };
+      const toCenter = { x: toNode.x + toNode.width / 2, y: toNode.y + toNode.height / 2 };
+      const startPoint = getNearestEdgePoint(fromNode, toCenter, 6);
+      const endPoint = getNearestEdgePoint(toNode, fromCenter, 6);
       return {
         id: conn.id,
-        x1: fromNode.x + fromNode.width / 2,
-        y1: fromNode.y + fromNode.height / 2,
-        x2: toNode.x + toNode.width / 2,
-        y2: toNode.y + toNode.height / 2,
+        x1: startPoint.x,
+        y1: startPoint.y,
+        x2: endPoint.x,
+        y2: endPoint.y,
         color: conn.color,
         style: conn.connectorStyle
       };

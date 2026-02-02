@@ -17,3 +17,4 @@ export * from './useTouchGestures';
 export * from './useEnhancedCollaboration';
 export * from './useOnboarding';
 export * from './useTimer';
+export * from './useSnippets';

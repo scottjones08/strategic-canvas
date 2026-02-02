@@ -101,6 +101,7 @@ import {
   Share,
   // Cloud,
   Menu,
+  Code2,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { supabase, organizationsApi, boardsApi, notesApi, boardHistoryApi, isSupabaseConfigured } from './lib/supabase';
@@ -118,6 +119,7 @@ import ClientCommentsPanel from './components/ClientCommentsPanel';
 import { getCommentsForBoard, ClientComment, toggleCommentResolved } from './lib/client-portal';
 import FacilitatorTools from './components/FacilitatorTools';
 import AssetLibrary from './components/AssetLibrary';
+import CodeSnippetsView from './components/CodeSnippetsView';
 import type { AssetInsertPayload } from './components/AssetLibrary';
 import NotesViewRedesigned from './components/NotesViewRedesign';
 import DocumentsView from './components/DocumentsView';
@@ -125,6 +127,8 @@ import PDFEditor from './components/PDFEditor';
 import { documentsApi, uploadDocumentFile, getDocumentShareUrl } from './lib/documents-api';
 import AutosaveIndicator, { type SaveStatus } from './components/AutosaveIndicator';
 import WorldClassConnector from './components/WorldClassConnector';
+import { useSmoothPanZoom } from './hooks/useSmoothPanZoom';
+import { getNearestEdgePoint } from './lib/connector-engine';
 import type { ClientDocument } from './components/DocumentsView';
 import type { PDFAnnotation, PDFComment } from './lib/pdf-utils';
 
@@ -276,7 +280,7 @@ interface ActionItem {
   assigneeId?: string;
 }
 
-type ViewType = 'dashboard' | 'meeting' | 'notes' | 'documents' | 'clients';
+type ViewType = 'dashboard' | 'meeting' | 'notes' | 'documents' | 'clients' | 'snippets';
 
 // Collaboration types
 interface UserPresence {
@@ -629,6 +633,7 @@ const Sidebar = ({
     { id: 'notes' as ViewType, label: 'Notes', icon: BookOpen, description: 'Notion-style docs' },
     { id: 'documents' as ViewType, label: 'Documents', icon: FileText, description: 'PDF documents' },
     { id: 'clients' as ViewType, label: 'Clients', icon: Building2, description: 'Client management' },
+    { id: 'snippets' as ViewType, label: 'Snippets', icon: Code2, description: 'Code snippets' },
   ];
 
   const handleNavClick = (view: ViewType) => {
@@ -2506,15 +2511,15 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     };
   }, [selectedNodeIds, board.visualNodes, onUpdateWithHistory, onSelectNodes]);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (e.metaKey || e.ctrlKey) {
-      e.preventDefault();
-      setZoom(z => Math.min(Math.max(z * (e.deltaY > 0 ? 0.9 : 1.1), 0.1), 5));
-    } else {
-      setPanX(x => x - e.deltaX);
-      setPanY(y => y - e.deltaY);
-    }
-  }, []);
+  const { handleWheel, stop: stopSmoothPanZoom } = useSmoothPanZoom({
+    canvasRef,
+    panX,
+    panY,
+    zoom,
+    setPanX,
+    setPanY,
+    setZoom
+  });
 
   // Debounce pan/zoom updates to avoid hammering Supabase
   useEffect(() => {
@@ -2582,6 +2587,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
 
   // Combined mouse down handler for panning and drawing
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    stopSmoothPanZoom();
     // Middle mouse button (button === 1), space+click, or isPanMode for panning
     if (e.button === 1 || spacePressed || (isPanMode && e.button === 0)) {
       e.preventDefault();
@@ -2618,7 +2624,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
         }
       }
     }
-  }, [isDrawingMode, isPanMode, getCanvasPoint, spacePressed, panX, panY]);
+  }, [isDrawingMode, isPanMode, getCanvasPoint, spacePressed, panX, panY, stopSmoothPanZoom]);
 
   // Combined mouse move handler
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -2754,6 +2760,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
 
   // Touch handlers for mobile pan and pinch-to-zoom
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    stopSmoothPanZoom();
     if (e.touches.length === 1) {
       // Single finger - pan
       touchStartRef.current = {
@@ -2779,7 +2786,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
         distance
       };
     }
-  }, [panX, panY]);
+  }, [panX, panY, stopSmoothPanZoom]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!touchStartRef.current) return;
@@ -2855,32 +2862,6 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
     }
   }, [onDropMedia, panX, panY, zoom]);
 
-  // Helper function to find intersection point of line with rectangle edge
-  const getEdgeIntersection = (
-    centerX: number, centerY: number, // center of the rectangle
-    width: number, height: number, // size of the rectangle
-    targetX: number, targetY: number, // point we're drawing line to/from
-    padding: number = 8 // padding from edge for arrow visibility
-  ) => {
-    const dx = targetX - centerX;
-    const dy = targetY - centerY;
-    
-    if (dx === 0 && dy === 0) return { x: centerX, y: centerY };
-    
-    const halfW = width / 2 + padding;
-    const halfH = height / 2 + padding;
-    
-    // Calculate intersection with each edge and find the closest one
-    const scaleX = Math.abs(dx) > 0 ? halfW / Math.abs(dx) : Infinity;
-    const scaleY = Math.abs(dy) > 0 ? halfH / Math.abs(dy) : Infinity;
-    const scale = Math.min(scaleX, scaleY);
-    
-    return {
-      x: centerX + dx * scale,
-      y: centerY + dy * scale
-    };
-  };
-
   // Get connector lines
   const allConnectors = board.visualNodes.filter(n => n.type === 'connector');
   const connectorLines = allConnectors.filter(n => n.connectorFrom && n.connectorTo).map(conn => {
@@ -2891,15 +2872,13 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       return null;
     }
     
-    // Get center points
     const fromCenterX = fromNode.x + fromNode.width / 2;
     const fromCenterY = fromNode.y + fromNode.height / 2;
     const toCenterX = toNode.x + toNode.width / 2;
     const toCenterY = toNode.y + toNode.height / 2;
     
-    // Calculate edge intersection points so arrows stop at the edge, not center
-    const startPoint = getEdgeIntersection(fromCenterX, fromCenterY, fromNode.width, fromNode.height, toCenterX, toCenterY);
-    const endPoint = getEdgeIntersection(toCenterX, toCenterY, toNode.width, toNode.height, fromCenterX, fromCenterY);
+    const startPoint = getNearestEdgePoint(fromNode, { x: toCenterX, y: toCenterY }, 6);
+    const endPoint = getNearestEdgePoint(toNode, { x: fromCenterX, y: fromCenterY }, 6);
     
     // Calculate midpoint for label positioning
     const midX = (startPoint.x + endPoint.x) / 2;
@@ -8827,6 +8806,7 @@ ${transcriptContent}`;
         />
       )}
       {currentView === 'clients' && <ClientsView boards={boards} onOpenBoard={handleOpenBoard} clients={clients} onClientsChange={setClients} documents={documents} notes={notes} onOpenDocument={(doc) => { setActiveDocument(doc); setCurrentView('documents'); }} />}
+      {currentView === 'snippets' && <CodeSnippetsView />}
       
       {/* PDF Editor Modal */}
       {showPDFEditor && activeDocument && (
