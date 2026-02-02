@@ -104,7 +104,7 @@ import {
   Code2,
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import { supabase, organizationsApi, boardsApi, notesApi, boardHistoryApi, isSupabaseConfigured } from './lib/supabase';
+import { supabase, organizationsApi, boardsApi, notesApi, boardHistoryApi, collaborationHistoryApi, isSupabaseConfigured } from './lib/supabase';
 // TranscriptionPanel is now integrated into UnifiedLeftPanel
 import TranscriptToWhiteboardModal, { VisualNodeInput } from './components/TranscriptToWhiteboardModal';
 import { FullTranscript } from './lib/transcription';
@@ -124,7 +124,7 @@ import type { AssetInsertPayload } from './components/AssetLibrary';
 import NotesViewRedesigned from './components/NotesViewRedesign';
 import DocumentsView from './components/DocumentsView';
 import PDFEditor from './components/PDFEditor';
-import { documentsApi, uploadDocumentFile, getDocumentShareUrl } from './lib/documents-api';
+import { documentsApi, uploadDocumentFile, getDocumentShareUrl, documentHistoryApi } from './lib/documents-api';
 import AutosaveIndicator, { type SaveStatus } from './components/AutosaveIndicator';
 import WorldClassConnector from './components/WorldClassConnector';
 import { useSmoothPanZoom } from './hooks/useSmoothPanZoom';
@@ -5339,9 +5339,22 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
       if (!prevUsersRef.current.has(user.id)) {
         setRecentActivity(prev => [{
           userId: user.id,
+          userName: user.name,
+          userColor: user.color,
           type: 'joined' as const,
           timestamp: new Date(),
         }, ...prev].slice(0, 50));
+        if (board?.id && isSupabaseConfigured()) {
+          collaborationHistoryApi.create({
+            board_id: board.id,
+            user_id: user.id,
+            user_name: user.name,
+            event_type: 'joined',
+            payload: { userColor: user.color }
+          }).catch(err => {
+            console.error('Failed to save collaboration join event:', err);
+          });
+        }
       }
     });
     
@@ -5353,6 +5366,15 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           type: 'left' as const,
           timestamp: new Date(),
         }, ...prev].slice(0, 50));
+        if (board?.id && isSupabaseConfigured()) {
+          collaborationHistoryApi.create({
+            board_id: board.id,
+            user_id: userId,
+            event_type: 'left'
+          }).catch(err => {
+            console.error('Failed to save collaboration leave event:', err);
+          });
+        }
         
         // Stop following if the user we're following left
         if (followingUserId === userId) {
@@ -5362,7 +5384,33 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     });
     
     prevUsersRef.current = currentUserIds;
-  }, [collaborationUsers, followingUserId]);
+  }, [collaborationUsers, followingUserId, board?.id]);
+
+  useEffect(() => {
+    if (!board?.id || !isSupabaseConfigured()) return;
+    const loadCollaborationHistory = async () => {
+      const events = await collaborationHistoryApi.getByBoardId(board.id);
+      const mapped = events
+        .map(event => {
+          const type = (event.event_type || 'editing') as ParticipantActivity['type'];
+          if (!['joined', 'left', 'editing', 'comment', 'reaction'].includes(type)) {
+            return null;
+          }
+          return {
+            userId: event.user_id || 'unknown',
+            userName: event.user_name || undefined,
+            userColor: event.payload?.userColor,
+            type,
+            nodeId: event.node_id || undefined,
+            nodeName: event.node_name || event.payload?.action,
+            timestamp: new Date(event.created_at)
+          } as ParticipantActivity;
+        })
+        .filter(Boolean) as ParticipantActivity[];
+      setRecentActivity(mapped);
+    };
+    loadCollaborationHistory();
+  }, [board?.id]);
   
   // Follow user viewport - pan to their cursor position
   useEffect(() => {
@@ -5708,8 +5756,18 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
       boardHistoryApi.create(board.id, clonedNodes, action, currentUser?.id).catch(err => {
         console.error('Failed to save history to Supabase:', err);
       });
+      collaborationHistoryApi.create({
+        board_id: board.id,
+        user_id: sessionUserId,
+        user_name: currentUser?.name,
+        event_type: 'editing',
+        node_name: action,
+        payload: { action, userColor: currentUser?.color }
+      }).catch(err => {
+        console.error('Failed to save collaboration activity:', err);
+      });
     }
-  }, [historyIndex, board?.id, currentUser?.id]);
+  }, [historyIndex, board?.id, currentUser?.id, currentUser?.name, currentUser?.color, sessionUserId]);
 
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
@@ -8664,6 +8722,13 @@ ${transcriptContent}`;
   const handleDocumentOpen = useCallback((document: ClientDocument) => {
     setActiveDocument(document);
     setShowPDFEditor(true);
+    documentHistoryApi.create({
+      documentId: document.id,
+      organizationId: document.organizationId || document.clientId,
+      clientId: document.clientId,
+      action: 'opened',
+      payload: { name: document.name }
+    });
   }, []);
 
   // Handle document share
@@ -8678,6 +8743,13 @@ ${transcriptContent}`;
     } else {
       alert('Share functionality coming soon!');
     }
+    documentHistoryApi.create({
+      documentId: document.id,
+      organizationId: document.organizationId || document.clientId,
+      clientId: document.clientId,
+      action: 'share_requested',
+      payload: { name: document.name }
+    });
   }, []);
 
   // Handle document download
@@ -8686,6 +8758,13 @@ ${transcriptContent}`;
     a.href = document.fileUrl;
     a.download = `${document.name}.pdf`;
     a.click();
+    documentHistoryApi.create({
+      documentId: document.id,
+      organizationId: document.organizationId || document.clientId,
+      clientId: document.clientId,
+      action: 'downloaded',
+      payload: { name: document.name }
+    });
   }, []);
 
   // Handle document save (annotations)

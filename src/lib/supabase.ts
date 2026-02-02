@@ -816,6 +816,18 @@ export interface BoardHistoryEntry {
   created_at: string;
 }
 
+export interface CollaborationEventEntry {
+  id: string;
+  board_id: string;
+  user_id?: string;
+  user_name?: string;
+  event_type: string;
+  node_id?: string;
+  node_name?: string;
+  payload?: any;
+  created_at: string;
+}
+
 export const boardHistoryApi = {
   // Get history for a board (last 50 entries)
   async getByBoardId(boardId: string): Promise<BoardHistoryEntry[]> {
@@ -897,6 +909,55 @@ export const boardHistoryApi = {
     if (error) {
       console.error('Error deleting board history:', error);
     }
+  }
+};
+
+// ============================================
+// COLLABORATION HISTORY API - Activity feed
+// ============================================
+
+export const collaborationHistoryApi = {
+  async getByBoardId(boardId: string): Promise<CollaborationEventEntry[]> {
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from('collaboration_events')
+      .select('*')
+      .eq('board_id', boardId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('Error fetching collaboration events:', error);
+      return [];
+    }
+
+    return data || [];
+  },
+
+  async create(event: Omit<CollaborationEventEntry, 'id' | 'created_at'>): Promise<CollaborationEventEntry | null> {
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+      .from('collaboration_events')
+      .insert({
+        board_id: event.board_id,
+        user_id: event.user_id,
+        user_name: event.user_name,
+        event_type: event.event_type,
+        node_id: event.node_id,
+        node_name: event.node_name,
+        payload: event.payload || {}
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating collaboration event:', error);
+      return null;
+    }
+
+    return data;
   }
 };
 

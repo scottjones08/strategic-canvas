@@ -23,6 +23,7 @@ import ShareBoardModal from './ShareBoardModal';
 import UnifiedLeftPanel from './UnifiedLeftPanel';
 import { FacilitationTimer } from './FacilitationTimer';
 import { createConnectorPath, nodeToConnectorPath, getNearestEdgePoint } from '../lib/connector-engine';
+import { boardHistoryApi, isSupabaseConfigured } from '../lib/supabase';
 import { 
   UserPresence, 
   getUserColor, 
@@ -250,6 +251,18 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   // History for undo/redo
   const [history, setHistory] = useState<VisualNode[][]>([board.visualNodes]);
   const [historyIndex, setHistoryIndex] = useState(0);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!board?.id || !isSupabaseConfigured()) return;
+      const entries = await boardHistoryApi.getByBoardId(board.id);
+      if (entries.length === 0) return;
+      const nodesHistory = entries.map(entry => entry.nodes as VisualNode[]);
+      setHistory(nodesHistory);
+      setHistoryIndex(nodesHistory.length - 1);
+    };
+    loadHistory();
+  }, [board?.id]);
   
   // Derived state
   const canUndo = historyIndex > 0;
@@ -268,7 +281,12 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     }
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
-  }, [history, historyIndex]);
+    if (board?.id && isSupabaseConfigured()) {
+      boardHistoryApi.create(board.id, newNodes, 'Update', userId).catch(err => {
+        console.error('Failed to save history to Supabase:', err);
+      });
+    }
+  }, [history, historyIndex, board?.id, userId]);
   
   const handleUndo = useCallback(() => {
     if (canUndo) {
@@ -672,8 +690,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       setConnectorStart(null);
       setConnectorStartEdge(null);
       setConnectorPreviewPos(null);
-      // Stay in connector mode so user can create more connectors
-      // Press Escape or click Select to exit connector mode
+      setActiveTool('select');
     }
   }, [activeTool, connectorStart, connectorStartEdge, createConnector]);
   

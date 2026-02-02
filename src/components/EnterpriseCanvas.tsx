@@ -43,6 +43,19 @@ const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5;
 const MOMENTUM_FRICTION = 0.92;
 const SPRING_CONFIG = { damping: 25, stiffness: 200, mass: 0.8 };
+const WHEEL_EASE = 0.2;
+const WHEEL_STOP_THRESHOLD = 0.2;
+
+const normalizeWheelDelta = (event: React.WheelEvent) => {
+  if (event.deltaMode === 1) {
+    return { dx: event.deltaX * 16, dy: event.deltaY * 16 };
+  }
+  if (event.deltaMode === 2) {
+    const height = typeof window !== 'undefined' ? window.innerHeight : 800;
+    return { dx: event.deltaX * height, dy: event.deltaY * height };
+  }
+  return { dx: event.deltaX, dy: event.deltaY };
+};
 
 // Viewport state
 interface ViewportState {
@@ -187,6 +200,9 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
   const canvasRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>();
   const momentumRef = useRef<{ vx: number; vy: number } | null>(null);
+  const wheelAnimationRef = useRef<number | null>(null);
+  const wheelTargetRef = useRef({ panX: 0, panY: 0, zoom: 1 });
+  const wheelCurrentRef = useRef({ panX: 0, panY: 0, zoom: 1 });
   
   // Viewport state with reducer
   const [viewport, dispatch] = useReducer(viewportReducer, {
@@ -205,6 +221,13 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
   const springZoom = useSpring(motionZoom, SPRING_CONFIG);
   const springPanX = useSpring(motionPanX, SPRING_CONFIG);
   const springPanY = useSpring(motionPanY, SPRING_CONFIG);
+
+  useEffect(() => {
+    wheelCurrentRef.current = { panX: viewport.panX, panY: viewport.panY, zoom: viewport.zoom };
+    if (!wheelAnimationRef.current) {
+      wheelTargetRef.current = { ...wheelCurrentRef.current };
+    }
+  }, [viewport.panX, viewport.panY, viewport.zoom]);
   
   // Transform for the canvas
   const canvasTransform = useTransform(
@@ -502,9 +525,51 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
     };
   }, [viewport.zoom, selectedNodeIds, nodes, onDeleteNodes, onSelectNodes]);
 
+  const stopWheelMomentum = useCallback(() => {
+    if (wheelAnimationRef.current) {
+      cancelAnimationFrame(wheelAnimationRef.current);
+      wheelAnimationRef.current = null;
+    }
+    wheelTargetRef.current = { ...wheelCurrentRef.current };
+  }, []);
+
+  const startWheelAnimation = useCallback(() => {
+    if (wheelAnimationRef.current) return;
+
+    const step = () => {
+      const current = wheelCurrentRef.current;
+      const target = wheelTargetRef.current;
+
+      const nextPanX = current.panX + (target.panX - current.panX) * WHEEL_EASE;
+      const nextPanY = current.panY + (target.panY - current.panY) * WHEEL_EASE;
+      const nextZoom = current.zoom + (target.zoom - current.zoom) * WHEEL_EASE;
+
+      const done =
+        Math.abs(target.panX - current.panX) < WHEEL_STOP_THRESHOLD &&
+        Math.abs(target.panY - current.panY) < WHEEL_STOP_THRESHOLD &&
+        Math.abs(target.zoom - current.zoom) < WHEEL_STOP_THRESHOLD;
+
+      if (done) {
+        dispatch({ type: 'SET_PAN', x: target.panX, y: target.panY });
+        dispatch({ type: 'SET_ZOOM', zoom: target.zoom });
+        wheelCurrentRef.current = { ...target };
+        wheelAnimationRef.current = null;
+        return;
+      }
+
+      dispatch({ type: 'SET_PAN', x: nextPanX, y: nextPanY });
+      dispatch({ type: 'SET_ZOOM', zoom: nextZoom });
+      wheelCurrentRef.current = { panX: nextPanX, panY: nextPanY, zoom: nextZoom };
+      wheelAnimationRef.current = requestAnimationFrame(step);
+    };
+
+    wheelAnimationRef.current = requestAnimationFrame(step);
+  }, []);
+
   // Mouse handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
+    stopWheelMomentum();
     
     const isPanTool = activeTool === 'pan' || activeTool === 'hand' || spacePressed;
     const target = e.target as HTMLElement;
@@ -542,7 +607,7 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
         }
       }
     }
-  }, [activeTool, spacePressed, viewport.panX, viewport.panY, onSelectNodes, onCanvasClick, getWorldCoordinates]);
+  }, [activeTool, spacePressed, viewport.panX, viewport.panY, onSelectNodes, onCanvasClick, getWorldCoordinates, stopWheelMomentum]);
 
   // Double-click handler for quick sticky note creation
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
@@ -632,27 +697,39 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
 
   // Wheel zoom
   const handleWheel = useCallback((e: React.WheelEvent) => {
+    const { dx, dy } = normalizeWheelDelta(e);
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      const delta = -e.deltaY * 0.001;
-      const newZoom = viewport.zoom * (1 + delta);
       const rect = containerRef.current?.getBoundingClientRect();
-      if (rect) {
-        dispatch({
-          type: 'ZOOM',
-          zoom: newZoom,
-          centerX: e.clientX - rect.left,
-          centerY: e.clientY - rect.top
-        });
-      }
+      if (!rect) return;
+
+      const current = wheelCurrentRef.current;
+      const scale = dy > 0 ? 0.9 : 1.1;
+      const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, current.zoom * scale));
+      const pointerX = e.clientX - rect.left;
+      const pointerY = e.clientY - rect.top;
+      const worldX = (pointerX - current.panX) / current.zoom;
+      const worldY = (pointerY - current.panY) / current.zoom;
+
+      wheelTargetRef.current = {
+        panX: pointerX - worldX * nextZoom,
+        panY: pointerY - worldY * nextZoom,
+        zoom: nextZoom
+      };
     } else {
-      // Pan with wheel
-      dispatch({ type: 'PAN', dx: -e.deltaX, dy: -e.deltaY });
+      wheelTargetRef.current = {
+        ...wheelTargetRef.current,
+        panX: wheelTargetRef.current.panX - dx,
+        panY: wheelTargetRef.current.panY - dy
+      };
     }
-  }, [viewport.zoom]);
+
+    startWheelAnimation();
+  }, [startWheelAnimation]);
 
   // Touch handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    stopWheelMomentum();
     if (e.touches.length === 1) {
       touchStateRef.current = {
         startX: e.touches[0].clientX,
@@ -675,7 +752,7 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
       };
       dispatch({ type: 'START_ZOOM' });
     }
-  }, [viewport.panX, viewport.panY, viewport.zoom]);
+  }, [viewport.panX, viewport.panY, viewport.zoom, stopWheelMomentum]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!touchStateRef.current) return;

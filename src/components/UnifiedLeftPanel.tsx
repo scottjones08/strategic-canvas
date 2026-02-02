@@ -80,6 +80,8 @@ export interface SavedTranscript {
 
 export interface ParticipantActivity {
   userId: string;
+  userName?: string;
+  userColor?: string;
   type: 'joined' | 'left' | 'editing' | 'comment' | 'reaction';
   nodeId?: string;
   nodeName?: string;

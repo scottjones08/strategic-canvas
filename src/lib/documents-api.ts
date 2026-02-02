@@ -54,6 +54,17 @@ export interface DocumentShareLink {
   createdAt: Date;
 }
 
+export interface DocumentHistoryEntry {
+  id: string;
+  documentId: string;
+  organizationId?: string;
+  clientId?: string;
+  action: string;
+  payload?: Record<string, any>;
+  createdBy?: string;
+  createdAt: Date;
+}
+
 export interface CreateDocumentInput {
   name: string;
   description?: string;
@@ -79,6 +90,20 @@ export interface UpdateDocumentInput {
 // ============================================
 
 const DOCUMENTS_STORAGE_KEY = 'strategic-canvas-documents';
+const DOCUMENT_HISTORY_STORAGE_KEY = 'strategic-canvas-document-history';
+let documentsSupabaseDisabled = false;
+
+const canUseSupabase = () => isSupabaseConfigured() && !documentsSupabaseDisabled;
+
+const disableSupabaseDocuments = (error: any, context: string) => {
+  if (documentsSupabaseDisabled) return;
+  const status = error?.status;
+  const message = error?.message || error?.details || '';
+  if (status === 400 || `${message}`.includes('400')) {
+    documentsSupabaseDisabled = true;
+    console.warn(`[Documents] Disabling Supabase documents due to ${context} 400 error.`);
+  }
+};
 
 // ============================================
 // LOCAL STORAGE HELPERS
@@ -106,6 +131,37 @@ function saveDocumentsToStorage(documents: ClientDocument[]): void {
     localStorage.setItem(DOCUMENTS_STORAGE_KEY, JSON.stringify(documents));
   } catch (e) {
     console.error('Error saving documents to storage:', e);
+  }
+}
+
+function loadDocumentHistoryFromStorage(documentId: string): DocumentHistoryEntry[] {
+  try {
+    const stored = localStorage.getItem(DOCUMENT_HISTORY_STORAGE_KEY);
+    if (!stored) return [];
+    const history = JSON.parse(stored) as any[];
+    return history
+      .filter(entry => entry.documentId === documentId)
+      .map(entry => ({
+        ...entry,
+        createdAt: new Date(entry.createdAt)
+      }));
+  } catch (e) {
+    console.error('Error loading document history from storage:', e);
+    return [];
+  }
+}
+
+function appendDocumentHistoryToStorage(entry: DocumentHistoryEntry): void {
+  try {
+    const stored = localStorage.getItem(DOCUMENT_HISTORY_STORAGE_KEY);
+    const history = stored ? (JSON.parse(stored) as any[]) : [];
+    history.unshift({
+      ...entry,
+      createdAt: entry.createdAt.toISOString()
+    });
+    localStorage.setItem(DOCUMENT_HISTORY_STORAGE_KEY, JSON.stringify(history.slice(0, 500)));
+  } catch (e) {
+    console.error('Error saving document history to storage:', e);
   }
 }
 
@@ -191,7 +247,7 @@ export const documentsApi = {
   async getAll(organizationId?: string): Promise<ClientDocument[]> {
     const localFallback = loadDocumentsFromStorage();
 
-    if (!isSupabaseConfigured()) {
+    if (!canUseSupabase()) {
       return localFallback;
     }
 
@@ -210,6 +266,7 @@ export const documentsApi = {
 
         if (error) {
           console.error('[Documents] Error fetching documents:', error);
+          disableSupabaseDocuments(error, 'fetch');
           console.log('[Documents] Falling back to local storage');
           return localFallback;
         }
@@ -217,10 +274,7 @@ export const documentsApi = {
         return data.map(dbRowToDocument);
       } catch (e: any) {
         console.error('[Documents] Exception fetching documents:', e);
-        // If it's a 400 error, likely the table doesn't exist or schema mismatch
-        if (e?.status === 400 || e?.message?.includes('400')) {
-          console.log('[Documents] 400 error - table may not exist, using local storage');
-        }
+        disableSupabaseDocuments(e, 'fetch');
         return localFallback;
       }
     };
@@ -231,7 +285,7 @@ export const documentsApi = {
 
   // Get documents for a specific client
   async getByClient(clientId: string): Promise<ClientDocument[]> {
-    if (!isSupabaseConfigured()) {
+    if (!canUseSupabase()) {
       return loadDocumentsFromStorage().filter(d => d.clientId === clientId);
     }
 
@@ -245,19 +299,21 @@ export const documentsApi = {
 
       if (error) {
         console.error('Error fetching client documents:', error);
+        disableSupabaseDocuments(error, 'fetch');
         return loadDocumentsFromStorage().filter(d => d.clientId === clientId);
       }
 
       return data.map(dbRowToDocument);
     } catch (e) {
       console.error('Error fetching client documents:', e);
+      disableSupabaseDocuments(e, 'fetch');
       return loadDocumentsFromStorage().filter(d => d.clientId === clientId);
     }
   },
 
   // Get a single document by ID
   async getById(id: string): Promise<ClientDocument | null> {
-    if (!isSupabaseConfigured()) {
+    if (!canUseSupabase()) {
       return loadDocumentsFromStorage().find(d => d.id === id) || null;
     }
 
@@ -270,6 +326,7 @@ export const documentsApi = {
 
       if (error || !data) {
         console.error('Error fetching document:', error);
+        disableSupabaseDocuments(error, 'fetch');
         return loadDocumentsFromStorage().find(d => d.id === id) || null;
       }
 
@@ -307,12 +364,14 @@ export const documentsApi = {
       return doc;
     } catch (e) {
       console.error('Error fetching document:', e);
+      disableSupabaseDocuments(e, 'fetch');
       return loadDocumentsFromStorage().find(d => d.id === id) || null;
     }
   },
 
   // Create a new document
   async create(input: CreateDocumentInput): Promise<ClientDocument | null> {
+    const resolvedOrganizationId = input.organizationId || input.clientId;
     const now = new Date();
     const newDoc: ClientDocument = {
       id: crypto.randomUUID(),
@@ -323,7 +382,7 @@ export const documentsApi = {
       fileType: input.fileType || 'application/pdf',
       pageCount: input.pageCount || 1,
       clientId: input.clientId,
-      organizationId: input.organizationId,
+      organizationId: resolvedOrganizationId,
       thumbnailUrl: input.thumbnailUrl,
       annotations: [],
       comments: [],
@@ -334,10 +393,34 @@ export const documentsApi = {
       updatedAt: now,
     };
 
-    if (!isSupabaseConfigured()) {
+    if (!resolvedOrganizationId) {
+      console.warn('[Documents] Missing organizationId, saving document locally.');
       const docs = loadDocumentsFromStorage();
       docs.unshift(newDoc);
       saveDocumentsToStorage(docs);
+      documentHistoryApi.create({
+        documentId: newDoc.id,
+        organizationId: newDoc.organizationId,
+        clientId: newDoc.clientId,
+        action: 'created',
+        payload: { name: newDoc.name },
+        createdBy: newDoc.createdBy
+      });
+      return newDoc;
+    }
+
+    if (!canUseSupabase()) {
+      const docs = loadDocumentsFromStorage();
+      docs.unshift(newDoc);
+      saveDocumentsToStorage(docs);
+      documentHistoryApi.create({
+        documentId: newDoc.id,
+        organizationId: newDoc.organizationId,
+        clientId: newDoc.clientId,
+        action: 'created',
+        payload: { name: newDoc.name },
+        createdBy: newDoc.createdBy
+      });
       return newDoc;
     }
 
@@ -346,7 +429,7 @@ export const documentsApi = {
         .from('client_documents')
         .insert({
           id: newDoc.id,
-          ...documentToDbRow(input),
+          ...documentToDbRow({ ...input, organizationId: resolvedOrganizationId }),
           created_at: now.toISOString(),
           updated_at: now.toISOString(),
         })
@@ -355,32 +438,54 @@ export const documentsApi = {
 
       if (error) {
         console.error('[Documents] Error creating document in Supabase:', error);
+        disableSupabaseDocuments(error, 'create');
         console.log('[Documents] Falling back to local storage');
         // Fallback to local storage
         const docs = loadDocumentsFromStorage();
         docs.unshift(newDoc);
         saveDocumentsToStorage(docs);
+        documentHistoryApi.create({
+          documentId: newDoc.id,
+          organizationId: newDoc.organizationId,
+          clientId: newDoc.clientId,
+          action: 'created',
+          payload: { name: newDoc.name },
+          createdBy: newDoc.createdBy
+        });
         return newDoc;
       }
 
+      documentHistoryApi.create({
+        documentId: data.id,
+        organizationId: data.organization_id,
+        clientId: data.client_id,
+        action: 'created',
+        payload: { name: data.name },
+        createdBy: data.created_by
+      });
       return dbRowToDocument(data);
     } catch (e: any) {
       console.error('[Documents] Exception creating document:', e);
-      // If it's a 400 error, likely the table doesn't exist or schema mismatch
-      if (e?.status === 400 || e?.message?.includes('400')) {
-        console.log('[Documents] 400 error - table may not exist, using local storage');
-      }
+      disableSupabaseDocuments(e, 'create');
       // Fallback to local storage
       const docs = loadDocumentsFromStorage();
       docs.unshift(newDoc);
       saveDocumentsToStorage(docs);
+      documentHistoryApi.create({
+        documentId: newDoc.id,
+        organizationId: newDoc.organizationId,
+        clientId: newDoc.clientId,
+        action: 'created',
+        payload: { name: newDoc.name },
+        createdBy: newDoc.createdBy
+      });
       return newDoc;
     }
   },
 
   // Update a document
   async update(id: string, input: UpdateDocumentInput): Promise<ClientDocument | null> {
-    if (!isSupabaseConfigured()) {
+    if (!canUseSupabase()) {
       const docs = loadDocumentsFromStorage();
       const index = docs.findIndex(d => d.id === id);
       if (index === -1) return null;
@@ -391,6 +496,13 @@ export const documentsApi = {
         updatedAt: new Date(),
       };
       saveDocumentsToStorage(docs);
+      documentHistoryApi.create({
+        documentId: id,
+        organizationId: docs[index].organizationId,
+        clientId: docs[index].clientId,
+        action: 'updated',
+        payload: input
+      });
       return docs[index];
     }
 
@@ -407,22 +519,68 @@ export const documentsApi = {
 
       if (error) {
         console.error('Error updating document:', error);
-        return null;
+        disableSupabaseDocuments(error, 'update');
+        const docs = loadDocumentsFromStorage();
+        const index = docs.findIndex(d => d.id === id);
+        if (index === -1) return null;
+        docs[index] = {
+          ...docs[index],
+          ...input,
+          updatedAt: new Date(),
+        };
+        saveDocumentsToStorage(docs);
+        documentHistoryApi.create({
+          documentId: id,
+          organizationId: docs[index].organizationId,
+          clientId: docs[index].clientId,
+          action: 'updated',
+          payload: input
+        });
+        return docs[index];
       }
 
+      documentHistoryApi.create({
+        documentId: data.id,
+        organizationId: data.organization_id,
+        clientId: data.client_id,
+        action: 'updated',
+        payload: input,
+        createdBy: data.created_by
+      });
       return dbRowToDocument(data);
     } catch (e) {
       console.error('Error updating document:', e);
-      return null;
+      disableSupabaseDocuments(e, 'update');
+      const docs = loadDocumentsFromStorage();
+      const index = docs.findIndex(d => d.id === id);
+      if (index === -1) return null;
+      docs[index] = {
+        ...docs[index],
+        ...input,
+        updatedAt: new Date(),
+      };
+      saveDocumentsToStorage(docs);
+      documentHistoryApi.create({
+        documentId: id,
+        organizationId: docs[index].organizationId,
+        clientId: docs[index].clientId,
+        action: 'updated',
+        payload: input
+      });
+      return docs[index];
     }
   },
 
   // Delete a document (soft delete)
   async delete(id: string): Promise<boolean> {
-    if (!isSupabaseConfigured()) {
+    if (!canUseSupabase()) {
       const docs = loadDocumentsFromStorage();
       const filtered = docs.filter(d => d.id !== id);
       saveDocumentsToStorage(filtered);
+      documentHistoryApi.create({
+        documentId: id,
+        action: 'deleted'
+      });
       return true;
     }
 
@@ -434,19 +592,39 @@ export const documentsApi = {
 
       if (error) {
         console.error('Error deleting document:', error);
-        return false;
+        disableSupabaseDocuments(error, 'delete');
+        const docs = loadDocumentsFromStorage();
+        const filtered = docs.filter(d => d.id !== id);
+        saveDocumentsToStorage(filtered);
+        documentHistoryApi.create({
+          documentId: id,
+          action: 'deleted'
+        });
+        return true;
       }
 
+      documentHistoryApi.create({
+        documentId: id,
+        action: 'deleted'
+      });
       return true;
     } catch (e) {
       console.error('Error deleting document:', e);
-      return false;
+      disableSupabaseDocuments(e, 'delete');
+      const docs = loadDocumentsFromStorage();
+      const filtered = docs.filter(d => d.id !== id);
+      saveDocumentsToStorage(filtered);
+      documentHistoryApi.create({
+        documentId: id,
+        action: 'deleted'
+      });
+      return true;
     }
   },
 
   // Update annotations
   async updateAnnotations(id: string, annotations: PDFAnnotation[]): Promise<boolean> {
-    if (!isSupabaseConfigured()) {
+    if (!canUseSupabase()) {
       const docs = loadDocumentsFromStorage();
       const index = docs.findIndex(d => d.id === id);
       if (index === -1) return false;
@@ -454,6 +632,13 @@ export const documentsApi = {
       docs[index].annotations = annotations;
       docs[index].updatedAt = new Date();
       saveDocumentsToStorage(docs);
+      documentHistoryApi.create({
+        documentId: id,
+        organizationId: docs[index].organizationId,
+        clientId: docs[index].clientId,
+        action: 'annotations_updated',
+        payload: { count: annotations.length }
+      });
       return true;
     }
 
@@ -468,15 +653,143 @@ export const documentsApi = {
 
       if (error) {
         console.error('Error updating annotations:', error);
-        return false;
+        disableSupabaseDocuments(error, 'update');
+        const docs = loadDocumentsFromStorage();
+        const index = docs.findIndex(d => d.id === id);
+        if (index === -1) return false;
+        docs[index].annotations = annotations;
+        docs[index].updatedAt = new Date();
+        saveDocumentsToStorage(docs);
+        documentHistoryApi.create({
+          documentId: id,
+          organizationId: docs[index].organizationId,
+          clientId: docs[index].clientId,
+          action: 'annotations_updated',
+          payload: { count: annotations.length }
+        });
+        return true;
       }
 
+      documentHistoryApi.create({
+        documentId: id,
+        action: 'annotations_updated',
+        payload: { count: annotations.length }
+      });
       return true;
     } catch (e) {
       console.error('Error updating annotations:', e);
-      return false;
+      disableSupabaseDocuments(e, 'update');
+      const docs = loadDocumentsFromStorage();
+      const index = docs.findIndex(d => d.id === id);
+      if (index === -1) return false;
+      docs[index].annotations = annotations;
+      docs[index].updatedAt = new Date();
+      saveDocumentsToStorage(docs);
+      documentHistoryApi.create({
+        documentId: id,
+        organizationId: docs[index].organizationId,
+        clientId: docs[index].clientId,
+        action: 'annotations_updated',
+        payload: { count: annotations.length }
+      });
+      return true;
     }
   },
+};
+
+// ============================================
+// DOCUMENT HISTORY API
+// ============================================
+
+export const documentHistoryApi = {
+  async getByDocumentId(documentId: string): Promise<DocumentHistoryEntry[]> {
+    if (!canUseSupabase()) {
+      return loadDocumentHistoryFromStorage(documentId);
+    }
+
+    try {
+      const { data, error } = await supabase!
+        .from('document_history')
+        .select('*')
+        .eq('document_id', documentId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) {
+        console.error('[Documents] Error fetching document history:', error);
+        disableSupabaseDocuments(error, 'history');
+        return loadDocumentHistoryFromStorage(documentId);
+      }
+
+      return (data || []).map((row: any) => ({
+        id: row.id,
+        documentId: row.document_id,
+        organizationId: row.organization_id || undefined,
+        clientId: row.client_id || undefined,
+        action: row.action,
+        payload: row.payload || {},
+        createdBy: row.created_by || undefined,
+        createdAt: new Date(row.created_at)
+      }));
+    } catch (e) {
+      console.error('[Documents] Error fetching document history:', e);
+      disableSupabaseDocuments(e, 'history');
+      return loadDocumentHistoryFromStorage(documentId);
+    }
+  },
+
+  async create(entry: Omit<DocumentHistoryEntry, 'id' | 'createdAt'>): Promise<DocumentHistoryEntry | null> {
+    const now = new Date();
+    const historyEntry: DocumentHistoryEntry = {
+      ...entry,
+      id: crypto.randomUUID(),
+      createdAt: now
+    };
+
+    if (!canUseSupabase()) {
+      appendDocumentHistoryToStorage(historyEntry);
+      return historyEntry;
+    }
+
+    try {
+      const { data, error } = await supabase!
+        .from('document_history')
+        .insert({
+          document_id: entry.documentId,
+          organization_id: entry.organizationId || null,
+          client_id: entry.clientId || null,
+          action: entry.action,
+          payload: entry.payload || {},
+          created_by: entry.createdBy || null,
+          created_at: now.toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[Documents] Error creating document history:', error);
+        disableSupabaseDocuments(error, 'history');
+        appendDocumentHistoryToStorage(historyEntry);
+        return historyEntry;
+      }
+
+      return {
+        id: data.id,
+        documentId: data.document_id,
+        organizationId: data.organization_id || undefined,
+        clientId: data.client_id || undefined,
+        action: data.action,
+        payload: data.payload || {},
+        createdBy: data.created_by || undefined,
+        createdAt: new Date(data.created_at)
+      };
+    } catch (e) {
+      console.error('[Documents] Error creating document history:', e);
+      disableSupabaseDocuments(e, 'history');
+      appendDocumentHistoryToStorage(historyEntry);
+      return historyEntry;
+    }
+  }
 };
 
 // ============================================
@@ -498,7 +811,7 @@ export const documentCommentsApi = {
       newComment.threadId = newComment.id;
     }
 
-    if (!isSupabaseConfigured()) {
+    if (!canUseSupabase()) {
       // For local storage, we store comments with the document
       const docs = loadDocumentsFromStorage();
       const docIndex = docs.findIndex(d => d.id === comment.documentId);
@@ -510,6 +823,13 @@ export const documentCommentsApi = {
       docs[docIndex].comments.push(newComment);
       docs[docIndex].updatedAt = now;
       saveDocumentsToStorage(docs);
+      documentHistoryApi.create({
+        documentId: comment.documentId,
+        organizationId: docs[docIndex].organizationId,
+        clientId: docs[docIndex].clientId,
+        action: 'comment_added',
+        payload: { pageNumber: comment.pageNumber }
+      });
       return newComment;
     }
 
@@ -543,6 +863,11 @@ export const documentCommentsApi = {
         return null;
       }
 
+      documentHistoryApi.create({
+        documentId: comment.documentId,
+        action: 'comment_added',
+        payload: { pageNumber: comment.pageNumber }
+      });
       return newComment;
     } catch (e) {
       console.error('Error creating comment:', e);
@@ -552,7 +877,7 @@ export const documentCommentsApi = {
 
   // Update a comment
   async update(id: string, updates: Partial<PDFComment>): Promise<boolean> {
-    if (!isSupabaseConfigured()) {
+    if (!canUseSupabase()) {
       const docs = loadDocumentsFromStorage();
       for (const doc of docs) {
         const commentIndex = doc.comments?.findIndex(c => c.id === id);
@@ -595,7 +920,7 @@ export const documentCommentsApi = {
 
   // Delete a comment
   async delete(id: string): Promise<boolean> {
-    if (!isSupabaseConfigured()) {
+    if (!canUseSupabase()) {
       const docs = loadDocumentsFromStorage();
       for (const doc of docs) {
         if (doc.comments) {
@@ -631,7 +956,7 @@ export const documentCommentsApi = {
 
   // Resolve a comment thread
   async resolve(id: string, resolvedBy: string): Promise<boolean> {
-    if (!isSupabaseConfigured()) {
+    if (!canUseSupabase()) {
       const docs = loadDocumentsFromStorage();
       for (const doc of docs) {
         const comment = doc.comments?.find(c => c.id === id);
@@ -732,7 +1057,7 @@ export const documentShareLinksApi = {
       createdAt: now,
     };
 
-    if (!isSupabaseConfigured()) {
+    if (!canUseSupabase()) {
       // Store in document
       const docs = loadDocumentsFromStorage();
       const docIndex = docs.findIndex(d => d.id === documentId);
@@ -789,7 +1114,7 @@ export const documentShareLinksApi = {
     shareLink: DocumentShareLink;
     document: ClientDocument;
   } | null> {
-    if (!isSupabaseConfigured()) {
+    if (!canUseSupabase()) {
       const docs = loadDocumentsFromStorage();
       const doc = docs.find(d => d.shareToken === token);
       if (!doc) return null;
@@ -858,7 +1183,7 @@ export const documentShareLinksApi = {
 
   // Record a view
   async recordView(token: string): Promise<void> {
-    if (!isSupabaseConfigured()) return;
+    if (!canUseSupabase()) return;
 
     try {
       const { data } = await supabase!
@@ -884,7 +1209,7 @@ export const documentShareLinksApi = {
 
   // Deactivate a share link
   async deactivate(id: string): Promise<boolean> {
-    if (!isSupabaseConfigured()) {
+    if (!canUseSupabase()) {
       const docs = loadDocumentsFromStorage();
       // Find document with matching share token and clear it
       for (const doc of docs) {

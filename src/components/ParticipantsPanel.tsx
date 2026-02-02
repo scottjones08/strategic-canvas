@@ -42,6 +42,8 @@ import { UserPresence, getUserInitials } from '../lib/realtime-collaboration';
 
 export interface ParticipantActivity {
   userId: string;
+  userName?: string;
+  userColor?: string;
   type: 'joined' | 'left' | 'editing' | 'comment' | 'reaction';
   nodeId?: string;
   nodeName?: string;
@@ -297,7 +299,8 @@ ParticipantRow.displayName = 'ParticipantRow';
 // Activity feed item
 const ActivityItem = memo(({ activity, users }: { activity: ParticipantActivity; users: UserPresence[] }) => {
   const user = users.find(u => u.id === activity.userId);
-  if (!user) return null;
+  const displayName = user?.name || activity.userName || 'Guest';
+  const displayColor = user?.color || activity.userColor || '#9ca3af';
 
   const getActivityText = () => {
     switch (activity.type) {
@@ -326,12 +329,12 @@ const ActivityItem = memo(({ activity, users }: { activity: ParticipantActivity;
     >
       <div
         className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
-        style={{ backgroundColor: user.color }}
+        style={{ backgroundColor: displayColor }}
       >
-        {getUserInitials(user.name).charAt(0)}
+        {getUserInitials(displayName).charAt(0)}
       </div>
       <div className="flex-1 min-w-0">
-        <span className="font-medium text-gray-900">{user.name}</span>{' '}
+        <span className="font-medium text-gray-900">{displayName}</span>{' '}
         <span className="text-gray-500">{getActivityText()}</span>
         <p className="text-gray-400 mt-0.5">{timeAgo}</p>
       </div>

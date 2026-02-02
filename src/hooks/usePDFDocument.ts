@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { 
   PDFAnnotation, 
   PDFComment, 
@@ -25,6 +26,49 @@ import {
 
 // Configure PDF.js worker - use bundled worker to avoid CDN version mismatch
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
+const DEFAULT_BUCKET = 'documents';
+
+const getStoragePath = (url: string) => {
+  try {
+    const { pathname } = new URL(url);
+    const publicMatch = pathname.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
+    if (publicMatch) return { bucket: publicMatch[1], path: publicMatch[2] };
+    const privateMatch = pathname.match(/\/storage\/v1\/object\/([^/]+)\/(.+)$/);
+    if (privateMatch) return { bucket: privateMatch[1], path: privateMatch[2] };
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const fetchPdfBytes = async (source: string): Promise<Uint8Array> => {
+  const response = await fetch(source);
+  if (response.ok) {
+    const buffer = await response.arrayBuffer();
+    return new Uint8Array(buffer);
+  }
+
+  if (!isSupabaseConfigured() || !supabase) {
+    throw new Error(`Failed to fetch PDF: ${response.status}`);
+  }
+
+  const storageInfo = getStoragePath(source);
+  if (!storageInfo) {
+    throw new Error(`Failed to fetch PDF: ${response.status}`);
+  }
+
+  const { data, error } = await supabase.storage
+    .from(storageInfo.bucket || DEFAULT_BUCKET)
+    .download(storageInfo.path);
+
+  if (error || !data) {
+    throw error || new Error('Failed to download PDF from storage');
+  }
+
+  const buffer = await data.arrayBuffer();
+  return new Uint8Array(buffer);
+};
 
 export interface UsePDFDocumentOptions {
   documentId?: string;
@@ -185,9 +229,7 @@ export function usePDFDocument(options: UsePDFDocumentOptions = {}): UsePDFDocum
       // Store bytes for manipulation
       let bytes: Uint8Array;
       if (typeof source === 'string') {
-        const response = await fetch(source);
-        const arrayBuffer = await response.arrayBuffer();
-        bytes = new Uint8Array(arrayBuffer);
+        bytes = await fetchPdfBytes(source);
       } else if (source instanceof ArrayBuffer) {
         bytes = new Uint8Array(source);
       } else {

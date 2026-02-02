@@ -14,13 +14,58 @@ import {
   Maximize2,
   Minimize2,
   FileText,
+  History,
   Loader2,
 } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { documentHistoryApi, type DocumentHistoryEntry } from '../lib/documents-api';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+const DEFAULT_BUCKET = 'documents';
+
+const getStoragePath = (url: string) => {
+  try {
+    const { pathname } = new URL(url);
+    const publicMatch = pathname.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
+    if (publicMatch) return { bucket: publicMatch[1], path: publicMatch[2] };
+    const privateMatch = pathname.match(/\/storage\/v1\/object\/([^/]+)\/(.+)$/);
+    if (privateMatch) return { bucket: privateMatch[1], path: privateMatch[2] };
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const fetchPdfBytes = async (fileUrl: string): Promise<Uint8Array> => {
+  const response = await fetch(fileUrl);
+  if (response.ok) {
+    const buffer = await response.arrayBuffer();
+    return new Uint8Array(buffer);
+  }
+
+  if (!isSupabaseConfigured() || !supabase) {
+    throw new Error(`Failed to fetch PDF: ${response.status}`);
+  }
+
+  const storageInfo = getStoragePath(fileUrl);
+  if (!storageInfo) {
+    throw new Error(`Failed to fetch PDF: ${response.status}`);
+  }
+
+  const { data, error } = await supabase.storage
+    .from(storageInfo.bucket || DEFAULT_BUCKET)
+    .download(storageInfo.path);
+
+  if (error || !data) {
+    throw error || new Error('Failed to download PDF from storage');
+  }
+
+  const buffer = await data.arrayBuffer();
+  return new Uint8Array(buffer);
+};
 
 interface DocumentPreviewModalProps {
   isOpen: boolean;
@@ -50,6 +95,8 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [pageImage, setPageImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<DocumentHistoryEntry[]>([]);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
   // Load PDF and render page
@@ -61,7 +108,8 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
       setError(null);
 
       try {
-        const pdf = await pdfjsLib.getDocument(document.fileUrl).promise;
+        const bytes = await fetchPdfBytes(document.fileUrl);
+        const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
         setTotalPages(pdf.numPages);
 
         const page = await pdf.getPage(currentPage);
@@ -101,8 +149,18 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
       setCurrentPage(1);
       setZoom(1);
       setIsFullscreen(false);
+      setShowHistory(false);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !document?.id) return;
+    const loadHistory = async () => {
+      const entries = await documentHistoryApi.getByDocumentId(document.id);
+      setHistory(entries);
+    };
+    loadHistory();
+  }, [isOpen, document?.id]);
 
   const handlePrevPage = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
@@ -157,6 +215,13 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowHistory(prev => !prev)}
+                className={`p-2 rounded-lg transition-colors ${showHistory ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100 text-gray-600'}`}
+                title="History"
+              >
+                <History size={20} />
+              </button>
               {/* Zoom controls */}
               {isPdf && (
                 <>
@@ -223,53 +288,95 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-auto bg-gray-100 flex items-center justify-center p-4">
-            {isLoading ? (
-              <div className="flex flex-col items-center gap-4">
-                <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-                <p className="text-gray-600">Loading document...</p>
-              </div>
-            ) : error ? (
-              <div className="flex flex-col items-center gap-4 text-center">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                  <FileText className="w-8 h-8 text-red-500" />
+          <div className="flex-1 overflow-hidden flex">
+            <div className="flex-1 overflow-auto bg-gray-100 flex items-center justify-center p-4">
+              {isLoading ? (
+                <div className="flex flex-col items-center gap-4">
+                  <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+                  <p className="text-gray-600">Loading document...</p>
                 </div>
-                <p className="text-gray-600">{error}</p>
-                <a
-                  href={document.fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                >
-                  Open in new tab
-                </a>
-              </div>
-            ) : isPdf ? (
-              <div className="relative">
-                <canvas ref={canvasRef} className="hidden" />
-                {pageImage && (
-                  <img
-                    src={pageImage}
-                    alt={`Page ${currentPage}`}
-                    className="max-w-full max-h-full shadow-lg rounded-lg"
-                    style={{ transform: `scale(${zoom > 1 ? 1 : zoom})` }}
-                  />
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-4 text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                  <FileText className="w-8 h-8 text-blue-500" />
+              ) : error ? (
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                    <FileText className="w-8 h-8 text-red-500" />
+                  </div>
+                  <p className="text-gray-600">{error}</p>
+                  <a
+                    href={document.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    Open in new tab
+                  </a>
                 </div>
-                <p className="text-gray-600">Preview not available for this file type</p>
-                <a
-                  href={document.fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                >
-                  Download to view
-                </a>
+              ) : isPdf ? (
+                <div className="relative">
+                  <canvas ref={canvasRef} className="hidden" />
+                  {pageImage && (
+                    <img
+                      src={pageImage}
+                      alt={`Page ${currentPage}`}
+                      className="max-w-full max-h-full shadow-lg rounded-lg"
+                      style={{ transform: `scale(${zoom > 1 ? 1 : zoom})` }}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                    <FileText className="w-8 h-8 text-blue-500" />
+                  </div>
+                  <p className="text-gray-600">Preview not available for this file type</p>
+                  <a
+                    href={document.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    Download to view
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {showHistory && (
+              <div className="w-80 border-l border-gray-200 bg-white flex flex-col">
+                <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-gray-800">Document History</span>
+                  <button
+                    onClick={() => setShowHistory(false)}
+                    className="p-1 rounded hover:bg-gray-100 text-gray-500"
+                    title="Close history"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {history.length === 0 ? (
+                    <div className="text-sm text-gray-500 text-center py-8">
+                      No history yet.
+                    </div>
+                  ) : (
+                    history.map(entry => (
+                      <div key={entry.id} className="border border-gray-100 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-800 capitalize">
+                            {entry.action.replace(/_/g, ' ')}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {entry.createdAt.toLocaleString()}
+                          </span>
+                        </div>
+                        {entry.payload && Object.keys(entry.payload).length > 0 && (
+                          <pre className="mt-2 text-xs text-gray-500 whitespace-pre-wrap">
+                            {JSON.stringify(entry.payload, null, 2)}
+                          </pre>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </div>
