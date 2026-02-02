@@ -92,8 +92,10 @@ export interface UpdateDocumentInput {
 const DOCUMENTS_STORAGE_KEY = 'strategic-canvas-documents';
 const DOCUMENT_HISTORY_STORAGE_KEY = 'strategic-canvas-document-history';
 let documentsSupabaseDisabled = false;
+let documentHistorySupabaseDisabled = false;
 
 const canUseSupabase = () => isSupabaseConfigured() && !documentsSupabaseDisabled;
+const canUseHistorySupabase = () => canUseSupabase() && !documentHistorySupabaseDisabled;
 
 const disableSupabaseDocuments = (error: any, context: string) => {
   if (documentsSupabaseDisabled) return;
@@ -102,6 +104,17 @@ const disableSupabaseDocuments = (error: any, context: string) => {
   if (status === 400 || `${message}`.includes('400')) {
     documentsSupabaseDisabled = true;
     console.warn(`[Documents] Disabling Supabase documents due to ${context} 400 error.`);
+  }
+};
+
+const disableSupabaseHistory = (error: any, context: string) => {
+  if (documentHistorySupabaseDisabled) return;
+  const status = error?.status;
+  const code = error?.code;
+  const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+  if (status === 404 || code === 'PGRST205' || message.includes('document_history')) {
+    documentHistorySupabaseDisabled = true;
+    console.warn(`[Documents] Disabling Supabase document history due to ${context} missing table.`);
   }
 };
 
@@ -703,7 +716,7 @@ export const documentsApi = {
 
 export const documentHistoryApi = {
   async getByDocumentId(documentId: string): Promise<DocumentHistoryEntry[]> {
-    if (!canUseSupabase()) {
+    if (!canUseHistorySupabase()) {
       return loadDocumentHistoryFromStorage(documentId);
     }
 
@@ -717,7 +730,7 @@ export const documentHistoryApi = {
 
       if (error) {
         console.error('[Documents] Error fetching document history:', error);
-        disableSupabaseDocuments(error, 'history');
+        disableSupabaseHistory(error, 'history');
         return loadDocumentHistoryFromStorage(documentId);
       }
 
@@ -733,7 +746,7 @@ export const documentHistoryApi = {
       }));
     } catch (e) {
       console.error('[Documents] Error fetching document history:', e);
-      disableSupabaseDocuments(e, 'history');
+      disableSupabaseHistory(e, 'history');
       return loadDocumentHistoryFromStorage(documentId);
     }
   },
@@ -746,7 +759,7 @@ export const documentHistoryApi = {
       createdAt: now
     };
 
-    if (!canUseSupabase()) {
+    if (!canUseHistorySupabase()) {
       appendDocumentHistoryToStorage(historyEntry);
       return historyEntry;
     }
@@ -768,7 +781,7 @@ export const documentHistoryApi = {
 
       if (error) {
         console.error('[Documents] Error creating document history:', error);
-        disableSupabaseDocuments(error, 'history');
+        disableSupabaseHistory(error, 'history');
         appendDocumentHistoryToStorage(historyEntry);
         return historyEntry;
       }
@@ -785,7 +798,7 @@ export const documentHistoryApi = {
       };
     } catch (e) {
       console.error('[Documents] Error creating document history:', e);
-      disableSupabaseDocuments(e, 'history');
+      disableSupabaseHistory(e, 'history');
       appendDocumentHistoryToStorage(historyEntry);
       return historyEntry;
     }

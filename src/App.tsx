@@ -125,6 +125,8 @@ import NotesViewRedesigned from './components/NotesViewRedesign';
 import DocumentsView from './components/DocumentsView';
 import PDFEditor from './components/PDFEditor';
 import { documentsApi, uploadDocumentFile, getDocumentShareUrl, documentHistoryApi } from './lib/documents-api';
+import OfficeDocumentModal from './components/OfficeDocumentModal';
+import { isOfficeDocument } from './lib/office-utils';
 import AutosaveIndicator, { type SaveStatus } from './components/AutosaveIndicator';
 import WorldClassConnector from './components/WorldClassConnector';
 import { useSmoothPanZoom } from './hooks/useSmoothPanZoom';
@@ -7737,6 +7739,18 @@ export default function App() {
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(true);
   const [activeDocument, setActiveDocument] = useState<ClientDocument | null>(null);
   const [showPDFEditor, setShowPDFEditor] = useState(false);
+  const [officeModalState, setOfficeModalState] = useState<{
+    isOpen: boolean;
+    document?: ClientDocument;
+    editMode?: 'view' | 'edit';
+    viewerMode?: 'native' | 'microsoft' | 'google' | 'onlyoffice';
+  }>({ isOpen: false });
+  const onlyOfficeUrl = import.meta.env.VITE_ONLYOFFICE_URL as string | undefined;
+  const onlyOfficeJwtSecret = import.meta.env.VITE_ONLYOFFICE_JWT_SECRET as string | undefined;
+  const onlyOfficeConfig = onlyOfficeUrl
+    ? { documentServerUrl: onlyOfficeUrl, jwtSecret: onlyOfficeJwtSecret }
+    : undefined;
+  const onlyOfficeEnabled = Boolean(onlyOfficeConfig);
   const [isLoadingClients, setIsLoadingClients] = useState(true);
   const [supabaseConnected, setSupabaseConnected] = useState(false);
   const [supabaseTablesExist, setSupabaseTablesExist] = useState(true); // Assume true, set false on first error
@@ -8635,7 +8649,9 @@ ${transcriptContent}`;
   const handleDocumentUpload = useCallback(async (files: FileList, clientId?: string) => {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (file.type !== 'application/pdf') continue;
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const isOffice = isOfficeDocument(file.name, file.type);
+      if (!isPdf && !isOffice) continue;
 
       try {
         // Upload file
@@ -8644,11 +8660,11 @@ ${transcriptContent}`;
 
         // Create document record
         const newDoc = await documentsApi.create({
-          name: file.name.replace(/\.pdf$/i, ''),
+          name: isPdf ? file.name.replace(/\.pdf$/i, '') : file.name,
           fileUrl: uploadResult.url,
           fileSize: file.size,
-          fileType: 'application/pdf',
-          pageCount: 1, // Will be updated when PDF is loaded
+          fileType: file.type || (isPdf ? 'application/pdf' : 'application/octet-stream'),
+          pageCount: 1,
           clientId,
         });
 
@@ -8718,10 +8734,37 @@ ${transcriptContent}`;
     }
   }, []);
 
+  const getOfficeViewerMode = (fileUrl: string) => (
+    /^https?:\/\//i.test(fileUrl) ? 'microsoft' : 'native'
+  );
+
   // Handle document open
   const handleDocumentOpen = useCallback((document: ClientDocument) => {
-    setActiveDocument(document);
-    setShowPDFEditor(true);
+    const isOffice = isOfficeDocument(document.name, document.fileType);
+    const isPdf = document.fileType === 'application/pdf' || document.name.toLowerCase().endsWith('.pdf');
+
+    if (onlyOfficeEnabled && (isOffice || isPdf)) {
+      setOfficeModalState({
+        isOpen: true,
+        document,
+        editMode: 'edit',
+        viewerMode: 'onlyoffice',
+      });
+      setActiveDocument(null);
+      setShowPDFEditor(false);
+    } else if (isOffice) {
+      setOfficeModalState({
+        isOpen: true,
+        document,
+        editMode: 'edit',
+        viewerMode: getOfficeViewerMode(document.fileUrl),
+      });
+      setActiveDocument(null);
+      setShowPDFEditor(false);
+    } else {
+      setActiveDocument(document);
+      setShowPDFEditor(true);
+    }
     documentHistoryApi.create({
       documentId: document.id,
       organizationId: document.organizationId || document.clientId,
@@ -8729,7 +8772,7 @@ ${transcriptContent}`;
       action: 'opened',
       payload: { name: document.name }
     });
-  }, []);
+  }, [onlyOfficeEnabled]);
 
   // Handle document share
   const handleDocumentShare = useCallback((document: ClientDocument) => {
@@ -8752,11 +8795,27 @@ ${transcriptContent}`;
     });
   }, []);
 
+  const getDocumentDownloadName = (document: ClientDocument) => {
+    const name = document.name || 'document';
+    const hasExtension = /\.[a-z0-9]+$/i.test(name);
+    if (hasExtension) return name;
+    const inferredExt = document.fileType === 'application/pdf'
+      ? '.pdf'
+      : document.fileType.includes('word')
+        ? '.docx'
+        : document.fileType.includes('sheet') || document.fileType.includes('excel')
+          ? '.xlsx'
+          : document.fileType.includes('presentation') || document.fileType.includes('powerpoint')
+            ? '.pptx'
+            : '';
+    return `${name}${inferredExt}`;
+  };
+
   // Handle document download
   const handleDocumentDownload = useCallback((document: ClientDocument) => {
     const a = window.document.createElement('a');
     a.href = document.fileUrl;
-    a.download = `${document.name}.pdf`;
+    a.download = getDocumentDownloadName(document);
     a.click();
     documentHistoryApi.create({
       documentId: document.id,
@@ -8906,6 +8965,22 @@ ${transcriptContent}`;
             showComments={true}
           />
         </div>
+      )}
+
+      {/* Office Document Modal */}
+      {officeModalState.isOpen && officeModalState.document && (
+        <OfficeDocumentModal
+          isOpen={officeModalState.isOpen}
+          onClose={() => setOfficeModalState({ isOpen: false })}
+          url={officeModalState.document.fileUrl}
+          filename={officeModalState.document.name}
+          initialEditMode={officeModalState.editMode || 'view'}
+          initialViewerMode={officeModalState.viewerMode || 'native'}
+          onlyOfficeConfig={onlyOfficeConfig}
+          onDownload={() => handleDocumentDownload(officeModalState.document!)}
+          onShare={() => handleDocumentShare(officeModalState.document!)}
+          showActions={true}
+        />
       )}
     </div>
   );

@@ -47,6 +47,7 @@ import type {
   ExcelWorkbook,
   PowerPointPresentation,
 } from '../lib/office-utils';
+import { detectOfficeType } from '../lib/office-utils';
 
 // ============================================
 // TYPES
@@ -96,7 +97,7 @@ export const OfficeViewer: React.FC<OfficeViewerProps> = ({
   url,
   arrayBuffer,
   filename,
-  viewerMode = 'native',
+  viewerMode,
   editMode = 'view',
   onlyOfficeConfig,
   onLoad,
@@ -117,7 +118,14 @@ export const OfficeViewer: React.FC<OfficeViewerProps> = ({
   const [zoom, setZoom] = useState(100);
   const [activeTab, setActiveTab] = useState(0); // For Excel sheets or PPT slides
   const [showSettings, setShowSettings] = useState(false);
-  const [selectedViewerMode, setSelectedViewerMode] = useState<ViewerMode>(viewerMode);
+  const onlyOfficeUrl = import.meta.env.VITE_ONLYOFFICE_URL as string | undefined;
+  const onlyOfficeJwtSecret = import.meta.env.VITE_ONLYOFFICE_JWT_SECRET as string | undefined;
+  const onlyOfficeSignUrl = (import.meta.env.VITE_ONLYOFFICE_SIGN_URL as string | undefined)
+    || (import.meta.env.VITE_SUPABASE_URL
+      ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/onlyoffice-sign`
+      : undefined);
+  const initialViewerMode = viewerMode || (onlyOfficeUrl ? 'onlyoffice' : 'native');
+  const [selectedViewerMode, setSelectedViewerMode] = useState<ViewerMode>(initialViewerMode);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -136,9 +144,33 @@ export const OfficeViewer: React.FC<OfficeViewerProps> = ({
     autoProcess: selectedViewerMode === 'native',
   });
 
+  const resolvedInfo = useMemo(() => {
+    if (info) return info;
+    const sourceName = filename || file?.name || url?.split('/').pop() || 'document';
+    const extension = sourceName.includes('.') ? sourceName.substring(sourceName.lastIndexOf('.')) : '';
+    const isPdf = extension.toLowerCase() === '.pdf';
+    const inferredType = isPdf ? 'word' : detectOfficeType(sourceName, file?.type);
+    return {
+      type: inferredType,
+      name: sourceName,
+      size: file?.size || 0,
+      mimeType: file?.type || (isPdf ? 'application/pdf' : 'application/octet-stream'),
+      extension,
+    };
+  }, [info, filename, file, url]);
+
+  const resolvedOnlyOfficeConfig = useMemo<OnlyOfficeConfig | undefined>(() => {
+    if (onlyOfficeConfig) return onlyOfficeConfig;
+    if (!onlyOfficeUrl) return undefined;
+    return {
+      documentServerUrl: onlyOfficeUrl,
+      jwtSecret: onlyOfficeJwtSecret,
+    };
+  }, [onlyOfficeConfig, onlyOfficeUrl, onlyOfficeJwtSecret]);
+
   // Determine document type from available inputs
   const documentType = useMemo((): OfficeDocumentType => {
-    if (info) return info.type;
+    if (resolvedInfo) return resolvedInfo.type;
     if (file) return detectOfficeType(file.name, file.type);
     if (filename) return detectOfficeType(filename);
     if (url) {
@@ -146,7 +178,7 @@ export const OfficeViewer: React.FC<OfficeViewerProps> = ({
       return detectOfficeType(urlFilename);
     }
     return 'unknown';
-  }, [info, file, filename, url]);
+  }, [resolvedInfo, file, filename, url]);
 
   // Load document on mount or when source changes
   useEffect(() => {
@@ -204,7 +236,7 @@ export const OfficeViewer: React.FC<OfficeViewerProps> = ({
 
     // Default download behavior
     let downloadUrl = url;
-    let downloadName = filename || info?.name || 'document';
+    let downloadName = filename || resolvedInfo?.name || 'document';
 
     if (file) {
       downloadUrl = URL.createObjectURL(file);
@@ -221,7 +253,7 @@ export const OfficeViewer: React.FC<OfficeViewerProps> = ({
         URL.revokeObjectURL(downloadUrl);
       }
     }
-  }, [url, file, filename, info, onDownload]);
+  }, [url, file, filename, resolvedInfo, onDownload]);
 
   // Render document type icon
 
@@ -245,8 +277,17 @@ export const OfficeViewer: React.FC<OfficeViewerProps> = ({
   const renderContent = () => {
     // External viewer modes (iframe-based)
     if (selectedViewerMode === 'microsoft' || selectedViewerMode === 'google' || selectedViewerMode === 'onlyoffice') {
-      if (selectedViewerMode === 'onlyoffice' && onlyOfficeConfig) {
-        return <OnlyOfficeViewer config={onlyOfficeConfig} url={url || ''} info={info} editMode={editMode} />;
+      if (selectedViewerMode === 'onlyoffice' && resolvedOnlyOfficeConfig) {
+        return (
+          <OnlyOfficeViewer
+            config={resolvedOnlyOfficeConfig}
+            url={url || ''}
+            info={resolvedInfo}
+            editMode={editMode}
+            signUrl={onlyOfficeSignUrl}
+            supabaseAnonKey={import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined}
+          />
+        );
       }
 
       if (embedUrl) {
@@ -254,7 +295,7 @@ export const OfficeViewer: React.FC<OfficeViewerProps> = ({
           <iframe
             src={embedUrl}
             className="w-full h-full border-0"
-            title={info?.name || 'Document'}
+            title={resolvedInfo?.name || 'Document'}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           />
         );
@@ -921,9 +962,18 @@ interface OnlyOfficeViewerProps {
   url: string;
   info: OfficeDocumentInfo | null;
   editMode: EditMode;
+  signUrl?: string;
+  supabaseAnonKey?: string;
 }
 
-const OnlyOfficeViewer: React.FC<OnlyOfficeViewerProps> = ({ config, url, info, editMode }) => {
+const OnlyOfficeViewer: React.FC<OnlyOfficeViewerProps> = ({
+  config,
+  url,
+  info,
+  editMode,
+  signUrl,
+  supabaseAnonKey,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -950,7 +1000,7 @@ const OnlyOfficeViewer: React.FC<OnlyOfficeViewerProps> = ({ config, url, info, 
       }
     };
 
-    const initEditor = () => {
+    const initEditor = async () => {
       if (!containerRef.current || !(window as any).DocsAPI) {
         setError('OnlyOffice API not available');
         setIsLoading(false);
@@ -958,7 +1008,7 @@ const OnlyOfficeViewer: React.FC<OnlyOfficeViewerProps> = ({ config, url, info, 
       }
 
       try {
-        const editorConfig = createOnlyOfficeConfig(
+        const editorConfig = await createOnlyOfficeConfig(
           config,
           {
             id: info.name, // Use filename as ID for now
@@ -970,6 +1020,28 @@ const OnlyOfficeViewer: React.FC<OnlyOfficeViewerProps> = ({ config, url, info, 
             mode: editMode,
           }
         );
+
+        if (!editorConfig.token && signUrl) {
+          const response = await fetch(signUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(supabaseAnonKey ? { Authorization: `Bearer ${supabaseAnonKey}` } : {}),
+            },
+            body: JSON.stringify({ config: editorConfig }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data?.token) {
+              editorConfig.token = data.token;
+            }
+          } else {
+            setError('Failed to sign OnlyOffice config');
+            setIsLoading(false);
+            return;
+          }
+        }
 
         new (window as any).DocsAPI.DocEditor(containerRef.current.id, editorConfig);
         setIsLoading(false);
@@ -984,7 +1056,7 @@ const OnlyOfficeViewer: React.FC<OnlyOfficeViewerProps> = ({ config, url, info, 
     return () => {
       // Cleanup: remove script tag if needed
     };
-  }, [config, url, info, editMode]);
+  }, [config, url, info, editMode, signUrl, supabaseAnonKey]);
 
   if (error) {
     return (
@@ -1028,7 +1100,7 @@ const NoContentPlaceholder: React.FC<NoContentPlaceholderProps> = ({ type }) => 
       </div>
       <h3 className="text-lg font-medium text-gray-600">No {label} content</h3>
       <p className="text-sm text-gray-500 text-center max-w-md">
-        The document could not be processed. Try using an external viewer like Google Docs or Microsoft Office.
+        The document could not be processed. Try using the OnlyOffice viewer or Google Docs.
       </p>
     </div>
   );
@@ -1080,7 +1152,6 @@ const ViewerSettingsModal: React.FC<ViewerSettingsModalProps> = ({
               {[
                 { value: 'native', label: 'Native Viewer', desc: 'Uses client-side libraries (mammoth, xlsx)' },
                 { value: 'google', label: 'Google Docs Viewer', desc: 'Free, works with public URLs' },
-                { value: 'microsoft', label: 'Microsoft Office Online', desc: 'Best compatibility, may require M365' },
                 { value: 'onlyoffice', label: 'OnlyOffice', desc: 'Self-hosted, full editing support' },
               ].map((option) => (
                 <label

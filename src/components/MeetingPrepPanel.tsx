@@ -35,6 +35,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
+import MeetingCapturePanel from './MeetingCapturePanel';
 
 // ============================================
 // TYPES & INTERFACES
@@ -289,6 +290,7 @@ export default function MeetingPrepPanel({
     briefing: true,
     checklist: true,
     notes: false,
+    capture: true,
   });
   const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
   const [editingAgendaItem, setEditingAgendaItem] = useState<string | null>(null);
@@ -845,6 +847,40 @@ export default function MeetingPrepPanel({
                       ))}
                     </div>
                   </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Meeting Capture Section */}
+        <div className="border-b border-gray-100">
+          <button
+            onClick={() => toggleSection('capture')}
+            className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-navy-50 flex items-center justify-center">
+                <Shield className="w-4 h-4 text-navy-600" />
+              </div>
+              <div className="text-left">
+                <h2 className="font-semibold text-gray-900">Meeting Capture</h2>
+                <p className="text-sm text-gray-500">Auto-join Zoom, Teams, and Meet</p>
+              </div>
+            </div>
+            {expandedSections.capture ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+          </button>
+
+          <AnimatePresence>
+            {expandedSections.capture && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="px-6 pb-6">
+                  <MeetingCapturePanel onStartLocalCapture={onStartMeeting} />
                 </div>
               </motion.div>
             )}

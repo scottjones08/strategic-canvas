@@ -4,7 +4,7 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Maximize2, Minimize2 } from 'lucide-react';
-import OfficeViewer, { ViewerMode, EditMode } from './OfficeViewer';
+import OfficeViewer, { ViewerMode, EditMode, type OfficeViewerProps } from './OfficeViewer';
 import { OfficeDocumentInfo } from '../lib/office-utils';
 
 // ============================================
@@ -23,6 +23,7 @@ export interface OfficeDocumentModalProps {
   // Viewer configuration
   initialViewerMode?: ViewerMode;
   initialEditMode?: EditMode;
+  onlyOfficeConfig?: OfficeViewerProps['onlyOfficeConfig'];
   
   // Callbacks
   onSave?: (data: Blob | ArrayBuffer) => Promise<void>;
@@ -47,6 +48,7 @@ export const OfficeDocumentModal: React.FC<OfficeDocumentModalProps> = ({
   filename,
   initialViewerMode = 'native',
   initialEditMode = 'view',
+  onlyOfficeConfig,
   onSave,
   onShare,
   onDownload,
@@ -122,6 +124,7 @@ export const OfficeDocumentModal: React.FC<OfficeDocumentModalProps> = ({
               filename={filename}
               viewerMode={initialViewerMode}
               editMode={initialEditMode}
+              onlyOfficeConfig={onlyOfficeConfig}
               onLoad={handleLoad}
               onSave={onSave}
               onShare={onShare}

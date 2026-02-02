@@ -265,7 +265,7 @@ function getDefaultMimeType(extension: string): string {
 export interface OnlyOfficeConfig {
   documentServerUrl: string;
   apiKey?: string;
-  jwt?: string;
+  jwtSecret?: string;
 }
 
 export interface OnlyOfficeDocument {
@@ -350,7 +350,33 @@ export function generateOnlyOfficeKey(documentId: string, version?: number): str
 /**
  * Create OnlyOffice editor configuration
  */
-export function createOnlyOfficeConfig(
+function base64UrlEncode(data: string | Uint8Array): string {
+  const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  let binary = '';
+  bytes.forEach((b) => {
+    binary += String.fromCharCode(b);
+  });
+  const base64 = btoa(binary);
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+async function createOnlyOfficeJwt(payload: Record<string, any>, secret: string): Promise<string> {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const data = `${encodedHeader}.${encodedPayload}`;
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
+  return `${data}.${base64UrlEncode(new Uint8Array(signature))}`;
+}
+
+export async function createOnlyOfficeConfig(
   config: OnlyOfficeConfig,
   document: {
     id: string;
@@ -365,10 +391,10 @@ export function createOnlyOfficeConfig(
     user?: { id: string; name: string };
     customization?: OnlyOfficeEditorConfig['editorConfig']['customization'];
   } = {}
-): OnlyOfficeEditorConfig {
+): Promise<OnlyOfficeEditorConfig> {
   const extension = document.name.substring(document.name.lastIndexOf('.'));
   
-  return {
+  const editorConfig: OnlyOfficeEditorConfig = {
     document: {
       fileType: getOnlyOfficeFileType(extension),
       key: generateOnlyOfficeKey(document.id, document.version),
@@ -406,8 +432,13 @@ export function createOnlyOfficeConfig(
     height: '100%',
     width: '100%',
     type: 'desktop',
-    token: config.jwt,
   };
+
+  if (config.jwtSecret) {
+    editorConfig.token = await createOnlyOfficeJwt(editorConfig as unknown as Record<string, any>, config.jwtSecret);
+  }
+
+  return editorConfig;
 }
 
 // ============================================

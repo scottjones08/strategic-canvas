@@ -506,7 +506,7 @@ export const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
             </div>
             <div>
               <h2 className="font-semibold text-gray-900">Upload Documents</h2>
-              <p className="text-sm text-gray-500">PDF files up to {maxSizeMB}MB</p>
+              <p className="text-sm text-gray-500">PDF and Office files up to {maxSizeMB}MB</p>
             </div>
           </div>
           <button 
@@ -540,7 +540,7 @@ export const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
             >
               <FileUp size={56} className={`mx-auto mb-4 ${isDraggingOver ? 'text-blue-500' : 'text-gray-400'}`} />
               <h3 className="text-lg font-medium text-gray-700 mb-1">
-                {isDraggingOver ? 'Drop files here' : 'Drop PDF files here'}
+                {isDraggingOver ? 'Drop files here' : 'Drop PDF or Office files here'}
               </h3>
               <p className="text-sm text-gray-500 mb-4">
                 or click to browse from your computer

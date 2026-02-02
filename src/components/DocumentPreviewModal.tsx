@@ -21,6 +21,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { documentHistoryApi, type DocumentHistoryEntry } from '../lib/documents-api';
+import { isOfficeDocument } from '../lib/office-utils';
+import OfficeViewer from './OfficeViewer';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
@@ -88,6 +90,11 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   onDownload,
   onShare,
 }) => {
+  const onlyOfficeUrl = import.meta.env.VITE_ONLYOFFICE_URL as string | undefined;
+  const onlyOfficeJwtSecret = import.meta.env.VITE_ONLYOFFICE_JWT_SECRET as string | undefined;
+  const onlyOfficeConfig = onlyOfficeUrl
+    ? { documentServerUrl: onlyOfficeUrl, jwtSecret: onlyOfficeJwtSecret }
+    : undefined;
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [zoom, setZoom] = useState(1);
@@ -99,9 +106,12 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   const [history, setHistory] = useState<DocumentHistoryEntry[]>([]);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
+  const isPdf = document?.fileType === 'application/pdf' || document?.name.toLowerCase().endsWith('.pdf');
+  const isOffice = document ? isOfficeDocument(document.name, document.fileType) : false;
+
   // Load PDF and render page
   useEffect(() => {
-    if (!isOpen || !document?.fileUrl) return;
+    if (!isOpen || !document?.fileUrl || !isPdf) return;
 
     const loadPdf = async () => {
       setIsLoading(true);
@@ -141,7 +151,13 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     };
 
     loadPdf();
-  }, [isOpen, document?.fileUrl, currentPage, zoom]);
+  }, [isOpen, document?.fileUrl, currentPage, zoom, isPdf]);
+
+  useEffect(() => {
+    if (!isOpen || !document?.fileUrl || isPdf) return;
+    setIsLoading(false);
+    setError(null);
+  }, [isOpen, document?.fileUrl, isPdf]);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -179,8 +195,6 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   };
 
   if (!isOpen || !document) return null;
-
-  const isPdf = document.fileType === 'application/pdf' || document.name.toLowerCase().endsWith('.pdf');
 
   return (
     <AnimatePresence>
@@ -290,7 +304,21 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           {/* Content */}
           <div className="flex-1 overflow-hidden flex">
             <div className="flex-1 overflow-auto bg-gray-100 flex items-center justify-center p-4">
-              {isLoading ? (
+              {isOffice ? (
+                <div className="w-full h-full">
+                  <OfficeViewer
+                    url={document.fileUrl}
+                    filename={document.name}
+                    viewerMode={onlyOfficeConfig ? 'onlyoffice' : 'native'}
+                    editMode="view"
+                    onlyOfficeConfig={onlyOfficeConfig}
+                    showToolbar={false}
+                    showFullscreenButton={false}
+                    height="100%"
+                    width="100%"
+                  />
+                </div>
+              ) : isLoading ? (
                 <div className="flex flex-col items-center gap-4">
                   <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
                   <p className="text-gray-600">Loading document...</p>

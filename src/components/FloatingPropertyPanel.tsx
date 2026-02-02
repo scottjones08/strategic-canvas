@@ -8,7 +8,7 @@
  * - Collapsible sections in horizontal layout
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -75,6 +75,8 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
 }) => {
   const [showMore, setShowMore] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [panelPosition, setPanelPosition] = useState<{ x: number; y: number } | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen) return null;
 
@@ -85,6 +87,77 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
     setExpandedSection(expandedSection === section ? null : section);
   };
 
+  const clampPosition = (position: { x: number; y: number }, width: number, height: number) => {
+    const padding = 12;
+    const maxX = Math.max(padding, window.innerWidth - width - padding);
+    const maxY = Math.max(padding, window.innerHeight - height - padding);
+    return {
+      x: Math.min(Math.max(padding, position.x), maxX),
+      y: Math.min(Math.max(padding, position.y), maxY),
+    };
+  };
+
+  useLayoutEffect(() => {
+    if (!panelPosition && panelRef.current) {
+      const rect = panelRef.current.getBoundingClientRect();
+      const defaultX = Math.max(12, (window.innerWidth - rect.width) / 2);
+      const defaultY = Math.max(12, window.innerHeight * 0.9 - rect.height);
+      setPanelPosition(clampPosition({ x: defaultX, y: defaultY }, rect.width, rect.height));
+    }
+  }, [panelPosition]);
+
+  useEffect(() => {
+    if (!panelPosition || !panelRef.current) return;
+    const rect = panelRef.current.getBoundingClientRect();
+    setPanelPosition((current) => {
+      if (!current) return current;
+      return clampPosition(current, rect.width, rect.height);
+    });
+  }, [showMore]);
+
+  useEffect(() => {
+    if (!panelPosition || !panelRef.current) return;
+    const handleResize = () => {
+      if (!panelRef.current) return;
+      const rect = panelRef.current.getBoundingClientRect();
+      setPanelPosition((current) => {
+        if (!current) return current;
+        return clampPosition(current, rect.width, rect.height);
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [panelPosition]);
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!panelRef.current) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const rect = panelRef.current.getBoundingClientRect();
+    const startPos = panelPosition ?? { x: rect.left, y: rect.top };
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+      const nextPos = clampPosition(
+        { x: startPos.x + deltaX, y: startPos.y + deltaY },
+        rect.width,
+        rect.height
+      );
+      setPanelPosition(nextPos);
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   return (
     <>
       {/* Main Horizontal Toolbar - Positioned at bottom of screen, centered, smaller */}
@@ -92,11 +165,22 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 20 }}
-        className="fixed bottom-[10%] left-1/2 -translate-x-1/2 z-50 w-auto max-w-[90vw]"
+        className="fixed z-50 w-auto max-w-[90vw]"
+        style={
+          panelPosition
+            ? { left: panelPosition.x, top: panelPosition.y }
+            : { left: '50%', top: '90%', transform: 'translate(-50%, -100%)' }
+        }
       >
-        <div className="bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-gray-200/80 overflow-hidden">
+        <div
+          ref={panelRef}
+          className="bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-gray-200/80 overflow-hidden"
+        >
           {/* Header Row - Compact */}
-          <div className="flex items-center justify-between px-2 py-1 bg-gray-50 border-b border-gray-100">
+          <div
+            className="flex items-center justify-between px-2 py-1 bg-gray-50 border-b border-gray-100 cursor-grab active:cursor-grabbing select-none"
+            onMouseDown={handleDragStart}
+          >
             <div className="flex items-center gap-1">
               <span className="text-xs font-semibold text-gray-700">
                 {node.type.charAt(0).toUpperCase() + node.type.slice(1)} Properties
