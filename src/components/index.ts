@@ -125,3 +125,12 @@ export { default as WorldClassConnector } from './WorldClassConnector';
 
 // Onboarding Tour
 export { default as OnboardingTour } from './OnboardingTour';
+
+// Integration Hub (Jump AI - Phase 3)
+export { default as IntegrationHub } from './IntegrationHub';
+
+// Client Onboarding Flow (Jump AI - Phase 3)
+export { default as ClientOnboardingFlow } from './ClientOnboardingFlow';
+
+// Notification Center (Jump AI - Phase 3)
+export { default as NotificationCenter } from './NotificationCenter';
