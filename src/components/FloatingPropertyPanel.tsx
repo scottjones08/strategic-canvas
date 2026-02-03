@@ -30,7 +30,9 @@ import {
   Square,
   RotateCw,
   ChevronDown,
-  MoreHorizontal
+  MoreHorizontal,
+  List,
+  ListOrdered
 } from 'lucide-react';
 import type { VisualNode } from '../types/board';
 
@@ -82,6 +84,7 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
 
   const hasTextContent = !['image', 'youtube', 'bucket', 'connector', 'drawing'].includes(node.type);
   const isShape = node.type === 'shape';
+  const isTextListCapable = hasTextContent && node.type !== 'table' && node.type !== 'linklist';
 
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? null : section);
@@ -266,6 +269,38 @@ export const FloatingPropertyPanel: React.FC<FloatingPropertyPanelProps> = ({
                     active={node.fontStyle === 'italic'}
                     onClick={() => onUpdate({ fontStyle: node.fontStyle === 'italic' ? 'normal' : 'italic' })}
                   />
+                  {isTextListCapable && (
+                    <>
+                      <StyleButton
+                        icon={<List className="w-3 h-3" />}
+                        active={node.content?.trimStart().startsWith('• ')}
+                        onClick={() => {
+                          const content = node.content || '';
+                          const lines = content.split('\n');
+                          const hasBullet = lines.some(line => line.trimStart().startsWith('• '));
+                          const next = hasBullet
+                            ? lines.map(line => line.replace(/^\s*•\s?/, '')).join('\n')
+                            : lines.map(line => line.trim() ? `• ${line.replace(/^\s*[-*]\s?/, '')}` : line).join('\n');
+                          onUpdate({ content: next });
+                        }}
+                        title="Bulleted list"
+                      />
+                      <StyleButton
+                        icon={<ListOrdered className="w-3 h-3" />}
+                        active={/^\s*\d+\.\s/.test(node.content || '')}
+                        onClick={() => {
+                          const content = node.content || '';
+                          const lines = content.split('\n');
+                          const hasNumbered = lines.some(line => /^\s*\d+\.\s/.test(line));
+                          const next = hasNumbered
+                            ? lines.map(line => line.replace(/^\s*\d+\.\s?/, '')).join('\n')
+                            : lines.map((line, idx) => line.trim() ? `${idx + 1}. ${line.replace(/^\s*[-*•]\s?/, '')}` : line).join('\n');
+                          onUpdate({ content: next });
+                        }}
+                        title="Numbered list"
+                      />
+                    </>
+                  )}
                   <StyleButton
                     icon={<AlignLeft className="w-3 h-3" />}
                     active={node.textAlign === 'left'}
