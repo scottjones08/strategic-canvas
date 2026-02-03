@@ -1345,6 +1345,7 @@ export const AskAnythingPanel: React.FC<AskAnythingPanelProps> = ({
               stats={stats}
               onQuestionClick={handleSuggestedQuestion}
               meetings={meetings}
+              dynamicSuggestions={dynamicSuggestions}
             />
           ) : (
             <div className="p-4 space-y-4">
@@ -1434,9 +1435,10 @@ interface EmptyStateProps {
   };
   onQuestionClick: (question: string) => void;
   meetings: Meeting[];
+  dynamicSuggestions: Array<{ text: string; type: QueryType }>;
 }
 
-const EmptyState: React.FC<EmptyStateProps> = ({ stats, onQuestionClick, meetings }) => {
+const EmptyState: React.FC<EmptyStateProps> = ({ stats, onQuestionClick, meetings, dynamicSuggestions }) => {
   const [showAllSuggestions, setShowAllSuggestions] = useState(false);
 
   // Get unique speakers from all meetings
