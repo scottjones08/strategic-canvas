@@ -749,21 +749,19 @@ const Sidebar = ({
       
       <nav
         className={`
+          sidebar-nav
           flex
           h-screen bg-white border-r border-gray-200 flex-col
           fixed md:relative z-50
           ${isCollapsed ? 'md:w-16' : 'md:w-64'}
           w-72 md:w-auto
+          ${isMobileOpen ? 'sidebar-mobile-open' : ''}
         `}
         style={{
-          // On mobile: use JS-driven transform for swiping, CSS transition for open/close
-          transform: typeof window !== 'undefined' && window.innerWidth < 768
-            ? isSwiping 
-              ? `translateX(${-288 + swipeProgress * 288}px)` 
-              : isMobileOpen 
-                ? 'translateX(0)' 
-                : 'translateX(-100%)'
-            : undefined,
+          // On mobile: use JS-driven transform for swiping, otherwise let CSS classes handle it
+          ...(typeof window !== 'undefined' && window.innerWidth < 768 && isSwiping
+            ? { transform: `translateX(${-288 + swipeProgress * 288}px)` }
+            : {}),
           transition: isSwiping ? 'none' : 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >

@@ -26,6 +26,18 @@ body {
 }
 
 /* ============================================
+   MOBILE SIDEBAR - CSS-level hiding to prevent flash
+   ============================================ */
+@media (max-width: 767px) {
+  .sidebar-nav {
+    transform: translateX(-100%);
+  }
+  .sidebar-nav.sidebar-mobile-open {
+    transform: translateX(0);
+  }
+}
+
+/* ============================================
    PREMIUM TYPOGRAPHY
    ============================================ */
 
