@@ -82,17 +82,16 @@ export function useOfficeDocument(options: UseOfficeDocumentOptions = {}) {
     }
   }, []);
 
-  // Load xlsx (SheetJS) dynamically
-  const loadXlsx = useCallback(async () => {
+  // Load exceljs dynamically
+  const loadExcelJs = useCallback(async () => {
     if (xlsxRef.current) return xlsxRef.current;
     
     try {
-      // Dynamic import for xlsx
-      const XLSX = await import('xlsx');
-      xlsxRef.current = XLSX.default || XLSX;
+      const ExcelJS = await import('exceljs');
+      xlsxRef.current = ExcelJS.default || ExcelJS;
       return xlsxRef.current;
     } catch (e) {
-      console.warn('xlsx (SheetJS) not available, Excel document parsing disabled');
+      console.warn('exceljs not available, Excel document parsing disabled');
       return null;
     }
   }, []);
@@ -143,55 +142,84 @@ export function useOfficeDocument(options: UseOfficeDocumentOptions = {}) {
     arrayBuffer: ArrayBuffer,
     _info: OfficeDocumentInfo
   ): Promise<ExcelWorkbook | null> => {
-    const XLSX = await loadXlsx();
-    if (!XLSX) {
-      throw new Error('xlsx (SheetJS) is not available. Install it with: npm install xlsx');
+    const ExcelJS = await loadExcelJs();
+    if (!ExcelJS) {
+      throw new Error('exceljs is not available. Install it with: npm install exceljs');
     }
 
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-    
-    const sheets: ExcelSheet[] = workbook.SheetNames.map((sheetName: string) => {
-      const worksheet = workbook.Sheets[sheetName];
-      
-      // Convert to array of arrays
-      const data: (string | number | boolean | null)[][] = XLSX.utils.sheet_to_json(worksheet, {
-        header: 1,
-        defval: null,
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(arrayBuffer);
+
+    const sheets: ExcelSheet[] = [];
+
+    wb.eachSheet((worksheet: any) => {
+      const data: (string | number | boolean | null)[][] = [];
+      const colCount = worksheet.columnCount || 0;
+
+      worksheet.eachRow({ includeEmpty: true }, (row: any, rowNumber: number) => {
+        // Pad data array to reach this row (1-indexed)
+        while (data.length < rowNumber - 1) {
+          data.push(new Array(colCount).fill(null));
+        }
+        const rowData: (string | number | boolean | null)[] = [];
+        for (let c = 1; c <= colCount; c++) {
+          const cell = row.getCell(c);
+          const v = cell.value;
+          if (v === undefined || v === null) {
+            rowData.push(null);
+          } else if (typeof v === 'object' && 'result' in v) {
+            // Formula cell — use the cached result
+            rowData.push(v.result as any ?? null);
+          } else if (typeof v === 'object' && 'richText' in v) {
+            rowData.push((v as any).richText.map((t: any) => t.text).join(''));
+          } else if (v instanceof Date) {
+            rowData.push(v.toISOString());
+          } else {
+            rowData.push(v as string | number | boolean);
+          }
+        }
+        data.push(rowData);
       });
 
       // Get merge info
-      const merges = worksheet['!merges']?.map((merge: any) => ({
-        s: { r: merge.s.r, c: merge.s.c },
-        e: { r: merge.e.r, c: merge.e.c },
-      }));
+      const merges = (worksheet as any)._merges
+        ? Object.values((worksheet as any)._merges).map((m: any) => ({
+            s: { r: m.top - 1, c: m.left - 1 },
+            e: { r: m.bottom - 1, c: m.right - 1 },
+          }))
+        : undefined;
 
       // Get column widths
-      const colWidths = worksheet['!cols']?.map((col: any) => col?.wpx || col?.wch * 8 || 100);
+      const colWidths = worksheet.columns?.map((col: any) => {
+        if (col.width) return Math.round(col.width * 7); // exceljs width is in ~chars
+        return 100;
+      });
 
       // Get row heights
-      const rowHeights = worksheet['!rows']?.map((row: any) => row?.hpx || row?.hpt || 24);
+      const rowHeights: number[] = [];
+      worksheet.eachRow({ includeEmpty: true }, (row: any) => {
+        rowHeights.push(row.height || 24);
+      });
 
-      return {
-        name: sheetName,
+      sheets.push({
+        name: worksheet.name,
         data,
         merges,
         colWidths,
         rowHeights,
-      };
+      });
     });
 
     return {
       sheets,
       activeSheet: 0,
       metadata: {
-        title: workbook.Props?.Title,
-        author: workbook.Props?.Author,
-        lastModified: workbook.Props?.ModifiedDate 
-          ? new Date(workbook.Props.ModifiedDate) 
-          : undefined,
+        title: (wb as any).title || undefined,
+        author: (wb as any).creator || undefined,
+        lastModified: (wb as any).modified ? new Date((wb as any).modified) : undefined,
       },
     };
-  }, [loadXlsx]);
+  }, [loadExcelJs]);
 
   // Process PowerPoint document (basic extraction)
   const processPowerPointDocument = useCallback(async (
@@ -371,8 +399,8 @@ export function useExcelDocument() {
     setError(null);
 
     try {
-      const XLSX = await import('xlsx');
-      const xlsx = XLSX.default || XLSX;
+      const ExcelJSMod = await import('exceljs');
+      const ExcelJS = ExcelJSMod.default || ExcelJSMod;
 
       let arrayBuffer: ArrayBuffer;
       if (file instanceof File) {
@@ -381,33 +409,66 @@ export function useExcelDocument() {
         arrayBuffer = file;
       }
 
-      const wb = xlsx.read(arrayBuffer, { type: 'array' });
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(arrayBuffer);
 
-      const sheets: ExcelSheet[] = wb.SheetNames.map((sheetName: string) => {
-        const worksheet = wb.Sheets[sheetName];
-        const data: (string | number | boolean | null)[][] = xlsx.utils.sheet_to_json(worksheet, {
-          header: 1,
-          defval: null,
+      const sheets: ExcelSheet[] = [];
+
+      wb.eachSheet((worksheet: any) => {
+        const data: (string | number | boolean | null)[][] = [];
+        const colCount = worksheet.columnCount || 0;
+
+        worksheet.eachRow({ includeEmpty: true }, (row: any, rowNumber: number) => {
+          while (data.length < rowNumber - 1) {
+            data.push(new Array(colCount).fill(null));
+          }
+          const rowData: (string | number | boolean | null)[] = [];
+          for (let c = 1; c <= colCount; c++) {
+            const cell = row.getCell(c);
+            const v = cell.value;
+            if (v === undefined || v === null) {
+              rowData.push(null);
+            } else if (typeof v === 'object' && 'result' in v) {
+              rowData.push(v.result as any ?? null);
+            } else if (typeof v === 'object' && 'richText' in v) {
+              rowData.push((v as any).richText.map((t: any) => t.text).join(''));
+            } else if (v instanceof Date) {
+              rowData.push(v.toISOString());
+            } else {
+              rowData.push(v as string | number | boolean);
+            }
+          }
+          data.push(rowData);
         });
 
-        return {
-          name: sheetName,
+        sheets.push({
+          name: worksheet.name,
           data,
-          merges: worksheet['!merges']?.map((merge: any) => ({
-            s: { r: merge.s.r, c: merge.s.c },
-            e: { r: merge.e.r, c: merge.e.c },
-          })),
-          colWidths: worksheet['!cols']?.map((col: any) => col?.wpx || 100),
-          rowHeights: worksheet['!rows']?.map((row: any) => row?.hpx || 24),
-        };
+          merges: (worksheet as any)._merges
+            ? Object.values((worksheet as any)._merges).map((m: any) => ({
+                s: { r: m.top - 1, c: m.left - 1 },
+                e: { r: m.bottom - 1, c: m.right - 1 },
+              }))
+            : undefined,
+          colWidths: worksheet.columns?.map((col: any) =>
+            col.width ? Math.round(col.width * 7) : 100
+          ),
+          rowHeights: (() => {
+            const heights: number[] = [];
+            worksheet.eachRow({ includeEmpty: true }, (row: any) => {
+              heights.push(row.height || 24);
+            });
+            return heights;
+          })(),
+        });
       });
 
       const newWorkbook: ExcelWorkbook = {
         sheets,
         activeSheet: 0,
         metadata: {
-          title: wb.Props?.Title,
-          author: wb.Props?.Author,
+          title: (wb as any).title || undefined,
+          author: (wb as any).creator || undefined,
         },
       };
 
@@ -473,17 +534,19 @@ export function useExcelDocument() {
   const exportToFile = useCallback(async (_filename: string = 'export.xlsx') => {
     if (!workbook) return null;
 
-    const XLSX = await import('xlsx');
-    const xlsx = XLSX.default || XLSX;
+    const ExcelJSMod = await import('exceljs');
+    const ExcelJS = ExcelJSMod.default || ExcelJSMod;
 
-    const wb = xlsx.utils.book_new();
+    const wb = new ExcelJS.Workbook();
 
     workbook.sheets.forEach(sheet => {
-      const ws = xlsx.utils.aoa_to_sheet(sheet.data);
-      xlsx.utils.book_append_sheet(wb, ws, sheet.name);
+      const ws = wb.addWorksheet(sheet.name);
+      sheet.data.forEach((row: any[]) => {
+        ws.addRow(row);
+      });
     });
 
-    const buffer = xlsx.write(wb, { bookType: 'xlsx', type: 'array' });
+    const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     
     return blob;
