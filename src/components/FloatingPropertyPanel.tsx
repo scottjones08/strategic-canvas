@@ -468,9 +468,10 @@ interface StyleButtonProps {
   icon: React.ReactNode;
   active?: boolean;
   onClick: () => void;
+  title?: string;
 }
 
-const StyleButton: React.FC<StyleButtonProps> = ({ icon, active, onClick }) => (
+const StyleButton: React.FC<StyleButtonProps> = ({ icon, active, onClick, title }) => (
   <button
     onClick={onClick}
     className={`

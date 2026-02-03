@@ -5262,7 +5262,7 @@ const AISparkleMenu = ({
 };
 
 // Meeting View
-const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreateTranscriptNote, saveStatus = 'idle', lastSaved = null }: {
+const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreateTranscriptNote, saveStatus = 'idle', lastSaved = null, uploadCanvasImage }: {
   board: Board;
   onUpdateBoard: (updates: Partial<Board>) => void;
   onBack: () => void;
@@ -5270,6 +5270,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   onCreateTranscriptNote?: (boardId: string, boardName: string, transcriptContent: string, startTime: Date, endTime: Date) => void;
   saveStatus?: SaveStatus;
   lastSaved?: Date | null;
+  uploadCanvasImage?: (file: File, boardId?: string) => Promise<string | null>;
 }) => {
   // Get authenticated user (if logged in)
   const auth = useAuthOptional();
@@ -6433,7 +6434,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
       try {
         const blob = await (await fetch(url)).blob();
         const file = new File([blob], `canvas-image-${Date.now()}.png`, { type: blob.type || 'image/png' });
-        const uploadedUrl = await uploadCanvasImage(file, activeBoard?.id);
+        const uploadedUrl = await uploadCanvasImage?.(file, board?.id);
         if (uploadedUrl) finalUrl = uploadedUrl;
       } catch (err) {
         console.warn('[Canvas] Failed to upload embedded image, using data URL.', err);
@@ -6457,7 +6458,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
 
     if (isImage) {
       (async () => {
-        const uploadedUrl = await uploadCanvasImage(file, activeBoard?.id);
+        const uploadedUrl = await uploadCanvasImage?.(file, board?.id);
         if (uploadedUrl) {
           const newNode: VisualNode = {
             id: generateId(),
@@ -9337,7 +9338,7 @@ ${transcriptContent}`;
       isDemoMode={localStorage.getItem('strategic-canvas-demo-mode') === 'true'}
     />
   ) : (
-    <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} onCreateTranscriptNote={handleCreateTranscriptNote} saveStatus={saveStatus} lastSaved={lastSaved} />
+    <MeetingView board={activeBoard} onUpdateBoard={handleUpdateBoard} onBack={handleBackToDashboard} onCreateAISummary={handleCreateAISummary} onCreateTranscriptNote={handleCreateTranscriptNote} saveStatus={saveStatus} lastSaved={lastSaved} uploadCanvasImage={uploadCanvasImage} />
   )
 )}
       {currentView === 'meeting' && !activeBoard && (
