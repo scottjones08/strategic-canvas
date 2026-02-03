@@ -643,11 +643,50 @@ const Sidebar = ({
     onMobileClose?.(); // Close sidebar on mobile after navigation
   };
 
+  const useBottomNav = true;
+
   return (
     <>
-      {/* Mobile overlay */}
+      {/* Mobile bottom navigation */}
+      {useBottomNav && (
+        <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
+          <div className="flex items-center gap-1 px-2 py-2 overflow-x-auto">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentView === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavClick(item.id)}
+                  className={`flex flex-col items-center justify-center min-w-[72px] px-3 py-2 rounded-xl transition-colors ${
+                    isActive ? 'bg-navy-50 text-navy-800' : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-navy-700' : 'text-gray-400'}`} />
+                  <span className="text-[10px] font-medium mt-1">{item.label}</span>
+                </button>
+              );
+            })}
+            <a
+              href="https://fanconsulting-production.up.railway.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col items-center justify-center min-w-[72px] px-3 py-2 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              <LayoutDashboard className="w-5 h-5 text-gray-400" />
+              <span className="text-[10px] font-medium mt-1">Manage</span>
+            </a>
+            <button className="flex flex-col items-center justify-center min-w-[72px] px-3 py-2 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+              <Settings className="w-5 h-5 text-gray-400" />
+              <span className="text-[10px] font-medium mt-1">Settings</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile overlay (disabled when bottom nav is active) */}
       <AnimatePresence>
-        {isMobileOpen && (
+        {!useBottomNav && isMobileOpen && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -662,7 +701,8 @@ const Sidebar = ({
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         className={`
-          h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300
+          hidden sm:flex
+          h-screen bg-white border-r border-gray-200 flex-col transition-all duration-300
           fixed sm:relative z-50
           ${isCollapsed ? 'sm:w-16' : 'sm:w-64'}
           ${isMobileOpen ? 'translate-x-0 w-72' : '-translate-x-full sm:translate-x-0 w-72 sm:w-auto'}
@@ -8916,7 +8956,7 @@ ${transcriptContent}`;
   }, [activeDocument]);
 
   return (
-    <div className="h-screen flex bg-gray-50 overflow-hidden">
+    <div className="h-screen flex bg-gray-50 overflow-hidden pb-16 sm:pb-0">
       {/* Shared board error modal */}
       {sharedBoardError && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
@@ -8939,13 +8979,7 @@ ${transcriptContent}`;
           </motion.div>
         </div>
       )}
-      {/* Mobile menu button */}
-      <button 
-        onClick={() => setMobileSidebarOpen(true)}
-        className="sm:hidden fixed top-4 left-4 z-30 p-2 bg-white rounded-xl shadow-lg border border-gray-200"
-      >
-        <Menu className="w-5 h-5 text-gray-600" />
-      </button>
+      {/* Mobile menu button removed in favor of bottom nav */}
       
       <Sidebar 
         currentView={currentView} 
