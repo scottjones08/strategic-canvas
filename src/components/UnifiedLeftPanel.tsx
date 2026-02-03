@@ -381,7 +381,7 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
   onRestoreHistory,
 }) => {
   // Panel state
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('transcript');
   const [copied, setCopied] = useState(false);
   const [newAction, setNewAction] = useState('');
