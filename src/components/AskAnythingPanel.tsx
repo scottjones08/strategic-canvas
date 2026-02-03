@@ -111,10 +111,40 @@ export interface SearchResult {
   overallRelevance: number;
 }
 
+export interface CanvasSource {
+  boardId: string;
+  boardName: string;
+  nodeId: string;
+  nodeType: string;
+  content: string;
+  createdBy: string;
+  relevanceScore: number;
+}
+
+export interface BoardSearchData {
+  id: string;
+  name: string;
+  visualNodes: Array<{
+    id: string;
+    type: string;
+    content: string;
+    createdBy: string;
+    comments: Array<{ id: string; userId: string; content: string; timestamp: Date }>;
+  }>;
+  transcripts?: Array<{
+    id: string;
+    entries: Array<{ speaker: string; text: string; timestamp: number }>;
+    startedAt: Date;
+    endedAt: Date;
+  }>;
+}
+
 export interface AskAnythingPanelProps {
   isOpen: boolean;
   onClose: () => void;
   meetings: Meeting[];
+  /** All boards for cross-board search */
+  boards?: BoardSearchData[];
   aiApiKey?: string;
   aiModel?: 'claude' | 'openai';
   userName?: string;
@@ -881,6 +911,220 @@ function generateFollowUpAnswer(
 }
 
 // ============================================
+// CROSS-BOARD SEARCH
+// ============================================
+
+/**
+ * Search across all board canvas content (sticky notes, text nodes, comments)
+ */
+function searchBoardContent(
+  query: string,
+  boards: BoardSearchData[]
+): CanvasSource[] {
+  const results: CanvasSource[] = [];
+  const queryTokens = tokenize(query);
+  if (queryTokens.length === 0) return results;
+
+  for (const board of boards) {
+    for (const node of board.visualNodes) {
+      const content = (node.content || '').trim();
+      if (!content || content.length < 5) continue;
+
+      const relevance = calculateRelevance(query, content, undefined, 'general');
+      if (relevance > 0.12) {
+        results.push({
+          boardId: board.id,
+          boardName: board.name,
+          nodeId: node.id,
+          nodeType: node.type,
+          content,
+          createdBy: node.createdBy || 'Unknown',
+          relevanceScore: relevance,
+        });
+      }
+
+      // Also search comments on the node
+      for (const comment of (node.comments || [])) {
+        const commentRelevance = calculateRelevance(query, comment.content, undefined, 'general');
+        if (commentRelevance > 0.12) {
+          results.push({
+            boardId: board.id,
+            boardName: board.name,
+            nodeId: node.id,
+            nodeType: 'comment',
+            content: comment.content,
+            createdBy: comment.userId || 'Unknown',
+            relevanceScore: commentRelevance,
+          });
+        }
+      }
+    }
+
+    // Search board transcripts
+    if (board.transcripts) {
+      for (const transcript of board.transcripts) {
+        for (const entry of transcript.entries) {
+          const relevance = calculateRelevance(query, entry.text, entry.speaker, 'general');
+          if (relevance > 0.12) {
+            results.push({
+              boardId: board.id,
+              boardName: board.name,
+              nodeId: transcript.id,
+              nodeType: 'transcript',
+              content: `${entry.speaker}: ${entry.text}`,
+              createdBy: entry.speaker,
+              relevanceScore: relevance,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  results.sort((a, b) => b.relevanceScore - a.relevanceScore);
+  return results.slice(0, 15);
+}
+
+/**
+ * Generate cross-board answer combining meeting and canvas data
+ */
+function generateCrossBoardAnswer(
+  query: string,
+  queryType: QueryType,
+  meetingResults: SearchResult[],
+  canvasResults: CanvasSource[]
+): { content: string; sources: MessageSource[]; canvasSources: CanvasSource[]; confidence: number } {
+  const sources: MessageSource[] = [];
+  const usedCanvasSources = canvasResults.slice(0, 5);
+
+  // Build meeting sources
+  for (const result of meetingResults.slice(0, 3)) {
+    for (const segment of result.segments.slice(0, 2)) {
+      sources.push({
+        meetingId: result.meeting.id,
+        title: result.meeting.title,
+        date: result.meeting.date,
+        excerpt: segment.text,
+        speaker: segment.speaker,
+        relevanceScore: segment.relevanceScore,
+      });
+    }
+  }
+
+  let content = '';
+
+  // Combine meeting and canvas results
+  if (meetingResults.length === 0 && canvasResults.length === 0) {
+    return {
+      content: `I couldn't find any information about "${query}" across your meetings or canvas boards.`,
+      sources: [],
+      canvasSources: [],
+      confidence: 0,
+    };
+  }
+
+  const topic = extractTopicFromQuery(query);
+
+  if (canvasResults.length > 0) {
+    const boardNames = [...new Set(canvasResults.map(c => c.boardName))];
+    content += `Found relevant content across **${boardNames.length} board${boardNames.length > 1 ? 's' : ''}**`;
+    if (meetingResults.length > 0) {
+      content += ` and **${meetingResults.length} meeting${meetingResults.length > 1 ? 's' : ''}**`;
+    }
+    content += `:\n\n`;
+
+    // Canvas excerpts
+    content += `**📋 From Canvas Boards:**\n`;
+    for (const cs of usedCanvasSources.slice(0, 4)) {
+      const typeLabel = cs.nodeType === 'sticky' ? '📌' : cs.nodeType === 'transcript' ? '🎙️' : cs.nodeType === 'comment' ? '💬' : '📄';
+      const excerpt = cs.content.length > 120 ? cs.content.substring(0, 120) + '...' : cs.content;
+      content += `• ${typeLabel} **${cs.boardName}**: "${excerpt}"\n`;
+    }
+  }
+
+  if (meetingResults.length > 0) {
+    if (canvasResults.length > 0) content += `\n`;
+    content += `**🎙️ From Meetings:**\n`;
+    for (const result of meetingResults.slice(0, 3)) {
+      const seg = result.segments[0];
+      if (seg) {
+        const excerpt = seg.text.length > 120 ? seg.text.substring(0, 120) + '...' : seg.text;
+        content += `• **${result.meeting.title}** (${formatDate(result.meeting.date)}): "${excerpt}"\n`;
+      }
+    }
+  }
+
+  const totalSources = sources.length + usedCanvasSources.length;
+  const avgConfidence = totalSources > 0
+    ? (sources.reduce((s, x) => s + x.relevanceScore, 0) + usedCanvasSources.reduce((s, x) => s + x.relevanceScore, 0)) / totalSources
+    : 0;
+
+  return { content, sources, canvasSources: usedCanvasSources, confidence: avgConfidence };
+}
+
+/**
+ * Generate suggested questions based on recent board activity
+ */
+function generateDynamicSuggestions(
+  boards: BoardSearchData[],
+  meetings: Meeting[]
+): Array<{ text: string; type: QueryType }> {
+  const suggestions: Array<{ text: string; type: QueryType }> = [];
+
+  // From boards — look at recent content
+  for (const board of boards.slice(0, 3)) {
+    const decisions = board.visualNodes.filter(n => {
+      const c = (n.content || '').toLowerCase();
+      return c.includes('decision') || c.includes('decided') || c.includes('📌');
+    });
+    if (decisions.length > 0) {
+      suggestions.push({
+        text: `What decisions were made on "${board.name}"?`,
+        type: 'general',
+      });
+    }
+
+    const risks = board.visualNodes.filter(n => n.type === 'risk');
+    if (risks.length > 0) {
+      suggestions.push({
+        text: `What are the risks on "${board.name}"?`,
+        type: 'concerns',
+      });
+    }
+
+    const actions = board.visualNodes.filter(n => n.type === 'action');
+    if (actions.length > 0) {
+      suggestions.push({
+        text: `What action items are pending on "${board.name}"?`,
+        type: 'action_items',
+      });
+    }
+  }
+
+  // From meetings
+  if (meetings.length > 0) {
+    const recentMeeting = meetings[meetings.length - 1];
+    if (recentMeeting) {
+      suggestions.push({
+        text: `Summarize the ${recentMeeting.title} meeting`,
+        type: 'summarize',
+      });
+    }
+  }
+
+  // Fill with defaults if needed
+  if (suggestions.length < 4) {
+    suggestions.push(
+      { text: 'What decisions did we make about the roadmap?', type: 'general' as QueryType },
+      { text: 'Show me all action items across boards', type: 'action_items' as QueryType },
+      { text: 'What concerns has the team raised?', type: 'concerns' as QueryType },
+    );
+  }
+
+  return suggestions.slice(0, 6);
+}
+
+// ============================================
 // MAIN COMPONENT
 // ============================================
 
@@ -888,6 +1132,7 @@ export const AskAnythingPanel: React.FC<AskAnythingPanelProps> = ({
   isOpen,
   onClose,
   meetings,
+  boards = [],
   aiApiKey,
   aiModel = 'claude',
   userName = 'You',
@@ -919,6 +1164,12 @@ export const AskAnythingPanel: React.FC<AskAnythingPanelProps> = ({
     }
   }, [isOpen]);
 
+    // Dynamic suggestions based on board activity
+  const dynamicSuggestions = useMemo(
+    () => generateDynamicSuggestions(boards, meetings),
+    [boards, meetings]
+  );
+
   const handleSend = useCallback(async () => {
     const query = inputValue.trim();
     if (!query || isLoading) return;
@@ -944,14 +1195,38 @@ export const AskAnythingPanel: React.FC<AskAnythingPanelProps> = ({
     // Search meetings
     const searchResults = searchMeetings(query, meetings, queryType);
 
-    // Generate answer
-    const { content, sources, confidence } = generateAnswer(
-      query,
-      queryType,
-      searchResults,
-      messages,
-      meetings
-    );
+    // Search across all boards (cross-board intelligence)
+    const canvasResults = boards.length > 0 ? searchBoardContent(query, boards) : [];
+
+    let content: string;
+    let sources: MessageSource[];
+    let confidence: number;
+
+    if (canvasResults.length > 0) {
+      // Use cross-board answer generation when we have canvas results
+      const crossBoardAnswer = generateCrossBoardAnswer(query, queryType, searchResults, canvasResults);
+      content = crossBoardAnswer.content;
+      sources = crossBoardAnswer.sources;
+      confidence = crossBoardAnswer.confidence;
+
+      // Append canvas source references as meeting-like sources for display
+      for (const cs of crossBoardAnswer.canvasSources.slice(0, 3)) {
+        sources.push({
+          meetingId: cs.boardId,
+          title: `📋 ${cs.boardName}`,
+          date: new Date(),
+          excerpt: cs.content.substring(0, 200),
+          speaker: cs.createdBy,
+          relevanceScore: cs.relevanceScore,
+        });
+      }
+    } else {
+      // Fallback to meeting-only search
+      const answer = generateAnswer(query, queryType, searchResults, messages, meetings);
+      content = answer.content;
+      sources = answer.sources;
+      confidence = answer.confidence;
+    }
 
     // Add assistant message
     const assistantMessage: Message = {
@@ -966,7 +1241,7 @@ export const AskAnythingPanel: React.FC<AskAnythingPanelProps> = ({
 
     setMessages((prev) => [...prev, assistantMessage]);
     setIsLoading(false);
-  }, [inputValue, isLoading, meetings, messages]);
+  }, [inputValue, isLoading, meetings, messages, boards]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -1096,7 +1371,7 @@ export const AskAnythingPanel: React.FC<AskAnythingPanelProps> = ({
           {/* Quick suggestions when input is empty */}
           {inputValue === '' && messages.length > 0 && (
             <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
-              {SUGGESTED_QUESTIONS.slice(0, 3).map((q) => (
+              {dynamicSuggestions.slice(0, 3).map((q) => (
                 <button
                   key={q.text}
                   onClick={() => handleSuggestedQuestion(q.text)}
@@ -1214,7 +1489,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ stats, onQuestionClick, meeting
         </div>
 
         <div className="space-y-2">
-          {SUGGESTED_QUESTIONS.slice(0, showAllSuggestions ? undefined : 4).map((q) => (
+          {dynamicSuggestions.slice(0, showAllSuggestions ? undefined : 4).map((q) => (
             <SuggestedQuestionButton
               key={q.text}
               question={q.text}

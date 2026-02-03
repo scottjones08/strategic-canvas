@@ -126,6 +126,36 @@ export { default as WorldClassConnector } from './WorldClassConnector';
 // Onboarding Tour
 export { default as OnboardingTour } from './OnboardingTour';
 
+// Jump AI - Intelligence & Insights (Phase 2)
+export { default as StrategyScorecard } from './StrategyScorecard';
+export type { StrategyScorecardProps } from './StrategyScorecard';
+export { default as ContentExporter } from './ContentExporter';
+export type { ContentExporterProps } from './ContentExporter';
+export { default as StrategyIntakeWizard } from './StrategyIntakeWizard';
+export type { StrategyIntakeWizardProps } from './StrategyIntakeWizard';
+
+// Jump AI Meeting Intelligence Components
+export { default as PreSessionBrief } from './PreSessionBrief';
+export type { 
+  PreSessionBriefProps, 
+  CanvasChange, 
+  OpenActionItem, 
+  PreviousMeetingSummary 
+} from './PreSessionBrief';
+
+export { default as SmartTaskExtractor, ExtractButton, TaskPanel } from './SmartTaskExtractor';
+export type { SmartTaskExtractorProps, SmartTask, TaskStatus } from './SmartTaskExtractor';
+
+export { default as EnhancedMeetingCapture } from './EnhancedMeetingCapture';
+export type { 
+  EnhancedMeetingCaptureProps, 
+  TimelineBookmark, 
+  CanvasStickyNote 
+} from './EnhancedMeetingCapture';
+
+export { default as EnhancedMeetingSummary } from './EnhancedMeetingSummary';
+export type { EnhancedMeetingSummaryProps, SessionComparison } from './EnhancedMeetingSummary';
+
 // Integration Hub (Jump AI - Phase 3)
 export { default as IntegrationHub } from './IntegrationHub';
 
