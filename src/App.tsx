@@ -1225,7 +1225,23 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [isEditingText, setIsEditingText] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const pendingCursorRef = useRef<{ target: HTMLTextAreaElement; position: number } | null>(null);
   const isFrame = node.type === 'frame';
+
+  // Apply pending cursor position after React re-renders the textarea value
+  useEffect(() => {
+    if (pendingCursorRef.current) {
+      const { target, position } = pendingCursorRef.current;
+      pendingCursorRef.current = null;
+      // Use requestAnimationFrame to ensure DOM is fully updated
+      requestAnimationFrame(() => {
+        if (target && document.contains(target)) {
+          target.selectionStart = target.selectionEnd = position;
+          target.focus();
+        }
+      });
+    }
+  });
 
   const handleResizeStart = (e: React.MouseEvent, direction: string) => {
     e.stopPropagation();
@@ -1285,9 +1301,12 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
   const handleListKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, currentContent: string, updateContent: (newContent: string) => void) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       const textarea = e.currentTarget;
+      // Use the textarea's actual value to avoid stale closure issues
+      const actualContent = textarea.value;
+      const contentToUse = actualContent || currentContent;
       const cursorPos = textarea.selectionStart;
-      const textBeforeCursor = currentContent.slice(0, cursorPos);
-      const textAfterCursor = currentContent.slice(cursorPos);
+      const textBeforeCursor = contentToUse.slice(0, cursorPos);
+      const textAfterCursor = contentToUse.slice(cursorPos);
 
       // Find the current line
       const lastNewlineIndex = textBeforeCursor.lastIndexOf('\n');
@@ -1301,10 +1320,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
           e.preventDefault();
           const newContent = textBeforeCursor.slice(0, lastNewlineIndex + 1) + textAfterCursor;
           updateContent(newContent);
-          // Set cursor position after state update
-          setTimeout(() => {
-            textarea.selectionStart = textarea.selectionEnd = lastNewlineIndex + 1;
-          }, 0);
+          pendingCursorRef.current = { target: textarea, position: Math.max(0, lastNewlineIndex + 1) };
           return;
         }
         e.preventDefault();
@@ -1312,11 +1328,8 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
         const bullet = bulletMatch[2];
         const newContent = textBeforeCursor + '\n' + indent + bullet + ' ' + textAfterCursor;
         updateContent(newContent);
-        // Set cursor position after the new bullet
         const newCursorPos = cursorPos + 1 + indent.length + bullet.length + 1;
-        setTimeout(() => {
-          textarea.selectionStart = textarea.selectionEnd = newCursorPos;
-        }, 0);
+        pendingCursorRef.current = { target: textarea, position: newCursorPos };
         return;
       }
 
@@ -1328,9 +1341,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
           e.preventDefault();
           const newContent = textBeforeCursor.slice(0, lastNewlineIndex + 1) + textAfterCursor;
           updateContent(newContent);
-          setTimeout(() => {
-            textarea.selectionStart = textarea.selectionEnd = lastNewlineIndex + 1;
-          }, 0);
+          pendingCursorRef.current = { target: textarea, position: Math.max(0, lastNewlineIndex + 1) };
           return;
         }
         e.preventDefault();
@@ -1338,11 +1349,29 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
         const nextNumber = parseInt(numberMatch[2]) + 1;
         const newContent = textBeforeCursor + '\n' + indent + nextNumber + '. ' + textAfterCursor;
         updateContent(newContent);
-        // Set cursor position after the new number
         const newCursorPos = cursorPos + 1 + indent.length + String(nextNumber).length + 2;
-        setTimeout(() => {
-          textarea.selectionStart = textarea.selectionEnd = newCursorPos;
-        }, 0);
+        pendingCursorRef.current = { target: textarea, position: newCursorPos };
+        return;
+      }
+
+      // Check for checkbox/task list patterns: "[ ] ", "[x] ", "☐ ", "☑ "
+      const checkboxMatch = currentLine.match(/^(\s*)(\[[ x]\]|[☐☑✓✗])\s/);
+      if (checkboxMatch) {
+        if (currentLine.trim() === checkboxMatch[2]) {
+          e.preventDefault();
+          const newContent = textBeforeCursor.slice(0, lastNewlineIndex + 1) + textAfterCursor;
+          updateContent(newContent);
+          pendingCursorRef.current = { target: textarea, position: Math.max(0, lastNewlineIndex + 1) };
+          return;
+        }
+        e.preventDefault();
+        const indent = checkboxMatch[1];
+        // Always continue with unchecked checkbox
+        const checkbox = checkboxMatch[2].startsWith('[') ? '[ ]' : '☐';
+        const newContent = textBeforeCursor + '\n' + indent + checkbox + ' ' + textAfterCursor;
+        updateContent(newContent);
+        const newCursorPos = cursorPos + 1 + indent.length + checkbox.length + 1;
+        pendingCursorRef.current = { target: textarea, position: newCursorPos };
         return;
       }
     }
@@ -1641,6 +1670,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
               onClick={(e) => e.stopPropagation()}
               onFocus={() => setIsEditingText(true)}
               onBlur={() => setTimeout(() => setIsEditingText(false), 200)}
+              onKeyDown={(e) => handleListKeyDown(e, node.content, (newContent) => onUpdate({ content: newContent }))}
               className="w-full h-full bg-transparent resize-none border-none outline-none text-gray-700 font-medium text-center placeholder-gray-400"
               placeholder="Click to add text"
               style={{ 
