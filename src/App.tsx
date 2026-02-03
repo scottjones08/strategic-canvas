@@ -5807,6 +5807,16 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     };
   }, [handleUpdateBoardWithHistory, board.visualNodes]);
 
+  const getViewportCenter = useCallback(() => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const viewWidth = rect?.width || window.innerWidth;
+    const viewHeight = rect?.height || window.innerHeight;
+    return {
+      x: (-panX + viewWidth / 2) / (zoom || 1),
+      y: (-panY + viewHeight / 2) / (zoom || 1),
+    };
+  }, [panX, panY, zoom]);
+
   // AI clustering handler
   const handleClusterNodes = useCallback((clusters: { name: string; nodeIds: string[] }[]) => {
     const newNodes: VisualNode[] = clusters.map((cluster, index) => ({
@@ -5830,8 +5840,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   
   // AI idea generator handler
   const handleGenerateIdeas = useCallback((ideas: string[]) => {
-    const viewportCenterX = (-board.panX + window.innerWidth / 2) / (board.zoom || 1);
-    const viewportCenterY = (-board.panY + window.innerHeight / 2) / (board.zoom || 1);
+    const { x: viewportCenterX, y: viewportCenterY } = getViewportCenter();
     
     const newNodes: VisualNode[] = ideas.map((idea, index) => ({
       id: generateId(),
@@ -5850,7 +5859,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
       comments: []
     }));
     addNodesRef.current(newNodes, 'AI Ideas');
-  }, [board.panX, board.panY, board.zoom, currentUser.id]);
+  }, [getViewportCenter, currentUser.id]);
   
   // Auto-group handler
   const handleAutoGroup = useCallback(() => {
@@ -5881,8 +5890,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   
   // Voice to sticky handler
   const handleVoiceToSticky = useCallback((content: string) => {
-    const viewportCenterX = (-board.panX + window.innerWidth / 2) / (board.zoom || 1);
-    const viewportCenterY = (-board.panY + window.innerHeight / 2) / (board.zoom || 1);
+    const { x: viewportCenterX, y: viewportCenterY } = getViewportCenter();
     
     const newNode: VisualNode = {
       id: generateId(),
@@ -5901,7 +5909,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
       comments: []
     };
     addNodesRef.current([newNode], 'Voice Note');
-  }, [board.panX, board.panY, board.zoom, currentUser.id]);
+  }, [getViewportCenter, currentUser.id]);
 
   useEffect(() => {
     if (isRecording) timerRef.current = setInterval(() => setRecordingDuration(d => d + 1), 1000);
@@ -6262,9 +6270,12 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   }, [board.visualNodes, currentUser.id, handleUpdateBoardWithHistory]);
 
   const handleAddNode = (type: string, options?: { color?: string; shape?: 'square' | 'rectangle' | 'circle'; x?: number; y?: number }) => {
-    // Calculate center of visible viewport
-    const viewportCenterX = (-board.panX + window.innerWidth / 2) / (board.zoom || 1);
-    const viewportCenterY = (-board.panY + window.innerHeight / 2) / (board.zoom || 1);
+    // Calculate center of visible viewport using local pan/zoom
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const viewWidth = rect?.width || window.innerWidth;
+    const viewHeight = rect?.height || window.innerHeight;
+    const viewportCenterX = (-panX + viewWidth / 2) / (zoom || 1);
+    const viewportCenterY = (-panY + viewHeight / 2) / (zoom || 1);
     const defaultX = viewportCenterX - 100 + Math.random() * 50;
     const defaultY = viewportCenterY - 100 + Math.random() * 50;
     const { color = NODE_COLORS[Math.floor(Math.random() * NODE_COLORS.length)], shape = 'square', x = defaultX, y = defaultY } = options || {};
@@ -6687,12 +6698,13 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => {
+                const { x: viewportCenterX, y: viewportCenterY } = getViewportCenter();
                 const mindmapId = generateId();
                 const rootNode: VisualNode = {
                   id: generateId(),
                   type: 'mindmap',
-                  x: 400,
-                  y: 300,
+                  x: viewportCenterX - 80,
+                  y: viewportCenterY - 30,
                   width: 160,
                   height: 60,
                   content: 'Central Topic',
@@ -6722,8 +6734,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => {
-                const viewportCenterX = (-board.panX + window.innerWidth / 2) / (board.zoom || 1);
-                const viewportCenterY = (-board.panY + window.innerHeight / 2) / (board.zoom || 1);
+                const { x: viewportCenterX, y: viewportCenterY } = getViewportCenter();
                 const node: VisualNode = {
                   id: generateId(),
                   type: 'table',
@@ -6758,8 +6769,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => {
-                const viewportCenterX = (-board.panX + window.innerWidth / 2) / (board.zoom || 1);
-                const viewportCenterY = (-board.panY + window.innerHeight / 2) / (board.zoom || 1);
+                const { x: viewportCenterX, y: viewportCenterY } = getViewportCenter();
                 const node: VisualNode = {
                   id: generateId(),
                   type: 'linklist',
@@ -7291,8 +7301,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           transcript={currentTranscriptForWhiteboard}
           onAddNodes={(nodes: VisualNodeInput[]) => {
             // Calculate viewport center for positioning
-            const viewportCenterX = (-board.panX + window.innerWidth / 2) / (board.zoom || 1);
-            const viewportCenterY = (-board.panY + window.innerHeight / 2) / (board.zoom || 1);
+            const { x: viewportCenterX, y: viewportCenterY } = getViewportCenter();
             
             // Convert VisualNodeInput to VisualNode with proper defaults
             const visualNodes: VisualNode[] = nodes.map((node: VisualNodeInput) => ({
