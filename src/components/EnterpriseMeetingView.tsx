@@ -814,7 +814,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     if (has('links')) return 'Edit link list';
     if (has('mediaUrl')) return `Replace ${typeLabel}`;
     if (has('color')) return `Change ${typeLabel} color`;
-    if (has('fontSize') || has('fontFamily') || has('textStyle') || has('textAlign')) return `Edit ${typeLabel} style`;
+    if (has('fontSize') || has('textStyle') || has('textAlign')) return `Edit ${typeLabel} style`;
     if (has('rotation')) return `Rotate ${typeLabel}`;
     if (has('width') || has('height')) return `Resize ${typeLabel}`;
     if (has('x') || has('y')) return `Move ${typeLabel}`;

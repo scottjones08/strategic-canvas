@@ -2398,6 +2398,42 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   
   // Touch gesture state for mobile
   const touchStartRef = useRef<{ x: number; y: number; panX: number; panY: number; touches: number; distance?: number } | null>(null);
+
+  const getNodeActionLabel = useCallback((node: VisualNode, updates: Partial<VisualNode>) => {
+    const typeLabelMap: Record<string, string> = {
+      sticky: 'sticky',
+      text: 'text',
+      shape: 'shape',
+      frame: 'frame',
+      mindmap: 'mind map',
+      table: 'table',
+      linklist: 'link list',
+      comment: 'comment',
+      image: 'image',
+      youtube: 'video',
+      pdf: 'pdf',
+      connector: 'connector',
+      drawing: 'drawing',
+      opportunity: 'opportunity',
+      risk: 'risk',
+      action: 'action',
+    };
+    const typeLabel = typeLabelMap[node.type] || 'element';
+    const has = (key: keyof VisualNode) => Object.prototype.hasOwnProperty.call(updates, key);
+
+    if (has('locked')) return updates.locked ? `Lock ${typeLabel}` : `Unlock ${typeLabel}`;
+    if (has('content')) return `Edit ${typeLabel} text`;
+    if (has('tableData')) return 'Edit table';
+    if (has('links')) return 'Edit link list';
+    if (has('mediaUrl')) return `Replace ${typeLabel}`;
+    if (has('color')) return `Change ${typeLabel} color`;
+    if (has('fontSize') || has('textStyle') || has('textAlign')) return `Edit ${typeLabel} style`;
+    if (has('rotation')) return `Rotate ${typeLabel}`;
+    if (has('width') || has('height')) return `Resize ${typeLabel}`;
+    if (has('x') || has('y')) return `Move ${typeLabel}`;
+    if (has('votes') || has('votedBy')) return `Vote on ${typeLabel}`;
+    return `Edit ${typeLabel}`;
+  }, []);
   
   // Snap to grid helper (used by alignment guides)
   const _snapToGrid = useCallback((value: number) => {
@@ -5911,7 +5947,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     if (has('links')) return 'Edit link list';
     if (has('mediaUrl')) return `Replace ${typeLabel}`;
     if (has('color')) return `Change ${typeLabel} color`;
-    if (has('fontSize') || has('fontFamily') || has('textStyle') || has('textAlign')) return `Edit ${typeLabel} style`;
+    if (has('fontSize') || has('textStyle') || has('textAlign')) return `Edit ${typeLabel} style`;
     if (has('rotation')) return `Rotate ${typeLabel}`;
     if (has('width') || has('height')) return `Resize ${typeLabel}`;
     if (has('x') || has('y')) return `Move ${typeLabel}`;
