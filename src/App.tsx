@@ -6821,32 +6821,21 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
       </header>
 
       <div className="flex-1 flex relative overflow-hidden" onClick={() => { activePicker && setActivePicker(null); showMobileToolbar && setShowMobileToolbar(false); }}>
-        {/* Mobile FAB to open toolbar - positioned inside canvas */}
-        <motion.button
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={(e) => { e.stopPropagation(); setShowMobileToolbar(!showMobileToolbar); }}
-          className="sm:hidden absolute left-3 bottom-3 z-[110] w-12 h-12 bg-navy-700 text-white rounded-full shadow-lg shadow-navy-300 flex items-center justify-center touch-manipulation"
-        >
-          {showMobileToolbar ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-        </motion.button>
-
-        {/* Toolbar - hidden on mobile unless showMobileToolbar, always visible on desktop */}
+        {/* Toolbar - always visible; horizontal scroll on mobile, vertical on desktop */}
         <motion.div 
           initial={{ y: 20, opacity: 0 }} 
           animate={{ y: 0, opacity: 1 }} 
-          className={`absolute left-2 sm:left-4 bottom-16 sm:bottom-auto sm:top-4 flex flex-col gap-2 z-[100] max-h-[50vh] sm:max-h-[calc(100vh-180px)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent pr-1 ${showMobileToolbar ? 'flex' : 'hidden sm:flex'}`} 
+          className="absolute left-0 sm:left-4 right-0 sm:right-auto top-2 sm:top-4 flex sm:flex-col gap-2 z-[100] overflow-x-auto sm:overflow-x-visible sm:overflow-y-auto sm:max-h-[calc(100vh-180px)] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent px-2 sm:px-0 sm:pr-1 pb-1 sm:pb-0" 
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200 relative">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Notes</p>
+          <div className="bg-white rounded-2xl shadow-lg p-1.5 sm:p-2 flex flex-row sm:flex-col gap-1 border border-gray-200 flex-shrink-0 relative">
+            <p className="hidden sm:block text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Notes</p>
             {[{ id: 'sticky', icon: FileText, label: 'Sticky Note', hasPicker: true }, { id: 'frame', icon: Layout, label: 'Frame' }, { id: 'opportunity', icon: Lightbulb, label: 'Opportunity', hasPicker: true }, { id: 'risk', icon: AlertCircle, label: 'Risk', hasPicker: true }, { id: 'action', icon: CheckSquare, label: 'Action', hasPicker: true }].map(tool => (
               <div key={tool.id} className="relative">
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   onClick={() => tool.hasPicker ? setActivePicker(activePicker === tool.id ? null : tool.id) : handleAddNode(tool.id)}
-                  className={`p-3 hover:bg-gray-100 rounded-xl group relative w-full ${activePicker === tool.id ? 'bg-navy-50 ring-2 ring-navy-500' : ''}`}
+                  className={`p-2.5 sm:p-3 hover:bg-gray-100 rounded-xl group relative ${activePicker === tool.id ? 'bg-navy-50 ring-2 ring-navy-500' : ''}`}
                   title={tool.label}
                 >
                   <tool.icon className="w-5 h-5 text-gray-700" />
@@ -6904,8 +6893,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
               </div>
             ))}
           </div>
-          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Shapes</p>
+          <div className="bg-white rounded-2xl shadow-lg p-1.5 sm:p-2 flex flex-row sm:flex-col gap-1 border border-gray-200 flex-shrink-0">
+            <p className="hidden sm:block text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Shapes</p>
             {[{ id: 'shape-rect', icon: Square, label: 'Rectangle', shapeType: 'rectangle' }, { id: 'shape-circle', icon: Circle, label: 'Circle', shapeType: 'circle' }, { id: 'shape-triangle', icon: Triangle, label: 'Triangle', shapeType: 'triangle' }].map(tool => (
               <motion.button key={tool.id} whileHover={{ scale: 1.1 }} onClick={() => { const node: VisualNode = { id: generateId(), type: 'shape', shapeType: tool.shapeType as any, x: 300 + Math.random() * 100, y: 300 + Math.random() * 100, width: 150, height: 150, content: '', color: '#dbeafe', rotation: 0, locked: false, votes: 0, votedBy: [], createdBy: currentUser.id, comments: [] }; handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, node] }, `Add ${tool.label}`); }} className="p-3 hover:bg-gray-100 rounded-xl group relative" title={tool.label}>
                 <tool.icon className="w-5 h-5 text-gray-700" />
@@ -6913,19 +6902,19 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
               </motion.button>
             ))}
           </div>
-          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Text & Lines</p>
+          <div className="bg-white rounded-2xl shadow-lg p-1.5 sm:p-2 flex flex-row sm:flex-col gap-1 border border-gray-200 flex-shrink-0">
+            <p className="hidden sm:block text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Text & Lines</p>
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => { const node: VisualNode = { id: generateId(), type: 'text', textStyle: 'heading', x: 300 + Math.random() * 100, y: 300 + Math.random() * 100, width: 300, height: 60, content: 'Heading', color: 'transparent', rotation: 0, locked: false, votes: 0, votedBy: [], createdBy: currentUser.id, comments: [], fontSize: 24 }; handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, node] }, 'Add text'); }} className="p-3 hover:bg-gray-100 rounded-xl group relative"><Type className="w-5 h-5 text-gray-700" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Text / Heading</div></motion.button>
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => { const nodeId = generateId(); const node: VisualNode = { id: nodeId, type: 'connector', x: 300 + Math.random() * 100, y: 300 + Math.random() * 100, width: 200, height: 4, content: '', color: '#6b7280', rotation: 0, locked: false, votes: 0, votedBy: [], createdBy: currentUser.id, comments: [], connectorStyle: 'solid' }; handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, node] }, 'Add connector'); setSelectedNodeIds([nodeId]); }} className="p-3 hover:bg-gray-100 rounded-xl group relative"><Minus className="w-5 h-5 text-gray-700" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Connector Line</div></motion.button>
           </div>
-          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Media</p>
+          <div className="bg-white rounded-2xl shadow-lg p-1.5 sm:p-2 flex flex-row sm:flex-col gap-1 border border-gray-200 flex-shrink-0">
+            <p className="hidden sm:block text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Media</p>
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowMediaModal('youtube')} className="p-3 hover:bg-gray-100 rounded-xl group relative"><Youtube className="w-5 h-5 text-red-500" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">YouTube Video</div></motion.button>
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowMediaModal('image')} className="p-3 hover:bg-gray-100 rounded-xl group relative"><Image className="w-5 h-5 text-navy-500" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Embed Image</div></motion.button>
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => setShowMediaModal('qr')} className="p-3 hover:bg-gray-100 rounded-xl group relative"><QrCode className="w-5 h-5 text-green-500" /><div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">QR Photo Upload</div></motion.button>
           </div>
-          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200 relative">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Draw</p>
+          <div className="bg-white rounded-2xl shadow-lg p-1.5 sm:p-2 flex flex-row sm:flex-col gap-1 border border-gray-200 flex-shrink-0 relative">
+            <p className="hidden sm:block text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Draw</p>
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => { setIsDrawingMode(!isDrawingMode); setIsPanMode(false); setShowDrawingPanel(!isDrawingMode); }}
@@ -6987,8 +6976,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
               )}
             </AnimatePresence>
           </div>
-          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Mind Map</p>
+          <div className="bg-white rounded-2xl shadow-lg p-1.5 sm:p-2 flex flex-row sm:flex-col gap-1 border border-gray-200 flex-shrink-0">
+            <p className="hidden sm:block text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Mind Map</p>
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => {
@@ -7023,8 +7012,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           </div>
           
           {/* Tables & Lists */}
-          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Data</p>
+          <div className="bg-white rounded-2xl shadow-lg p-1.5 sm:p-2 flex flex-row sm:flex-col gap-1 border border-gray-200 flex-shrink-0">
+            <p className="hidden sm:block text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Data</p>
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => {
@@ -7094,8 +7083,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           </div>
           
           {/* Comment/Annotation Tool */}
-          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Annotate</p>
+          <div className="bg-white rounded-2xl shadow-lg p-1.5 sm:p-2 flex flex-row sm:flex-col gap-1 border border-gray-200 flex-shrink-0">
+            <p className="hidden sm:block text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Annotate</p>
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => {
@@ -7126,8 +7115,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           </div>
           
           {/* View Options */}
-          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">View</p>
+          <div className="bg-white rounded-2xl shadow-lg p-1.5 sm:p-2 flex flex-row sm:flex-col gap-1 border border-gray-200 flex-shrink-0">
+            <p className="hidden sm:block text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">View</p>
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => setGridSnap(!gridSnap)}
@@ -7158,8 +7147,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           </div>
           
           {/* Collaboration */}
-          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Collaborate</p>
+          <div className="bg-white rounded-2xl shadow-lg p-1.5 sm:p-2 flex flex-row sm:flex-col gap-1 border border-gray-200 flex-shrink-0">
+            <p className="hidden sm:block text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Collaborate</p>
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => setShowShareModal(true)}
@@ -7182,8 +7171,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           </div>
           
           {/* AI Tools */}
-          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">AI</p>
+          <div className="bg-white rounded-2xl shadow-lg p-1.5 sm:p-2 flex flex-row sm:flex-col gap-1 border border-gray-200 flex-shrink-0">
+            <p className="hidden sm:block text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">AI</p>
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => setShowAITools(!showAITools)}
@@ -7196,8 +7185,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           </div>
 
           {/* Assets & Facilitator */}
-          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Assets</p>
+          <div className="bg-white rounded-2xl shadow-lg p-1.5 sm:p-2 flex flex-row sm:flex-col gap-1 border border-gray-200 flex-shrink-0">
+            <p className="hidden sm:block text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Assets</p>
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => setShowAssetLibrary(true)}
@@ -7219,8 +7208,8 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           </div>
           
           {/* Actions */}
-          <div className="bg-white rounded-2xl shadow-lg p-2 flex flex-col gap-1 border border-gray-200">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Actions</p>
+          <div className="bg-white rounded-2xl shadow-lg p-1.5 sm:p-2 flex flex-row sm:flex-col gap-1 border border-gray-200 flex-shrink-0">
+            <p className="hidden sm:block text-[10px] font-semibold text-gray-400 uppercase px-2 py-1">Actions</p>
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => setShowExportModal(true)}
