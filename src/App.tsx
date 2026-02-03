@@ -653,7 +653,9 @@ const Sidebar = ({
   isGuest = false,
   userRole = 'Owner',
   isMobileOpen = false,
-  onMobileClose
+  onMobileClose,
+  swipeProgress = 0,
+  isSwiping = false
 }: {
   currentView: ViewType;
   onViewChange: (view: ViewType) => void;
@@ -664,6 +666,8 @@ const Sidebar = ({
   userRole?: string;
   isMobileOpen?: boolean;
   onMobileClose?: () => void;
+  swipeProgress?: number;
+  isSwiping?: boolean;
 }) => {
   const navItems = [
     { id: 'dashboard' as ViewType, label: 'Dashboard', icon: LayoutDashboard, description: 'All boards & progress' },
@@ -685,7 +689,7 @@ const Sidebar = ({
     <>
       {/* Mobile bottom navigation */}
       {useBottomNav && (
-        <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
           <div className="flex items-center gap-1 px-2 py-2 overflow-x-auto">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -720,29 +724,48 @@ const Sidebar = ({
         </div>
       )}
 
-      {/* Mobile overlay (disabled when bottom nav is active) */}
-      <AnimatePresence>
-        {!useBottomNav && isMobileOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="sm:hidden fixed inset-0 bg-black/50 z-40"
-            onClick={onMobileClose}
-          />
-        )}
-      </AnimatePresence>
+      {/* Mobile overlay */}
+      {(isMobileOpen || (isSwiping && swipeProgress > 0)) && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black z-40"
+          style={{ 
+            opacity: isSwiping ? swipeProgress * 0.5 : (isMobileOpen ? 0.5 : 0),
+            transition: isSwiping ? 'none' : 'opacity 300ms ease-out',
+            pointerEvents: isMobileOpen ? 'auto' : 'none'
+          }}
+          onClick={onMobileClose}
+        />
+      )}
+
+      {/* Mobile swipe handle / visual cue */}
+      {!isMobileOpen && !isSwiping && (
+        <div 
+          className="md:hidden fixed left-0 top-1/2 -translate-y-1/2 z-45 pointer-events-none"
+          style={{ zIndex: 45 }}
+        >
+          <div className="w-1.5 h-12 bg-navy-400/40 rounded-r-full ml-0 shadow-sm" />
+        </div>
+      )}
       
-      <motion.nav
-        initial={{ x: -20, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
+      <nav
         className={`
           flex
-          h-screen bg-white border-r border-gray-200 flex-col transition-all duration-300
-          fixed sm:relative z-50
-          ${isCollapsed ? 'sm:w-16' : 'sm:w-64'}
-          ${isMobileOpen ? 'translate-x-0 w-72' : '-translate-x-full sm:translate-x-0 w-72 sm:w-auto'}
+          h-screen bg-white border-r border-gray-200 flex-col
+          fixed md:relative z-50
+          ${isCollapsed ? 'md:w-16' : 'md:w-64'}
+          w-72 md:w-auto
         `}
+        style={{
+          // On mobile: use JS-driven transform for swiping, CSS transition for open/close
+          transform: typeof window !== 'undefined' && window.innerWidth < 768
+            ? isSwiping 
+              ? `translateX(${-288 + swipeProgress * 288}px)` 
+              : isMobileOpen 
+                ? 'translateX(0)' 
+                : 'translateX(-100%)'
+            : undefined,
+          transition: isSwiping ? 'none' : 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
       >
       <div className="p-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
@@ -757,7 +780,7 @@ const Sidebar = ({
           )}
           {/* Mobile close button */}
           {isMobileOpen && (
-            <button onClick={onMobileClose} className="sm:hidden p-2 hover:bg-gray-100 rounded-lg">
+            <button onClick={onMobileClose} className="md:hidden p-2 hover:bg-gray-100 rounded-lg">
               <X className="w-5 h-5 text-gray-500" />
             </button>
           )}
@@ -822,13 +845,13 @@ const Sidebar = ({
         {/* Collapse button - desktop only */}
         <button
           onClick={onToggleCollapse}
-          className="hidden sm:flex w-full items-center justify-center gap-2 px-3 py-2 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all"
+          className="hidden md:flex w-full items-center justify-center gap-2 px-3 py-2 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all"
         >
           {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
           {!isCollapsed && <span className="text-sm">Collapse</span>}
         </button>
       </div>
-    </motion.nav>
+    </nav>
     </>
   );
 };
@@ -7978,33 +8001,85 @@ export default function App() {
   // Device type detection for responsive UI
   useDeviceType();
   
-  // Swipe to open sidebar on mobile
+  // Swipe to open/close sidebar on mobile
   const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const [swipeProgress, setSwipeProgress] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const swipeMode = useRef<'open' | 'close' | null>(null);
+  const SIDEBAR_WIDTH = 288; // 72 * 4 = w-72
   
   useEffect(() => {
+    if (window.innerWidth >= 768) return; // Only on mobile
+    
     const handleTouchStart = (e: TouchEvent) => {
-      // Only track swipes from left edge (first 30px)
-      if (e.touches[0].clientX < 30) {
-        touchStartX.current = e.touches[0].clientX;
+      const x = e.touches[0].clientX;
+      const y = e.touches[0].clientY;
+      touchStartY.current = y;
+      
+      if (!mobileSidebarOpen && x < 30) {
+        // Start opening gesture from left edge
+        touchStartX.current = x;
+        swipeMode.current = 'open';
+      } else if (mobileSidebarOpen && x < SIDEBAR_WIDTH) {
+        // Start closing gesture from within sidebar
+        touchStartX.current = x;
+        swipeMode.current = 'close';
       }
     };
     
     const handleTouchMove = (e: TouchEvent) => {
-      if (touchStartX.current === null) return;
-      const diff = e.touches[0].clientX - touchStartX.current;
-      // If swiped right more than 50px, open sidebar
-      if (diff > 50 && !mobileSidebarOpen) {
-        setMobileSidebarOpen(true);
+      if (touchStartX.current === null || swipeMode.current === null) return;
+      
+      const currentX = e.touches[0].clientX;
+      const currentY = e.touches[0].clientY;
+      const diffX = currentX - touchStartX.current;
+      const diffY = Math.abs(currentY - (touchStartY.current ?? 0));
+      
+      // If vertical scroll is dominant, cancel swipe
+      if (diffY > Math.abs(diffX) && !isSwiping) {
         touchStartX.current = null;
+        swipeMode.current = null;
+        return;
+      }
+      
+      if (swipeMode.current === 'open') {
+        const progress = Math.max(0, Math.min(1, diffX / (SIDEBAR_WIDTH * 0.6)));
+        if (progress > 0.05) {
+          setIsSwiping(true);
+          setSwipeProgress(progress);
+        }
+      } else if (swipeMode.current === 'close') {
+        const progress = Math.max(0, Math.min(1, 1 + diffX / SIDEBAR_WIDTH));
+        if (Math.abs(diffX) > 10) {
+          setIsSwiping(true);
+          setSwipeProgress(progress);
+        }
       }
     };
     
     const handleTouchEnd = () => {
+      if (isSwiping) {
+        if (swipeMode.current === 'open') {
+          if (swipeProgress > 0.3) {
+            setMobileSidebarOpen(true);
+          }
+        } else if (swipeMode.current === 'close') {
+          if (swipeProgress < 0.7) {
+            setMobileSidebarOpen(false);
+          }
+        }
+        setIsSwiping(false);
+        setSwipeProgress(0);
+      }
+      
       touchStartX.current = null;
+      touchStartY.current = null;
+      swipeMode.current = null;
     };
     
-    document.addEventListener('touchstart', handleTouchStart);
-    document.addEventListener('touchmove', handleTouchMove);
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: true });
     document.addEventListener('touchend', handleTouchEnd);
     
     return () => {
@@ -8012,7 +8087,7 @@ export default function App() {
       document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [mobileSidebarOpen]);
+  }, [mobileSidebarOpen, isSwiping, swipeProgress]);
   const [boards, setBoards] = useState<Board[]>([]);
   const [activeBoard, setActiveBoard] = useState<Board | null>(null);
   const [notes, setNotes] = useState<ProjectNote[]>([]);
@@ -9221,7 +9296,7 @@ ${transcriptContent}`;
       {/* Mobile menu button */}
       <button 
         onClick={() => setMobileSidebarOpen(true)}
-        className="sm:hidden fixed top-4 left-4 z-30 p-2 bg-white rounded-xl shadow-lg border border-gray-200"
+        className="md:hidden fixed top-4 left-4 z-30 p-2 bg-white rounded-xl shadow-lg border border-gray-200"
       >
         <Menu className="w-5 h-5 text-gray-600" />
       </button>
@@ -9236,6 +9311,8 @@ ${transcriptContent}`;
         userRole={guestCollaboratorInfo?.role || 'Owner'}
         isMobileOpen={mobileSidebarOpen}
         onMobileClose={() => setMobileSidebarOpen(false)}
+        swipeProgress={swipeProgress}
+        isSwiping={isSwiping}
       />
       {currentView === 'dashboard' && (
         <DashboardView
