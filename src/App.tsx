@@ -8156,10 +8156,12 @@ export default function App() {
   // Auto-save to localStorage and Supabase whenever board updates
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingSaveRef = useRef<Board | null>(null);
+  const lastLocalUpdateAtRef = useRef<number>(0);
   
   const handleUpdateBoard = (updates: Partial<Board>) => {
     if (activeBoard) {
       const updatedBoard = { ...activeBoard, ...updates, lastActivity: new Date() };
+      lastLocalUpdateAtRef.current = Date.now();
       setActiveBoard(updatedBoard);
       setBoards(prev => {
         const newBoards = prev.map(b => b.id === activeBoard.id ? updatedBoard : b);
@@ -8427,6 +8429,11 @@ export default function App() {
           // (we check if the visual_nodes are different from current)
           const newVisualNodes = payload.new?.visual_nodes;
           const normalizedNodes = newVisualNodes ? normalizeVisualNodes(newVisualNodes) : null;
+          const payloadLastActivity = payload.new?.last_activity ? new Date(payload.new.last_activity).getTime() : 0;
+          const localLastUpdate = lastLocalUpdateAtRef.current;
+          if (payloadLastActivity && localLastUpdate && payloadLastActivity < localLastUpdate) {
+            return;
+          }
           if (normalizedNodes && JSON.stringify(normalizedNodes) !== JSON.stringify(activeBoard.visualNodes)) {
             console.log('Received real-time update from Supabase');
             setActiveBoard(prev => prev ? {
