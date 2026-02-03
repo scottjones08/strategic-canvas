@@ -634,6 +634,15 @@ const normalizeVisualNodes = (nodes: any[]) => {
     });
 };
 
+const stripInlineImageData = (nodes: VisualNode[]) => {
+  return nodes.map(node => {
+    if (node.type === 'image' && typeof node.mediaUrl === 'string' && node.mediaUrl.startsWith('data:')) {
+      return { ...node, mediaUrl: '' };
+    }
+    return node;
+  });
+};
+
 // Sidebar Component
 const Sidebar = ({
   currentView,
@@ -8154,9 +8163,13 @@ export default function App() {
       setActiveBoard(updatedBoard);
       setBoards(prev => {
         const newBoards = prev.map(b => b.id === activeBoard.id ? updatedBoard : b);
+        const boardsForStorage = newBoards.map(b => ({
+          ...b,
+          visualNodes: stripInlineImageData(b.visualNodes || [])
+        }));
         
         // Save to localStorage immediately (fast, local)
-        localStorage.setItem('fan-canvas-boards', JSON.stringify(newBoards));
+        localStorage.setItem('fan-canvas-boards', JSON.stringify(boardsForStorage));
         
         // Debounce Supabase saves to avoid hammering the API
         pendingSaveRef.current = updatedBoard;
@@ -8167,16 +8180,20 @@ export default function App() {
         autoSaveTimeoutRef.current = setTimeout(async () => {
           const boardToSave = pendingSaveRef.current;
           if (!boardToSave) return;
+          const boardForPersistence = {
+            ...boardToSave,
+            visualNodes: stripInlineImageData(boardToSave.visualNodes || [])
+          };
           
           try {
             if (isSupabaseConfigured() && supabaseTablesExist) {
               setSaveStatus('saving');
               await boardsApi.update(boardToSave.id, {
                 name: boardToSave.name,
-                visual_nodes: boardToSave.visualNodes,
-                zoom: boardToSave.zoom || 1,
-                pan_x: boardToSave.panX || 0,
-                pan_y: boardToSave.panY || 0,
+                visual_nodes: boardForPersistence.visualNodes,
+                zoom: boardForPersistence.zoom || 1,
+                pan_x: boardForPersistence.panX || 0,
+                pan_y: boardForPersistence.panY || 0,
                 last_activity: new Date().toISOString()
               });
               setSaveStatus('saved');
