@@ -1180,6 +1180,8 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
     const startHeight = node.height;
     const startNodeX = node.x;
     const startNodeY = node.y;
+    let frameId: number | null = null;
+    let pending: Partial<VisualNode> | null = null;
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaX = (moveEvent.clientX - startX) / zoom;
@@ -1189,11 +1191,28 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
       if (direction.includes('w')) { newWidth = Math.max(100, startWidth - deltaX); newX = startNodeX + deltaX; }
       if (direction.includes('s')) newHeight = Math.max(80, startHeight + deltaY);
       if (direction.includes('n')) { newHeight = Math.max(80, startHeight - deltaY); newY = startNodeY + deltaY; }
-      onUpdate({ width: newWidth, height: newHeight, x: newX, y: newY });
+      pending = { width: newWidth, height: newHeight, x: newX, y: newY };
+      if (frameId === null) {
+        frameId = requestAnimationFrame(() => {
+          if (pending) {
+            onUpdate(pending);
+            pending = null;
+          }
+          frameId = null;
+        });
+      }
     };
 
     const handleMouseUp = () => {
       setIsResizing(false);
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+        frameId = null;
+      }
+      if (pending) {
+        onUpdate(pending);
+        pending = null;
+      }
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
@@ -1407,13 +1426,13 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
 
   return (
     <>
-    <motion.div
-      initial={{ scale: 0.9, opacity: 0, x: node.x, y: node.y }}
-      animate={{ scale: 1, opacity: 1, x: node.x, y: node.y, rotate: node.rotation, boxShadow: isDragging ? '0 25px 50px -12px rgba(0, 0, 0, 0.25)' : isFrame || isText || isConnector || node.type === 'drawing' ? 'none' : '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-      transition={isDragging ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 30 }}
-      whileHover={{ scale: isSelected || isDragging ? 1 : 1.02, zIndex: 50 }}
-      className={`absolute group ${isDrawingMode ? 'pointer-events-none' : 'pointer-events-auto'} ${isResizing ? '' : 'cursor-grab active:cursor-grabbing'} ${isFrame ? 'rounded-2xl border-2 border-dashed' : isText || isConnector || node.type === 'drawing' ? '' : 'rounded-xl'} ${isSelected ? 'ring-2 ring-navy-500 ring-offset-2' : ''}`}
-      style={{ width: node.width, height: node.height, backgroundColor: isFrame ? `${node.color}80` : isText || isConnector || node.type === 'drawing' ? 'transparent' : node.color, borderColor: isFrame ? node.color : undefined, zIndex: isDragging ? 1000 : isSelected ? 100 : (node.zIndex ?? (isFrame ? 1 : 10)), ...getShapeStyles() }}
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, x: node.x, y: node.y }}
+        animate={{ scale: 1, opacity: 1, x: node.x, y: node.y, rotate: node.rotation, boxShadow: isDragging ? '0 25px 50px -12px rgba(0, 0, 0, 0.25)' : isFrame || isText || isConnector || node.type === 'drawing' ? 'none' : '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+        transition={isDragging ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 30 }}
+        whileHover={{ scale: isSelected || isDragging ? 1 : 1.02, zIndex: 50 }}
+        className={`absolute group ${isDrawingMode ? 'pointer-events-none' : 'pointer-events-auto'} ${isResizing ? '' : 'cursor-grab active:cursor-grabbing'} ${isFrame ? 'rounded-2xl border-2 border-dashed' : isText || isConnector || node.type === 'drawing' ? '' : 'rounded-xl'} ${isSelected ? 'ring-2 ring-navy-500 ring-offset-2' : ''}`}
+      style={{ width: node.width, height: node.height, backgroundColor: isFrame ? `${node.color}80` : isText || isConnector || node.type === 'drawing' ? 'transparent' : node.color, borderColor: isFrame ? node.color : undefined, zIndex: isDragging ? 1000 : isSelected ? 100 : (node.zIndex ?? (isFrame ? 1 : 10)), willChange: isDragging || isResizing ? 'transform' : 'auto', ...getShapeStyles() }}
       onClick={(e) => { e.stopPropagation(); onSelect(e); }}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
@@ -1522,7 +1541,13 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
 
         {node.type === 'image' && node.mediaUrl && (
           <div className="w-full h-full rounded-xl overflow-hidden">
-            <img src={node.mediaUrl} alt={node.content || 'Embedded image'} className="w-full h-full object-cover" />
+            <img
+              src={node.mediaUrl}
+              alt={node.content || 'Embedded image'}
+              className="w-full h-full object-cover"
+              draggable={false}
+              style={{ backfaceVisibility: 'hidden', transform: 'translateZ(0)' }}
+            />
           </div>
         )}
 
