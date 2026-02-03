@@ -2064,6 +2064,8 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
                           const newRows = node.tableData?.rows.map(row => [...row, '']) || [];
                           onUpdate({ tableData: { headers: newHeaders, rows: newRows } });
                         }}
+                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                        onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         className="text-gray-400 hover:text-gray-600"
                       >
                         <Plus className="w-3 h-3" />
@@ -2097,6 +2099,8 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
                             const newRows = node.tableData?.rows.filter((_, i) => i !== rowIndex) || [];
                             onUpdate({ tableData: { ...node.tableData!, rows: newRows } });
                           }}
+                          onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
                           className="text-red-300 hover:text-red-500"
                         >
                           <X className="w-3 h-3" />
@@ -2112,6 +2116,8 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
                   const newRow = Array(node.tableData?.headers?.length || 3).fill('');
                   onUpdate({ tableData: { ...node.tableData!, rows: [...(node.tableData?.rows || []), newRow] } });
                 }}
+                onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
                 className="w-full mt-2 py-1 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded border border-dashed border-gray-200 flex items-center justify-center gap-1"
               >
                 <Plus className="w-3 h-3" /> Add Row

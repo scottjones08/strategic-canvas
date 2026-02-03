@@ -643,7 +643,7 @@ const Sidebar = ({
     onMobileClose?.(); // Close sidebar on mobile after navigation
   };
 
-  const useBottomNav = true;
+  const useBottomNav = false;
 
   return (
     <>
@@ -701,7 +701,7 @@ const Sidebar = ({
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         className={`
-          hidden sm:flex
+          flex
           h-screen bg-white border-r border-gray-200 flex-col transition-all duration-300
           fixed sm:relative z-50
           ${isCollapsed ? 'sm:w-16' : 'sm:w-64'}
@@ -1749,6 +1749,8 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
                           const newRows = node.tableData?.rows.map(row => [...row, '']) || [];
                           onUpdate({ tableData: { headers: newHeaders, rows: newRows } });
                         }}
+                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                        onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         className="text-gray-400 hover:text-gray-600"
                       >
                         <Plus className="w-3 h-3" />
@@ -1782,6 +1784,8 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
                             const newRows = node.tableData?.rows.filter((_, i) => i !== rowIndex) || [];
                             onUpdate({ tableData: { ...node.tableData!, rows: newRows } });
                           }}
+                          onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
                           className="text-red-300 hover:text-red-500"
                         >
                           <X className="w-3 h-3" />
@@ -1797,6 +1801,8 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
                   const newRow = Array(node.tableData?.headers?.length || 3).fill('');
                   onUpdate({ tableData: { ...node.tableData!, rows: [...(node.tableData?.rows || []), newRow] } });
                 }}
+                onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
                 className="w-full mt-2 py-1 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded border border-dashed border-gray-200 flex items-center justify-center gap-1"
               >
                 <Plus className="w-3 h-3" /> Add Row
@@ -3041,7 +3047,8 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
             : 'radial-gradient(circle, #d1d5db 1px, transparent 1px)', 
           backgroundSize: `${GRID_SIZE * zoom}px ${GRID_SIZE * zoom}px`, 
           backgroundPosition: `${panX}px ${panY}px`,
-          opacity: gridSnap ? 0.8 : 1
+          opacity: gridSnap ? 0.8 : 1,
+          willChange: 'transform'
         }} 
       />
 
@@ -3049,8 +3056,9 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       <div 
         className="absolute inset-0 pointer-events-none" 
         style={{ 
-          transform: `translate(${panX}px, ${panY}px) scale(${zoom})`, 
+          transform: `translate3d(${panX}px, ${panY}px, 0) scale(${zoom})`, 
           transformOrigin: 'top left',
+          willChange: 'transform'
         }}
       >
         {connectorLines.map((line: any) => {
@@ -3105,7 +3113,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
       </div>
       
       {/* SVG Layer for Mind Map Connections and Drawings */}
-      <svg className="absolute inset-0 pointer-events-none" style={{ transform: `translate(${panX}px, ${panY}px) scale(${zoom})`, transformOrigin: 'top left', overflow: 'visible' }}>
+      <svg className="absolute inset-0 pointer-events-none" style={{ transform: `translate3d(${panX}px, ${panY}px, 0) scale(${zoom})`, transformOrigin: 'top left', overflow: 'visible', willChange: 'transform' }}>
         {/* Mind map connections */}
         {board.visualNodes.filter(n => n.type === 'mindmap' && n.parentNodeId).map(childNode => {
           const parentNode = board.visualNodes.find(n => n.id === childNode.parentNodeId);
@@ -3287,7 +3295,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
         </motion.div>
       )}
 
-      <motion.div className="absolute origin-top-left pointer-events-none" style={{ transform: `translate(${panX}px, ${panY}px) scale(${zoom})` }}>
+      <motion.div className="absolute origin-top-left pointer-events-none" style={{ transform: `translate3d(${panX}px, ${panY}px, 0) scale(${zoom})`, willChange: 'transform' }}>
         <AnimatePresence>
           {board.visualNodes.filter(n => !(n.type === 'connector' && n.connectorFrom && n.connectorTo)).map(node => (
             <StickyNote
@@ -9015,7 +9023,13 @@ ${transcriptContent}`;
           </motion.div>
         </div>
       )}
-      {/* Mobile menu button removed in favor of bottom nav */}
+      {/* Mobile menu button */}
+      <button 
+        onClick={() => setMobileSidebarOpen(true)}
+        className="sm:hidden fixed top-4 left-4 z-30 p-2 bg-white rounded-xl shadow-lg border border-gray-200"
+      >
+        <Menu className="w-5 h-5 text-gray-600" />
+      </button>
       
       <Sidebar 
         currentView={currentView} 
