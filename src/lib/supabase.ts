@@ -851,18 +851,37 @@ export const boardHistoryApi = {
   async create(boardId: string, nodes: any[], action: string, createdBy?: string): Promise<BoardHistoryEntry | null> {
     if (!supabase) return null;
     
+    const payload: any = {
+      board_id: boardId,
+      nodes: JSON.parse(JSON.stringify(nodes)), // Deep clone
+      action,
+      created_by: createdBy
+    };
+
     const { data, error } = await supabase
       .from('board_history')
-      .insert({
-        board_id: boardId,
-        nodes: JSON.parse(JSON.stringify(nodes)), // Deep clone
-        action,
-        created_by: createdBy
-      })
+      .insert(payload)
       .select()
       .single();
     
     if (error) {
+      if (error.code === 'PGRST204' && String(error.message || '').includes('created_by')) {
+        // Fallback for schemas without created_by column
+        const { data: retryData, error: retryError } = await supabase
+          .from('board_history')
+          .insert({
+            board_id: boardId,
+            nodes: JSON.parse(JSON.stringify(nodes)),
+            action
+          })
+          .select()
+          .single();
+        if (retryError) {
+          console.error('Error creating history entry (retry without created_by):', retryError);
+          return null;
+        }
+        return retryData;
+      }
       console.error('Error creating history entry:', error);
       return null;
     }
