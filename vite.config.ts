@@ -6,6 +6,11 @@ export default defineConfig({
   server: {
     port: 5176,
     host: true
+  },
+  // Ensure Railway/containers can bind correctly.
+  preview: {
+    port: Number(process.env.PORT) || 4173,
+    host: true
   }
 })
 // Build 1769446572
