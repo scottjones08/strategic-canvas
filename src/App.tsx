@@ -606,6 +606,33 @@ const BOARD_TEMPLATES: BoardTemplate[] = [
 ];
 
 const generateId = () => crypto.randomUUID();
+const CANVAS_MEDIA_BUCKET = 'canvas-media';
+
+const normalizeVisualNodes = (nodes: any[]) => {
+  if (!Array.isArray(nodes)) return [];
+  return nodes
+    .filter(n => n && typeof n === 'object')
+    .map((n, index) => {
+      const safeNumber = (value: any, fallback: number) => Number.isFinite(value) ? value : fallback;
+      const width = safeNumber(n.width, 200);
+      const height = safeNumber(n.height, 150);
+      return {
+        ...n,
+        id: n.id || `node-${Date.now()}-${index}`,
+        x: safeNumber(n.x, index * 20),
+        y: safeNumber(n.y, index * 20),
+        width,
+        height,
+        rotation: safeNumber(n.rotation, 0),
+        content: typeof n.content === 'string' ? n.content : '',
+        color: n.color || '#fef3c7',
+        locked: !!n.locked,
+        votes: safeNumber(n.votes, 0),
+        votedBy: Array.isArray(n.votedBy) ? n.votedBy : [],
+        comments: Array.isArray(n.comments) ? n.comments : [],
+      };
+    });
+};
 
 // Sidebar Component
 const Sidebar = ({
@@ -6370,10 +6397,21 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     handleAISendMessage(actionMessages[action] || action);
   }, [handleAISendMessage]);
 
-  const handleEmbedMedia = useCallback((url: string, mediaType: 'youtube' | 'image') => {
-    const newNode: VisualNode = { id: generateId(), type: mediaType, x: 300 + Math.random() * 200, y: 200 + Math.random() * 200, width: mediaType === 'youtube' ? 400 : 300, height: mediaType === 'youtube' ? 225 : 300, content: '', color: '#ffffff', rotation: 0, locked: false, votes: 0, votedBy: [], createdBy: currentUser.id, comments: [], mediaUrl: url };
+  const handleEmbedMedia = useCallback(async (url: string, mediaType: 'youtube' | 'image') => {
+    let finalUrl = url;
+    if (mediaType === 'image' && url.startsWith('data:')) {
+      try {
+        const blob = await (await fetch(url)).blob();
+        const file = new File([blob], `canvas-image-${Date.now()}.png`, { type: blob.type || 'image/png' });
+        const uploadedUrl = await uploadCanvasImage(file, activeBoard?.id);
+        if (uploadedUrl) finalUrl = uploadedUrl;
+      } catch (err) {
+        console.warn('[Canvas] Failed to upload embedded image, using data URL.', err);
+      }
+    }
+    const newNode: VisualNode = { id: generateId(), type: mediaType, x: 300 + Math.random() * 200, y: 200 + Math.random() * 200, width: mediaType === 'youtube' ? 400 : 300, height: mediaType === 'youtube' ? 225 : 300, content: '', color: '#ffffff', rotation: 0, locked: false, votes: 0, votedBy: [], createdBy: currentUser.id, comments: [], mediaUrl: finalUrl };
     handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, newNode] }, `Add ${mediaType}`);
-  }, [currentUser.id, board, handleUpdateBoardWithHistory]);
+  }, [currentUser.id, board, handleUpdateBoardWithHistory, uploadCanvasImage]);
 
   const handleCreateBucket = useCallback((bucketId: string) => {
     const newNode: VisualNode = { id: generateId(), type: 'bucket', x: 300 + Math.random() * 200, y: 200 + Math.random() * 200, width: 300, height: 300, content: 'Photo Bucket', color: '#f0f9ff', rotation: 0, locked: false, votes: 0, votedBy: [], createdBy: currentUser.id, comments: [], bucketId, bucketImages: [] };
@@ -6387,16 +6425,67 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
 
     if (!isVideo && !isImage) return;
 
+    if (isImage) {
+      (async () => {
+        const uploadedUrl = await uploadCanvasImage(file, activeBoard?.id);
+        if (uploadedUrl) {
+          const newNode: VisualNode = {
+            id: generateId(),
+            type: 'image',
+            x: x - 150,
+            y: y - 150,
+            width: 300,
+            height: 300,
+            content: file.name,
+            color: '#ffffff',
+            rotation: 0,
+            locked: false,
+            votes: 0,
+            votedBy: [],
+            createdBy: currentUser.id,
+            comments: [],
+            mediaUrl: uploadedUrl
+          };
+          handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, newNode] }, 'Add image');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target?.result as string;
+          const newNode: VisualNode = {
+            id: generateId(),
+            type: 'image',
+            x: x - 150,
+            y: y - 150,
+            width: 300,
+            height: 300,
+            content: file.name,
+            color: '#ffffff',
+            rotation: 0,
+            locked: false,
+            votes: 0,
+            votedBy: [],
+            createdBy: currentUser.id,
+            comments: [],
+            mediaUrl: dataUrl
+          };
+          handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, newNode] }, 'Add image');
+        };
+        reader.readAsDataURL(file);
+      })();
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string;
       const newNode: VisualNode = {
         id: generateId(),
-        type: isVideo ? 'youtube' : 'image', // Using 'youtube' type for video since it handles media
-        x: x - (isVideo ? 200 : 150), // Center the node on drop position
-        y: y - (isVideo ? 112 : 150),
-        width: isVideo ? 400 : 300,
-        height: isVideo ? 225 : 300,
+        type: 'youtube', // Using 'youtube' type for video since it handles media
+        x: x - 200,
+        y: y - 112,
+        width: 400,
+        height: 225,
         content: file.name,
         color: '#ffffff',
         rotation: 0,
@@ -6407,10 +6496,10 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
         comments: [],
         mediaUrl: dataUrl
       };
-      handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, newNode] }, `Add ${isVideo ? 'video' : 'image'}`);
+      handleUpdateBoardWithHistory({ visualNodes: [...board.visualNodes, newNode] }, 'Add video');
     };
     reader.readAsDataURL(file);
-  }, [currentUser.id, board.visualNodes, handleUpdateBoardWithHistory]);
+  }, [currentUser.id, board.visualNodes, handleUpdateBoardWithHistory, uploadCanvasImage]);
 
   const handleAddMindmapChild = useCallback((parentNodeId: string) => {
     const parentNode = board.visualNodes.find(n => n.id === parentNodeId);
@@ -8112,6 +8201,61 @@ export default function App() {
     }
   };
 
+  // Migrate inline (data URL) images to Supabase storage to prevent crashes and preserve positions
+  useEffect(() => {
+    if (!activeBoard || !supabase || !isSupabaseConfigured()) return;
+    let isCancelled = false;
+
+    const migrateInlineImages = async () => {
+      const nodes = activeBoard.visualNodes || [];
+      const hasInlineImages = nodes.some(n => n.type === 'image' && typeof n.mediaUrl === 'string' && n.mediaUrl.startsWith('data:'));
+      if (!hasInlineImages) return;
+
+      const updatedNodes = await Promise.all(nodes.map(async (node) => {
+        if (node.type !== 'image' || typeof node.mediaUrl !== 'string' || !node.mediaUrl.startsWith('data:')) {
+          return node;
+        }
+        try {
+          const blob = await (await fetch(node.mediaUrl)).blob();
+          const file = new File([blob], `canvas-image-${node.id}.png`, { type: blob.type || 'image/png' });
+          const uploadedUrl = await uploadCanvasImage(file, activeBoard.id);
+          if (uploadedUrl) {
+            return { ...node, mediaUrl: uploadedUrl };
+          }
+        } catch (err) {
+          console.warn('[Canvas] Failed to migrate inline image for node:', node.id, err);
+        }
+        return node;
+      }));
+
+      if (!isCancelled) {
+        handleUpdateBoard({ visualNodes: updatedNodes });
+      }
+    };
+
+    migrateInlineImages();
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeBoard?.id]);
+
+  const uploadCanvasImage = useCallback(async (file: File, boardId?: string) => {
+    if (!supabase || !isSupabaseConfigured()) return null;
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `boards/${boardId || activeBoard?.id || 'global'}/${Date.now()}-${safeName}`;
+    try {
+      const { error } = await supabase.storage
+        .from(CANVAS_MEDIA_BUCKET)
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (error) throw error;
+      const { data } = supabase.storage.from(CANVAS_MEDIA_BUCKET).getPublicUrl(path);
+      return data?.publicUrl || null;
+    } catch (err) {
+      console.warn('[Canvas] Image upload failed, falling back to local data URL.', err);
+      return null;
+    }
+  }, [activeBoard?.id]);
+
   // Load boards from Supabase (primary) and localStorage (fallback) on mount
   const boardsLoadedRef = useRef(false);
   useEffect(() => {
@@ -8142,7 +8286,7 @@ export default function App() {
                 name: b.name,
                 ownerId: b.owner_id || '',
                 clientId: b.organization_id || undefined,
-                visualNodes: b.visual_nodes || [],
+                visualNodes: normalizeVisualNodes(b.visual_nodes || []),
                 createdAt: new Date(b.created_at),
                 zoom: b.zoom || 1,
                 panX: b.pan_x || 0,
@@ -8171,8 +8315,9 @@ export default function App() {
           const parsed = JSON.parse(savedBoards);
           // Clean up orphan connectors (connectors referencing non-existent nodes)
           const cleanedBoards = parsed.map((b: any) => {
-            const nodeIds = new Set(b.visualNodes?.map((n: any) => n.id) || []);
-            const cleanedNodes = b.visualNodes?.filter((n: any) => {
+            const normalizedNodes = normalizeVisualNodes(b.visualNodes || []);
+            const nodeIds = new Set(normalizedNodes.map((n: any) => n.id));
+            const cleanedNodes = normalizedNodes.filter((n: any) => {
               // Keep non-connectors
               if (n.type !== 'connector') return true;
               // Keep connectors without from/to (standalone lines)
@@ -8264,11 +8409,12 @@ export default function App() {
           // Only update if the change is from another user
           // (we check if the visual_nodes are different from current)
           const newVisualNodes = payload.new?.visual_nodes;
-          if (newVisualNodes && JSON.stringify(newVisualNodes) !== JSON.stringify(activeBoard.visualNodes)) {
+          const normalizedNodes = newVisualNodes ? normalizeVisualNodes(newVisualNodes) : null;
+          if (normalizedNodes && JSON.stringify(normalizedNodes) !== JSON.stringify(activeBoard.visualNodes)) {
             console.log('Received real-time update from Supabase');
             setActiveBoard(prev => prev ? {
               ...prev,
-              visualNodes: newVisualNodes,
+              visualNodes: normalizedNodes,
               name: payload.new?.name || prev.name,
               zoom: payload.new?.zoom || prev.zoom,
               panX: payload.new?.pan_x || prev.panX,
@@ -8323,7 +8469,7 @@ export default function App() {
               id: supabaseBoard.id,
               name: supabaseBoard.name,
               ownerId: supabaseBoard.owner_id || '',
-              visualNodes: supabaseBoard.visual_nodes || [],
+              visualNodes: normalizeVisualNodes(supabaseBoard.visual_nodes || []),
               createdAt: new Date(supabaseBoard.created_at),
               zoom: supabaseBoard.zoom || 1,
               panX: supabaseBoard.pan_x || 0,
@@ -8375,7 +8521,7 @@ export default function App() {
               id: supabaseBoard.id,
               name: supabaseBoard.name,
               ownerId: supabaseBoard.owner_id || '',
-              visualNodes: supabaseBoard.visual_nodes || [],
+              visualNodes: normalizeVisualNodes(supabaseBoard.visual_nodes || []),
               createdAt: new Date(supabaseBoard.created_at),
               zoom: supabaseBoard.zoom || 1,
               panX: supabaseBoard.pan_x || 0,
