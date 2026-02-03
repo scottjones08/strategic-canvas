@@ -146,7 +146,7 @@ interface EnterpriseCanvasProps {
   nodes: VisualNode[];
   selectedNodeIds: string[];
   onSelectNodes: (ids: string[], toggle?: boolean) => void;
-  onUpdateNodes: (updates: VisualNode[]) => void;
+  onUpdateNodes: (updates: VisualNode[], action?: string) => void;
   onDeleteNodes: (ids: string[]) => void;
   onCanvasClick?: (worldX: number, worldY: number, e: React.MouseEvent) => void;
   onCanvasDoubleClick?: (worldX: number, worldY: number) => void;
@@ -903,7 +903,7 @@ export const EnterpriseCanvas = forwardRef<EnterpriseCanvasRef, EnterpriseCanvas
                       }
                     : n
                 );
-                onUpdateNodes(updatedNodes);
+                onUpdateNodes(updatedNodes, 'Update connector');
               }}
               onDelete={() => onDeleteNodes([node.id])}
               onSelect={() => onSelectNodes([node.id])}

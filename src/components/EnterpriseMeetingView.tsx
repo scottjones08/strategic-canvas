@@ -20,7 +20,7 @@ import { FloatingPropertyPanel } from './FloatingPropertyPanel';
 import { CollaborationOverlay } from './CollaborationOverlay';
 import { UserPresenceList } from './UserPresenceList';
 import ShareBoardModal from './ShareBoardModal';
-import UnifiedLeftPanel from './UnifiedLeftPanel';
+import UnifiedLeftPanel, { HistoryEntry } from './UnifiedLeftPanel';
 import { FacilitationTimer } from './FacilitationTimer';
 import { createConnectorPath, nodeToConnectorPath, getNearestEdgePoint } from '../lib/connector-engine';
 import { boardHistoryApi, isSupabaseConfigured } from '../lib/supabase';
@@ -248,8 +248,10 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     color?: string;
   }>({});
   
-  // History for undo/redo
-  const [history, setHistory] = useState<VisualNode[][]>([board.visualNodes]);
+  // History for undo/redo and history tab
+  const [history, setHistory] = useState<HistoryEntry[]>([
+    { nodes: board.visualNodes, timestamp: new Date(), action: 'Initial' }
+  ]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
   useEffect(() => {
@@ -257,7 +259,11 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       if (!board?.id || !isSupabaseConfigured()) return;
       const entries = await boardHistoryApi.getByBoardId(board.id);
       if (entries.length === 0) return;
-      const nodesHistory = entries.map(entry => entry.nodes as VisualNode[]);
+      const nodesHistory = entries.map(entry => ({
+        nodes: entry.nodes as VisualNode[],
+        timestamp: new Date(entry.created_at),
+        action: entry.action || 'Update'
+      }));
       setHistory(nodesHistory);
       setHistoryIndex(nodesHistory.length - 1);
     };
@@ -272,9 +278,10 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   const selectedNodes = nodes.filter(n => selectedNodeIds.includes(n.id));
   
   // History management
-  const pushHistory = useCallback((newNodes: VisualNode[]) => {
+  const pushHistory = useCallback((newNodes: VisualNode[], action: string = 'Update') => {
+    const clonedNodes = JSON.parse(JSON.stringify(newNodes));
     const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(newNodes);
+    newHistory.push({ nodes: clonedNodes, timestamp: new Date(), action });
     // Limit history to 50 states
     if (newHistory.length > 50) {
       newHistory.shift();
@@ -282,7 +289,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
     if (board?.id && isSupabaseConfigured()) {
-      boardHistoryApi.create(board.id, newNodes, 'Update', userId).catch(err => {
+      boardHistoryApi.create(board.id, clonedNodes, action, userId).catch(err => {
         console.error('Failed to save history to Supabase:', err);
       });
     }
@@ -292,7 +299,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     if (canUndo) {
       const newIndex = historyIndex - 1;
       setHistoryIndex(newIndex);
-      onUpdateBoard({ visualNodes: history[newIndex] });
+      onUpdateBoard({ visualNodes: history[newIndex].nodes });
     }
   }, [canUndo, history, historyIndex, onUpdateBoard]);
   
@@ -300,7 +307,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     if (canRedo) {
       const newIndex = historyIndex + 1;
       setHistoryIndex(newIndex);
-      onUpdateBoard({ visualNodes: history[newIndex] });
+      onUpdateBoard({ visualNodes: history[newIndex].nodes });
     }
   }, [canRedo, history, historyIndex, onUpdateBoard]);
   
@@ -390,8 +397,9 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     };
     
     const newNodes = [...nodes, baseNode];
+    const typeLabel = type === 'youtube' ? 'video' : type;
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, `Add ${typeLabel}`);
     
     // Select the new node
     setSelectedNodeIds([baseNode.id]);
@@ -667,7 +675,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     };
     const newNodes = [...nodes, connectorNode];
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, 'Connect elements');
   }, [nodes, userName, onUpdateBoard, pushHistory]);
   
   // Handle node click for connector tool
@@ -777,11 +785,47 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     setDraggingNodePos(null);
     setAlignmentGuides([]);
   }, []);
+
+  const getNodeActionLabel = useCallback((node: VisualNode, updates: Partial<VisualNode>) => {
+    const typeLabelMap: Record<string, string> = {
+      sticky: 'sticky',
+      text: 'text',
+      shape: 'shape',
+      frame: 'frame',
+      mindmap: 'mind map',
+      table: 'table',
+      linklist: 'link list',
+      comment: 'comment',
+      image: 'image',
+      youtube: 'video',
+      pdf: 'pdf',
+      connector: 'connector',
+      drawing: 'drawing',
+      opportunity: 'opportunity',
+      risk: 'risk',
+      action: 'action',
+    };
+    const typeLabel = typeLabelMap[node.type] || 'element';
+    const has = (key: keyof VisualNode) => Object.prototype.hasOwnProperty.call(updates, key);
+
+    if (has('locked')) return updates.locked ? `Lock ${typeLabel}` : `Unlock ${typeLabel}`;
+    if (has('content')) return `Edit ${typeLabel} text`;
+    if (has('tableData')) return 'Edit table';
+    if (has('links')) return 'Edit link list';
+    if (has('mediaUrl')) return `Replace ${typeLabel}`;
+    if (has('color')) return `Change ${typeLabel} color`;
+    if (has('fontSize') || has('fontFamily') || has('textStyle') || has('textAlign')) return `Edit ${typeLabel} style`;
+    if (has('rotation')) return `Rotate ${typeLabel}`;
+    if (has('width') || has('height')) return `Resize ${typeLabel}`;
+    if (has('x') || has('y')) return `Move ${typeLabel}`;
+    if (has('votes') || has('votedBy')) return `Vote on ${typeLabel}`;
+    return `Edit ${typeLabel}`;
+  }, []);
   
   // Node updates
-  const handleUpdateNodes = useCallback((updatedNodes: VisualNode[]) => {
+  const handleUpdateNodes = useCallback((updatedNodes: VisualNode[], action: string = 'Update') => {
     onUpdateBoard({ visualNodes: updatedNodes });
-    pushHistory(updatedNodes);
+    pushHistory(updatedNodes, action);
     
     // Broadcast changes to other collaborators
     if (collaborationRef.current) {
@@ -795,7 +839,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
   const handleDeleteNodes = useCallback((ids: string[]) => {
     const newNodes = nodes.filter(n => !ids.includes(n.id));
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, ids.length > 1 ? 'Delete elements' : 'Delete element');
     setSelectedNodeIds([]);
   }, [nodes, onUpdateBoard, pushHistory]);
   
@@ -826,7 +870,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       selectedNodeIds.includes(n.id) ? { ...n, x: minX } : n
     );
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, 'Align left');
   }, [selectedNodes, selectedNodeIds, nodes, onUpdateBoard, pushHistory]);
   
   const handleAlignCenter = useCallback(() => {
@@ -836,7 +880,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       selectedNodeIds.includes(n.id) ? { ...n, x: centerX - n.width / 2 } : n
     );
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, 'Align center');
   }, [selectedNodes, selectedNodeIds, nodes, onUpdateBoard, pushHistory]);
   
   const handleAlignRight = useCallback(() => {
@@ -846,7 +890,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       selectedNodeIds.includes(n.id) ? { ...n, x: maxRight - n.width } : n
     );
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, 'Align right');
   }, [selectedNodes, selectedNodeIds, nodes, onUpdateBoard, pushHistory]);
   
   const handleAlignTop = useCallback(() => {
@@ -856,7 +900,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       selectedNodeIds.includes(n.id) ? { ...n, y: minY } : n
     );
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, 'Align top');
   }, [selectedNodes, selectedNodeIds, nodes, onUpdateBoard, pushHistory]);
   
   const handleAlignMiddle = useCallback(() => {
@@ -866,7 +910,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       selectedNodeIds.includes(n.id) ? { ...n, y: centerY - n.height / 2 } : n
     );
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, 'Align middle');
   }, [selectedNodes, selectedNodeIds, nodes, onUpdateBoard, pushHistory]);
   
   const handleAlignBottom = useCallback(() => {
@@ -876,7 +920,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       selectedNodeIds.includes(n.id) ? { ...n, y: maxBottom - n.height } : n
     );
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, 'Align bottom');
   }, [selectedNodes, selectedNodeIds, nodes, onUpdateBoard, pushHistory]);
   
   const handleDistributeHorizontal = useCallback(() => {
@@ -893,7 +937,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     });
     
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, 'Distribute horizontally');
   }, [selectedNodes, nodes, onUpdateBoard, pushHistory]);
   
   const handleDistributeVertical = useCallback(() => {
@@ -910,7 +954,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     });
     
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, 'Distribute vertically');
   }, [selectedNodes, nodes, onUpdateBoard, pushHistory]);
   
   // Group operations
@@ -921,7 +965,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       selectedNodeIds.includes(n.id) ? { ...n, groupId } : n
     );
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, 'Group elements');
   }, [selectedNodeIds, nodes, onUpdateBoard, pushHistory]);
   
   const handleUngroupSelected = useCallback(() => {
@@ -929,7 +973,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       selectedNodeIds.includes(n.id) ? { ...n, groupId: undefined } : n
     );
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, 'Ungroup elements');
   }, [selectedNodeIds, nodes, onUpdateBoard, pushHistory]);
   
   // Duplicate
@@ -945,7 +989,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
       }));
     const newNodes = [...nodes, ...duplicated];
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, 'Duplicate elements');
     setSelectedNodeIds(duplicated.map(n => n.id));
   }, [selectedNodeIds, nodes, onUpdateBoard, pushHistory]);
 
@@ -983,7 +1027,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
     
     const newNodes = [...nodes, childNode];
     onUpdateBoard({ visualNodes: newNodes });
-    pushHistory(newNodes);
+    pushHistory(newNodes, 'Add mind map child');
     setSelectedNodeIds([childNode.id]);
   }, [nodes, userName, onUpdateBoard, pushHistory]);
 
@@ -1001,6 +1045,14 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
           onToggleCursors={() => setShowCursors(!showCursors)}
           boardId={board.id}
           boardName={board.name}
+          history={history}
+          currentHistoryIndex={historyIndex}
+          onRestoreHistory={(index) => {
+            const entry = history[index];
+            if (!entry) return;
+            setHistoryIndex(index);
+            onUpdateBoard({ visualNodes: entry.nodes });
+          }}
         />
       )}
       
@@ -1284,7 +1336,8 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
                   const newNodes = nodes.map(n => 
                     n.id === node.id ? { ...n, ...updates } : n
                   );
-                  handleUpdateNodes(newNodes);
+                  const actionLabel = getNodeActionLabel(node, updates);
+                  handleUpdateNodes(newNodes, actionLabel);
                 }}
                 onDelete={() => handleDeleteNodes([node.id])}
                 onAddMindmapChild={node.type === 'mindmap' ? handleAddMindmapChild : undefined}
@@ -1304,7 +1357,9 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
               const newNodes = nodes.map(n => 
                 n.id === selectedNodeIds[0] ? { ...n, ...updates } : n
               );
-              handleUpdateNodes(newNodes);
+              const node = nodes.find(n => n.id === selectedNodeIds[0]);
+              const actionLabel = node ? getNodeActionLabel(node, updates) : 'Edit element';
+              handleUpdateNodes(newNodes, actionLabel);
             }}
             onClose={() => setSelectedNodeIds([])}
             onDelete={() => handleDeleteNodes(selectedNodeIds)}
@@ -1314,7 +1369,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
               if (node) {
                 const newNodes = nodes.filter(n => n.id !== node.id);
                 newNodes.push(node);
-                handleUpdateNodes(newNodes);
+                handleUpdateNodes(newNodes, 'Bring to front');
               }
             }}
             onSendToBack={() => {
@@ -1322,7 +1377,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
               if (node) {
                 const newNodes = nodes.filter(n => n.id !== node.id);
                 newNodes.unshift(node);
-                handleUpdateNodes(newNodes);
+                handleUpdateNodes(newNodes, 'Send to back');
               }
             }}
             onLockToggle={() => {
@@ -1331,7 +1386,7 @@ export const EnterpriseMeetingView: React.FC<EnterpriseMeetingViewProps> = ({
                 const newNodes = nodes.map(n => 
                   n.id === node.id ? { ...n, locked: !n.locked } : n
                 );
-                handleUpdateNodes(newNodes);
+                handleUpdateNodes(newNodes, node.locked ? 'Unlock element' : 'Lock element');
               }
             }}
           />
