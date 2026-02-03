@@ -2262,7 +2262,7 @@ const StickyNote = ({ node, isSelected, onSelect, onUpdate, onDelete, onDuplicat
 };
 
 // Infinite Canvas
-const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNodeIds, onSelectNodes, onCanvasDoubleClick, isDrawingMode, isPanMode, drawingColor, drawingWidth, onAddMindmapChild, onAISparkle, gridSnap, showMinimap, otherUsers, onDisablePanMode, onDropMedia, onCursorMove, editingNodes: _editingNodes, showCursors = true, onSetPanMode, onSetSelectMode }: {
+const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNodeIds, onSelectNodes, onCanvasDoubleClick, isDrawingMode, isPanMode, drawingColor, drawingWidth, onAddMindmapChild, onAISparkle, gridSnap, showMinimap, otherUsers, onDisablePanMode, onDropMedia, onCursorMove, editingNodes: _editingNodes, showCursors = true, onSetPanMode, onSetSelectMode, onViewportChange }: {
   board: Board;
   onUpdateBoard: (updates: Partial<Board>) => void;
   onUpdateWithHistory: (updates: Partial<Board>, action: string) => void;
@@ -2285,6 +2285,7 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   showCursors?: boolean;
   onSetPanMode?: () => void;
   onSetSelectMode?: () => void;
+  onViewportChange?: (viewport: { panX: number; panY: number; zoom: number; width: number; height: number }) => void;
 }) => {
   const [zoom, setZoom] = useState(board.zoom || 1);
   const [panX, setPanX] = useState(board.panX || 0);
@@ -2299,6 +2300,29 @@ const InfiniteCanvas = ({ board, onUpdateBoard, onUpdateWithHistory, selectedNod
   const [spacePressed, setSpacePressed] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+
+  const emitViewport = useCallback(() => {
+    if (!onViewportChange) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    onViewportChange({
+      panX,
+      panY,
+      zoom,
+      width: rect?.width || window.innerWidth,
+      height: rect?.height || window.innerHeight,
+    });
+  }, [onViewportChange, panX, panY, zoom]);
+
+  useEffect(() => {
+    emitViewport();
+  }, [emitViewport]);
+
+  useEffect(() => {
+    if (!onViewportChange) return;
+    const handleResize = () => emitViewport();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [emitViewport, onViewportChange]);
   
   // Build cursor map for collaboration overlay
   const cursorMap = useMemo(() => {
@@ -5170,6 +5194,13 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   const [editedName, setEditedName] = useState(board.name);
   const timerRef = useRef<NodeJS.Timeout>();
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const viewportRef = useRef<{ panX: number; panY: number; zoom: number; width: number; height: number }>({
+    panX: board.panX || 0,
+    panY: board.panY || 0,
+    zoom: board.zoom || 1,
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
 
   // Load board history from Supabase when board changes
   useEffect(() => {
@@ -5807,15 +5838,17 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     };
   }, [handleUpdateBoardWithHistory, board.visualNodes]);
 
+  const handleViewportChange = useCallback((viewport: { panX: number; panY: number; zoom: number; width: number; height: number }) => {
+    viewportRef.current = viewport;
+  }, []);
+
   const getViewportCenter = useCallback(() => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    const viewWidth = rect?.width || window.innerWidth;
-    const viewHeight = rect?.height || window.innerHeight;
+    const { panX, panY, zoom, width, height } = viewportRef.current;
     return {
-      x: (-panX + viewWidth / 2) / (zoom || 1),
-      y: (-panY + viewHeight / 2) / (zoom || 1),
+      x: (-panX + width / 2) / (zoom || 1),
+      y: (-panY + height / 2) / (zoom || 1),
     };
-  }, [panX, panY, zoom]);
+  }, []);
 
   // AI clustering handler
   const handleClusterNodes = useCallback((clusters: { name: string; nodeIds: string[] }[]) => {
@@ -6270,12 +6303,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
   }, [board.visualNodes, currentUser.id, handleUpdateBoardWithHistory]);
 
   const handleAddNode = (type: string, options?: { color?: string; shape?: 'square' | 'rectangle' | 'circle'; x?: number; y?: number }) => {
-    // Calculate center of visible viewport using local pan/zoom
-    const rect = canvasRef.current?.getBoundingClientRect();
-    const viewWidth = rect?.width || window.innerWidth;
-    const viewHeight = rect?.height || window.innerHeight;
-    const viewportCenterX = (-panX + viewWidth / 2) / (zoom || 1);
-    const viewportCenterY = (-panY + viewHeight / 2) / (zoom || 1);
+    const { x: viewportCenterX, y: viewportCenterY } = getViewportCenter();
     const defaultX = viewportCenterX - 100 + Math.random() * 50;
     const defaultY = viewportCenterY - 100 + Math.random() * 50;
     const { color = NODE_COLORS[Math.floor(Math.random() * NODE_COLORS.length)], shape = 'square', x = defaultX, y = defaultY } = options || {};
@@ -7045,6 +7073,7 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           showCursors={showCursorsToggle}
           onSetPanMode={() => { setIsPanMode(true); setIsDrawingMode(false); setShowDrawingPanel(false); }}
           onSetSelectMode={() => { setIsPanMode(false); setIsDrawingMode(false); setShowDrawingPanel(false); }}
+          onViewportChange={handleViewportChange}
         />
 
         <AnimatePresence>

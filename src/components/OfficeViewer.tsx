@@ -47,7 +47,6 @@ import type {
   ExcelWorkbook,
   PowerPointPresentation,
 } from '../lib/office-utils';
-import { detectOfficeType } from '../lib/office-utils';
 
 // ============================================
 // TYPES
