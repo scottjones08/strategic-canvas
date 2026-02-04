@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import type { Organization, Board, Note } from '@/types/database';
 
@@ -7,6 +7,13 @@ export function useOrganizations() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const fetchOrganizations = useCallback(async () => {
     if (!isSupabaseConfigured() || !supabase) {
@@ -22,11 +29,17 @@ export function useOrganizations() {
         .order('name');
 
       if (error) throw error;
-      setOrganizations(data || []);
+      if (isMountedRef.current) {
+        setOrganizations(data || []);
+      }
     } catch (err) {
-      setError(err as Error);
+      if (isMountedRef.current) {
+        setError(err as Error);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -42,6 +55,13 @@ export function useBoards(organizationId?: string) {
   const [boards, setBoards] = useState<Board[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const fetchBoards = useCallback(async () => {
     if (!isSupabaseConfigured() || !supabase) {
@@ -59,11 +79,17 @@ export function useBoards(organizationId?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
-      setBoards(data || []);
+      if (isMountedRef.current) {
+        setBoards(data || []);
+      }
     } catch (err) {
-      setError(err as Error);
+      if (isMountedRef.current) {
+        setError(err as Error);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [organizationId]);
 
@@ -74,38 +100,58 @@ export function useBoards(organizationId?: string) {
   const createBoard = async (board: Partial<Board>) => {
     if (!isSupabaseConfigured() || !supabase) return null;
 
-    const { data, error } = await supabase
-      .from('boards')
-      .insert(board)
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('boards')
+        .insert(board)
+        .select()
+        .single();
 
-    if (error) throw error;
-    await fetchBoards();
-    return data;
+      if (error) throw error;
+      await fetchBoards();
+      return data;
+    } catch (err) {
+      if (isMountedRef.current) {
+        setError(err as Error);
+      }
+      return null;
+    }
   };
 
   const updateBoard = async (id: string, updates: Partial<Board>) => {
     if (!isSupabaseConfigured() || !supabase) return null;
 
-    const { data, error } = await supabase
-      .from('boards')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('boards')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) throw error;
-    await fetchBoards();
-    return data;
+      if (error) throw error;
+      await fetchBoards();
+      return data;
+    } catch (err) {
+      if (isMountedRef.current) {
+        setError(err as Error);
+      }
+      return null;
+    }
   };
 
   const deleteBoard = async (id: string) => {
     if (!isSupabaseConfigured() || !supabase) return;
 
-    const { error } = await supabase.from('boards').delete().eq('id', id);
-    if (error) throw error;
-    await fetchBoards();
+    try {
+      const { error } = await supabase.from('boards').delete().eq('id', id);
+      if (error) throw error;
+      await fetchBoards();
+    } catch (err) {
+      if (isMountedRef.current) {
+        setError(err as Error);
+      }
+    }
   };
 
   return { boards, loading, error, refetch: fetchBoards, createBoard, updateBoard, deleteBoard };
@@ -116,6 +162,13 @@ export function useNotes(organizationId?: string, parentId?: string | null) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const fetchNotes = useCallback(async () => {
     if (!isSupabaseConfigured() || !supabase) {
@@ -139,11 +192,17 @@ export function useNotes(organizationId?: string, parentId?: string | null) {
 
       const { data, error } = await query;
       if (error) throw error;
-      setNotes(data || []);
+      if (isMountedRef.current) {
+        setNotes(data || []);
+      }
     } catch (err) {
-      setError(err as Error);
+      if (isMountedRef.current) {
+        setError(err as Error);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [organizationId, parentId]);
 
@@ -154,38 +213,58 @@ export function useNotes(organizationId?: string, parentId?: string | null) {
   const createNote = async (note: Partial<Note>) => {
     if (!isSupabaseConfigured() || !supabase) return null;
 
-    const { data, error } = await supabase
-      .from('notes')
-      .insert(note)
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .insert(note)
+        .select()
+        .single();
 
-    if (error) throw error;
-    await fetchNotes();
-    return data;
+      if (error) throw error;
+      await fetchNotes();
+      return data;
+    } catch (err) {
+      if (isMountedRef.current) {
+        setError(err as Error);
+      }
+      return null;
+    }
   };
 
   const updateNote = async (id: string, updates: Partial<Note>) => {
     if (!isSupabaseConfigured() || !supabase) return null;
 
-    const { data, error } = await supabase
-      .from('notes')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) throw error;
-    await fetchNotes();
-    return data;
+      if (error) throw error;
+      await fetchNotes();
+      return data;
+    } catch (err) {
+      if (isMountedRef.current) {
+        setError(err as Error);
+      }
+      return null;
+    }
   };
 
   const deleteNote = async (id: string) => {
     if (!isSupabaseConfigured() || !supabase) return;
 
-    const { error } = await supabase.from('notes').delete().eq('id', id);
-    if (error) throw error;
-    await fetchNotes();
+    try {
+      const { error } = await supabase.from('notes').delete().eq('id', id);
+      if (error) throw error;
+      await fetchNotes();
+    } catch (err) {
+      if (isMountedRef.current) {
+        setError(err as Error);
+      }
+    }
   };
 
   return { notes, loading, error, refetch: fetchNotes, createNote, updateNote, deleteNote };
@@ -193,6 +272,12 @@ export function useNotes(organizationId?: string, parentId?: string | null) {
 
 // Subscribe to realtime updates
 export function useRealtimeBoard(boardId: string, onUpdate: () => void) {
+  const onUpdateRef = useRef(onUpdate);
+
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase || !boardId) return;
 
@@ -200,7 +285,7 @@ export function useRealtimeBoard(boardId: string, onUpdate: () => void) {
       .channel(`board-${boardId}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'nodes', filter: `board_id=eq.${boardId}` },
-        () => onUpdate()
+        () => onUpdateRef.current()
       )
       .subscribe();
 
@@ -209,5 +294,5 @@ export function useRealtimeBoard(boardId: string, onUpdate: () => void) {
         supabase.removeChannel(channel);
       }
     };
-  }, [boardId, onUpdate]);
+  }, [boardId]);
 }
