@@ -214,7 +214,7 @@ export const AIMeetingAssistant: React.FC<AIMeetingAssistantProps> = ({
       }));
       setMeetingState(prev => ({ ...prev, transcript: entries }));
     }
-  }, [existingTranscript]);
+  }, [existingTranscript, phase]);
 
   // ============================================
   // TIMER MANAGEMENT
@@ -358,7 +358,16 @@ export const AIMeetingAssistant: React.FC<AIMeetingAssistantProps> = ({
   const resetMeeting = useCallback(() => {
     stopTimer();
     if (transcriptionRef.current) {
-      transcriptionRef.current.stop();
+      try {
+        const stopResult = transcriptionRef.current.stop();
+        if (stopResult && typeof (stopResult as Promise<void>).catch === 'function') {
+          (stopResult as Promise<void>).catch((error) => {
+            console.error('Error stopping transcription:', error);
+          });
+        }
+      } catch (error) {
+        console.error('Error stopping transcription:', error);
+      }
       transcriptionRef.current = null;
     }
 

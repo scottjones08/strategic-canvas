@@ -466,8 +466,12 @@ export const UploadProgressModal: React.FC<UploadProgressModalProps> = ({
 
     // Only close and callback if we have results
     if (results.length > 0) {
-      await onUploadComplete(results);
-      onClose();
+      try {
+        await onUploadComplete(results);
+        onClose();
+      } catch (err) {
+        console.error('Upload completion failed:', err);
+      }
     }
   };
 

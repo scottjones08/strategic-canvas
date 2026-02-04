@@ -218,13 +218,14 @@ export default function AssetLibrary({
       const data = await response.json();
       
       if (page === 1) {
-        setUnsplashResults(data.results);
+        setUnsplashResults(Array.isArray(data.results) ? data.results : []);
       } else {
-        setUnsplashResults(prev => [...prev, ...data.results]);
+        const results = Array.isArray(data.results) ? data.results : [];
+        setUnsplashResults(prev => [...prev, ...results]);
       }
       
       setUnsplashPage(page);
-      setHasMore(data.total_pages > page);
+      setHasMore(typeof data.total_pages === 'number' ? data.total_pages > page : false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to search Unsplash');
     } finally {
@@ -252,15 +253,17 @@ export default function AssetLibrary({
       }
 
       const data = await response.json();
+      const results = Array.isArray(data.data) ? data.data : [];
+      const totalCount = typeof data.pagination?.total_count === 'number' ? data.pagination.total_count : 0;
       
       if (offset === 0) {
-        setGiphyResults(data.data);
+        setGiphyResults(results);
       } else {
-        setGiphyResults(prev => [...prev, ...data.data]);
+        setGiphyResults(prev => [...prev, ...results]);
       }
       
       setGiphyOffset(offset);
-      setHasMore(data.pagination.total_count > offset + data.data.length);
+      setHasMore(totalCount > offset + results.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to search GIPHY');
     } finally {
@@ -310,29 +313,42 @@ export default function AssetLibrary({
   const handleInsertUnsplash = (image: UnsplashImage) => {
     const asset: AssetInsertPayload = {
       type: 'image',
-      url: image.urls.regular,
-      thumbnail: image.urls.small,
-      width: Math.min(image.width, 600),
-      height: Math.min(image.height, 400),
+      url: image.urls?.regular || image.urls?.full,
+      thumbnail: image.urls?.small || image.urls?.thumb,
+      width: Math.min(image.width || 600, 600),
+      height: Math.min(image.height || 400, 400),
       title: image.alt_description || 'Unsplash Image',
-      attribution: `Photo by ${image.user.name} on Unsplash`,
+      attribution: `Photo by ${image.user?.name || 'Unknown'} on Unsplash`,
       color: image.color,
     };
     
+    if (!asset.url) {
+      setError('Unable to insert image. Missing image URL.');
+      return;
+    }
+
     onInsertAsset(asset);
     setRecentlyInserted(prev => [image.id, ...prev.slice(0, 9)]);
   };
 
   const handleInsertGiphy = (gif: GiphyGif) => {
-    const width = parseInt(gif.images.fixed_height.width, 10);
-    const height = parseInt(gif.images.fixed_height.height, 10);
+    const fixedHeight = gif.images?.fixed_height;
+    const original = gif.images?.original;
+    const preview = gif.images?.preview_gif;
+    if (!fixedHeight?.url || !original?.url) {
+      setError('Unable to insert GIF. Missing image data.');
+      return;
+    }
+
+    const width = parseInt(fixedHeight.width || '0', 10);
+    const height = parseInt(fixedHeight.height || '0', 10);
     
     const asset: AssetInsertPayload = {
       type: 'gif',
-      url: gif.images.original.url,
-      thumbnail: gif.images.preview_gif.url,
-      width: Math.min(width, 400),
-      height: Math.min(height, 300),
+      url: original.url,
+      thumbnail: preview?.url,
+      width: Math.min(width || 400, 400),
+      height: Math.min(height || 300, 300),
       title: gif.title || 'GIF',
       attribution: gif.user?.display_name ? `By ${gif.user.display_name}` : 'GIPHY',
     };

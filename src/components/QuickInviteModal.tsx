@@ -167,10 +167,14 @@ export default function QuickInviteModal({
       return;
     }
 
-    await deactivateGuestToken(tokenId);
-    setExistingLinks(prev => prev.filter(l => l.id !== tokenId));
-    if (newlyCreatedLink?.id === tokenId) {
-      setNewlyCreatedLink(null);
+    try {
+      await deactivateGuestToken(tokenId);
+      setExistingLinks(prev => prev.filter(l => l.id !== tokenId));
+      if (newlyCreatedLink?.id === tokenId) {
+        setNewlyCreatedLink(null);
+      }
+    } catch (err) {
+      console.error('Failed to deactivate link:', err);
     }
   };
 
@@ -179,48 +183,52 @@ export default function QuickInviteModal({
 
     setIsSendingEmails(true);
 
-    // Parse comma-separated emails
-    const emails = emailInput
-      .split(',')
-      .map(e => e.trim())
-      .filter(e => e.includes('@'));
+    try {
+      // Parse comma-separated emails
+      const emails = emailInput
+        .split(',')
+        .map(e => e.trim())
+        .filter(e => e.includes('@'));
 
-    if (emails.length === 0) {
-      alert('Please enter valid email addresses');
+      if (emails.length === 0) {
+        alert('Please enter valid email addresses');
+        return;
+      }
+
+      // Create a new link for the email invite
+      const token = await generateGuestToken(boardId, {
+        permission,
+        expiration,
+        password: usePassword && password ? password : undefined,
+      }, currentUserId);
+
+      const shareUrl = getGuestShareUrl(token.token);
+
+      // Compose mailto link
+      const subject = encodeURIComponent(`You're invited to collaborate on "${boardName}"`);
+      const body = encodeURIComponent(
+        `Hi,\n\nYou've been invited to collaborate on a Strategic Canvas board.\n\n` +
+        `Board: ${boardName}\n` +
+        `Access Level: ${getPermissionLabel(permission)}\n\n` +
+        `Click here to join: ${shareUrl}\n\n` +
+        (password ? `Password: ${password}\n\n` : '') +
+        `This link ${expiration === 'never' ? 'never expires' : `expires in ${getExpirationOptionLabel(expiration)}`}.\n\n` +
+        `Best regards`
+      );
+
+      // Open mail client
+      window.open(`mailto:${emails.join(',')}?subject=${subject}&body=${body}`, '_blank');
+
+      // Add to existing links
+      setExistingLinks(prev => [token, ...prev]);
+      setNewlyCreatedLink(token);
+      setEmailInput('');
+      setShowEmailInvite(false);
+    } catch (err) {
+      console.error('Failed to send invites:', err);
+    } finally {
       setIsSendingEmails(false);
-      return;
     }
-
-    // Create a new link for the email invite
-    const token = await generateGuestToken(boardId, {
-      permission,
-      expiration,
-      password: usePassword && password ? password : undefined,
-    }, currentUserId);
-
-    const shareUrl = getGuestShareUrl(token.token);
-
-    // Compose mailto link
-    const subject = encodeURIComponent(`You're invited to collaborate on "${boardName}"`);
-    const body = encodeURIComponent(
-      `Hi,\n\nYou've been invited to collaborate on a Strategic Canvas board.\n\n` +
-      `Board: ${boardName}\n` +
-      `Access Level: ${getPermissionLabel(permission)}\n\n` +
-      `Click here to join: ${shareUrl}\n\n` +
-      (password ? `Password: ${password}\n\n` : '') +
-      `This link ${expiration === 'never' ? 'never expires' : `expires in ${getExpirationOptionLabel(expiration)}`}.\n\n` +
-      `Best regards`
-    );
-
-    // Open mail client
-    window.open(`mailto:${emails.join(',')}?subject=${subject}&body=${body}`, '_blank');
-
-    // Add to existing links
-    setExistingLinks(prev => [token, ...prev]);
-    setNewlyCreatedLink(token);
-    setEmailInput('');
-    setShowEmailInvite(false);
-    setIsSendingEmails(false);
   };
 
   const getPermissionIcon = (perm: GuestPermission) => {

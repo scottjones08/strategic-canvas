@@ -172,8 +172,12 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   useEffect(() => {
     if (!isOpen || !document?.id) return;
     const loadHistory = async () => {
-      const entries = await documentHistoryApi.getByDocumentId(document.id);
-      setHistory(entries);
+      try {
+        const entries = await documentHistoryApi.getByDocumentId(document.id);
+        setHistory(entries);
+      } catch (err) {
+        console.error('Failed to load document history:', err);
+      }
     };
     loadHistory();
   }, [isOpen, document?.id]);

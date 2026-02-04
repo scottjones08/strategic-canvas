@@ -1186,61 +1186,78 @@ export const AskAnythingPanel: React.FC<AskAnythingPanelProps> = ({
     setInputValue('');
     setIsLoading(true);
 
-    // Simulate async processing
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      // Simulate async processing
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
-    // Detect query type
-    const queryType = detectQueryType(query, messages);
+      const conversationHistory = [...messages, userMessage];
 
-    // Search meetings
-    const searchResults = searchMeetings(query, meetings, queryType);
+      // Detect query type
+      const queryType = detectQueryType(query, conversationHistory);
 
-    // Search across all boards (cross-board intelligence)
-    const canvasResults = boards.length > 0 ? searchBoardContent(query, boards) : [];
+      // Search meetings
+      const searchResults = searchMeetings(query, meetings, queryType);
 
-    let content: string;
-    let sources: MessageSource[];
-    let confidence: number;
+      // Search across all boards (cross-board intelligence)
+      const canvasResults = boards.length > 0 ? searchBoardContent(query, boards) : [];
 
-    if (canvasResults.length > 0) {
-      // Use cross-board answer generation when we have canvas results
-      const crossBoardAnswer = generateCrossBoardAnswer(query, queryType, searchResults, canvasResults);
-      content = crossBoardAnswer.content;
-      sources = crossBoardAnswer.sources;
-      confidence = crossBoardAnswer.confidence;
+      let content: string;
+      let sources: MessageSource[];
+      let confidence: number;
 
-      // Append canvas source references as meeting-like sources for display
-      for (const cs of crossBoardAnswer.canvasSources.slice(0, 3)) {
-        sources.push({
-          meetingId: cs.boardId,
-          title: `📋 ${cs.boardName}`,
-          date: new Date(),
-          excerpt: cs.content.substring(0, 200),
-          speaker: cs.createdBy,
-          relevanceScore: cs.relevanceScore,
-        });
+      if (canvasResults.length > 0) {
+        // Use cross-board answer generation when we have canvas results
+        const crossBoardAnswer = generateCrossBoardAnswer(query, queryType, searchResults, canvasResults);
+        content = crossBoardAnswer.content;
+        sources = crossBoardAnswer.sources;
+        confidence = crossBoardAnswer.confidence;
+
+        // Append canvas source references as meeting-like sources for display
+        for (const cs of crossBoardAnswer.canvasSources.slice(0, 3)) {
+          sources.push({
+            meetingId: cs.boardId,
+            title: `📋 ${cs.boardName}`,
+            date: new Date(),
+            excerpt: cs.content.substring(0, 200),
+            speaker: cs.createdBy,
+            relevanceScore: cs.relevanceScore,
+          });
+        }
+      } else {
+        // Fallback to meeting-only search
+        const answer = generateAnswer(query, queryType, searchResults, conversationHistory, meetings);
+        content = answer.content;
+        sources = answer.sources;
+        confidence = answer.confidence;
       }
-    } else {
-      // Fallback to meeting-only search
-      const answer = generateAnswer(query, queryType, searchResults, messages, meetings);
-      content = answer.content;
-      sources = answer.sources;
-      confidence = answer.confidence;
+
+      // Add assistant message
+      const assistantMessage: Message = {
+        id: generateId(),
+        role: 'assistant',
+        content,
+        sources,
+        timestamp: new Date(),
+        confidence,
+        queryType,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error('AskAnything error:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          role: 'assistant',
+          content: 'Sorry — something went wrong while generating that answer. Please try again.',
+          timestamp: new Date(),
+          isError: true,
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
     }
-
-    // Add assistant message
-    const assistantMessage: Message = {
-      id: generateId(),
-      role: 'assistant',
-      content,
-      sources,
-      timestamp: new Date(),
-      confidence,
-      queryType,
-    };
-
-    setMessages((prev) => [...prev, assistantMessage]);
-    setIsLoading(false);
   }, [inputValue, isLoading, meetings, messages, boards]);
 
   const handleKeyDown = useCallback(
@@ -1271,9 +1288,13 @@ export const AskAnythingPanel: React.FC<AskAnythingPanelProps> = ({
   }, []);
 
   const copyMessage = useCallback(async (content: string, messageId: string) => {
-    await navigator.clipboard.writeText(content);
-    setCopiedMessageId(messageId);
-    setTimeout(() => setCopiedMessageId(null), 2000);
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessageId(messageId);
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy message:', error);
+    }
   }, []);
 
   const clearConversation = useCallback(() => {

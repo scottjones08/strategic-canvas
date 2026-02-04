@@ -975,8 +975,12 @@ function EmailTab({ summary, participants, email, setEmail, isSending, setIsSend
   const copyToClipboard = useCallback(async () => {
     if (!email) return;
     const content = isEditing ? editedBody : email.body;
-    await navigator.clipboard.writeText(`Subject: ${email.subject}\n\n${content}`);
-    showNotification('success', 'Email copied to clipboard');
+    try {
+      await navigator.clipboard.writeText(`Subject: ${email.subject}\n\n${content}`);
+      showNotification('success', 'Email copied to clipboard');
+    } catch (error) {
+      showNotification('error', 'Failed to copy email');
+    }
   }, [email, isEditing, editedBody, showNotification]);
 
   const toneConfig: Record<EmailTone, { label: string; emoji: string; description: string }> = {
@@ -1264,9 +1268,13 @@ function ExportTab({ summary, actionItems, transcript, isExporting, setIsExporti
   const copyToClipboard = useCallback(async () => {
     if (!summary) return;
     const content = formatSummaryAsText(summary);
-    await navigator.clipboard.writeText(content);
-    onExport?.('clipboard');
-    showNotification('success', 'Meeting notes copied to clipboard');
+    try {
+      await navigator.clipboard.writeText(content);
+      onExport?.('clipboard');
+      showNotification('success', 'Meeting notes copied to clipboard');
+    } catch (error) {
+      showNotification('error', 'Failed to copy meeting notes');
+    }
   }, [summary, onExport, showNotification]);
 
   const formats = [

@@ -1873,6 +1873,11 @@ export const DocumentPortal: React.FC<DocumentPortalProps> = ({
       const lastSelected = Array.from(selectedDocuments).pop()!;
       const lastIndex = docIds.indexOf(lastSelected);
       const currentIndex = docIds.indexOf(docId);
+      if (lastIndex === -1 || currentIndex === -1) {
+        setSelectedDocuments(new Set([docId]));
+        setPreviewDocument(documents.find(d => d.id === docId) || null);
+        return;
+      }
       const [start, end] = [Math.min(lastIndex, currentIndex), Math.max(lastIndex, currentIndex)];
       const range = docIds.slice(start, end + 1);
       setSelectedDocuments(new Set([...selectedDocuments, ...range]));
@@ -1898,7 +1903,11 @@ export const DocumentPortal: React.FC<DocumentPortalProps> = ({
 
     const fileList = new DataTransfer();
     pdfFiles.forEach(f => fileList.items.add(f));
-    await onUpload(fileList.files, currentFolderId || undefined, selectedClientId);
+    try {
+      await onUpload(fileList.files, currentFolderId || undefined, selectedClientId);
+    } catch (error) {
+      console.error('Upload failed:', error);
+    }
   }, [onUpload, currentFolderId, selectedClientId]);
 
   // Folder operations

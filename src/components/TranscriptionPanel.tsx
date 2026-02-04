@@ -292,7 +292,11 @@ export default function TranscriptionPanel({
   // Copy to clipboard
   const handleCopyToClipboard = useCallback(async () => {
     const text = exportAsText();
-    await navigator.clipboard.writeText(text);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (error) {
+      console.error('Failed to copy transcript:', error);
+    }
   }, [exportAsText]);
 
   // Minimized view - show recording indicator as a compact pill

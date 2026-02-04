@@ -205,38 +205,6 @@ export function OfficeEditor({
   const DocIcon = getDocumentIcon(document.type);
   const colorClass = getDocumentColor(document.type);
 
-  // Initialize OnlyOffice editor
-  const initEditor = useCallback(() => {
-    if (!containerRef.current || !serverUrl) {
-      // Fallback: use iframe embed or show not configured message
-      setIsLoading(false);
-      if (!serverUrl) {
-        setError('Document server not configured. Please configure OnlyOffice Document Server URL.');
-      }
-      return;
-    }
-
-    // Load OnlyOffice API script
-    const script = window.document.createElement('script');
-    script.src = `${serverUrl}/web-apps/apps/api/documents/api.js`;
-    script.async = true;
-    script.onload = () => {
-      initOnlyOffice();
-    };
-    script.onerror = () => {
-      setError('Failed to load document editor. Please check your OnlyOffice server configuration.');
-      setIsLoading(false);
-    };
-    window.document.head.appendChild(script);
-
-    return () => {
-      if (editorRef.current) {
-        editorRef.current.destroyEditor?.();
-      }
-      script.remove();
-    };
-  }, [serverUrl]);
-
   const initOnlyOffice = useCallback(() => {
     if (!containerRef.current || !(window as any).DocsAPI) return;
 
@@ -309,8 +277,40 @@ export function OfficeEditor({
     }
   }, [document, currentMode, userId, userName]);
 
+  // Initialize OnlyOffice editor
+  const initEditor = useCallback(() => {
+    if (!containerRef.current || !serverUrl) {
+      // Fallback: use iframe embed or show not configured message
+      setIsLoading(false);
+      if (!serverUrl) {
+        setError('Document server not configured. Please configure OnlyOffice Document Server URL.');
+      }
+      return;
+    }
+
+    // Load OnlyOffice API script
+    const script = window.document.createElement('script');
+    script.src = `${serverUrl}/web-apps/apps/api/documents/api.js`;
+    script.async = true;
+    script.onload = () => {
+      initOnlyOffice();
+    };
+    script.onerror = () => {
+      setError('Failed to load document editor. Please check your OnlyOffice server configuration.');
+      setIsLoading(false);
+    };
+    window.document.head.appendChild(script);
+
+    return () => {
+      if (editorRef.current) {
+        editorRef.current.destroyEditor?.();
+      }
+      script.remove();
+    };
+  }, [serverUrl, initOnlyOffice]);
+
   useEffect(() => {
-    initEditor();
+    return initEditor();
   }, [initEditor]);
 
   // Toggle fullscreen

@@ -79,8 +79,12 @@ export default function ShareBoardModal({
   }, [isOpen, boardId]);
 
   const loadLinks = async () => {
-    const links = await getShareLinksForBoardAsync(boardId);
-    setExistingLinks(links.filter(l => l.isActive));
+    try {
+      const links = await getShareLinksForBoardAsync(boardId);
+      setExistingLinks(links.filter(l => l.isActive));
+    } catch (err) {
+      console.error('Failed to load share links:', err);
+    }
   };
 
   const handleCreateLink = async () => {
@@ -138,9 +142,13 @@ export default function ShareBoardModal({
 
   const handleCopyLink = async (link: ShareLink) => {
     const url = getShareUrl(link.token);
-    await navigator.clipboard.writeText(url);
-    setCopiedId(link.id);
-    setTimeout(() => setCopiedId(null), 2000);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(link.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
   };
 
   const handleShowQR = async (link: ShareLink) => {
@@ -154,10 +162,14 @@ export default function ShareBoardModal({
     }
   };
 
-  const handleDeactivate = (linkId: string) => {
+  const handleDeactivate = async (linkId: string) => {
     if (confirm('Are you sure you want to deactivate this share link?')) {
-      deactivateShareLink(linkId);
-      loadLinks();
+      try {
+        await deactivateShareLink(linkId);
+        loadLinks();
+      } catch (err) {
+        console.error('Failed to deactivate share link:', err);
+      }
     }
   };
 

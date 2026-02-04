@@ -141,9 +141,13 @@ export default function CodeSnippetsView({ className = '' }: CodeSnippetsViewPro
     const content = asMarkdown
       ? `\`\`\`${snippets.find((s) => s.id === id)?.language || ''}\n${text}\n\`\`\``
       : text;
-    await navigator.clipboard.writeText(content);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy snippet:', error);
+    }
   };
 
   // Open editor
@@ -186,6 +190,8 @@ export default function CodeSnippetsView({ className = '' }: CodeSnippetsViewPro
         await createSnippet(input);
       }
       setIsEditorOpen(false);
+    } catch (error) {
+      console.error('Failed to save snippet:', error);
     } finally {
       setIsSaving(false);
     }
@@ -193,8 +199,12 @@ export default function CodeSnippetsView({ className = '' }: CodeSnippetsViewPro
 
   // Delete snippet
   const handleDelete = async (id: string) => {
-    await deleteSnippet(id);
-    setDeleteConfirm(null);
+    try {
+      await deleteSnippet(id);
+      setDeleteConfirm(null);
+    } catch (error) {
+      console.error('Failed to delete snippet:', error);
+    }
   };
 
   const toggleSection = (section: string) => {

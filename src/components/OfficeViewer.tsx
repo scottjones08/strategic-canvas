@@ -725,6 +725,9 @@ const ExcelWorkbookRenderer: React.FC<ExcelWorkbookRendererProps> = ({
   // Calculate max columns
   const maxCols = Math.max(...sheet.data.map(row => row.length), 26);
   const maxRows = Math.max(sheet.data.length, 50);
+  const dataColumnCount = sheet.data.length > 0
+    ? Math.max(...sheet.data.map(r => r.length))
+    : 0;
 
   return (
     <div className="h-full flex flex-col">
@@ -830,7 +833,7 @@ const ExcelWorkbookRenderer: React.FC<ExcelWorkbookRendererProps> = ({
       {/* Status bar */}
       <div className="flex items-center justify-between px-4 py-1 bg-gray-50 border-t border-gray-200 text-xs text-gray-600">
         <span>
-          {sheet.data.length} rows × {Math.max(...sheet.data.map(r => r.length))} columns
+          {sheet.data.length} rows × {dataColumnCount} columns
         </span>
         <span>{workbook.sheets.length} sheet(s)</span>
       </div>

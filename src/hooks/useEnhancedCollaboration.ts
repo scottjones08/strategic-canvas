@@ -86,6 +86,19 @@ export function useEnhancedCollaboration(
   // Animation frame ref for cursor interpolation
   const rafRef = useRef<number>();
   const lastUpdateRef = useRef<number>(0);
+  const prevUsersRef = useRef<Set<string>>(new Set());
+  const removalTimeoutsRef = useRef<Map<string, number>>(new Map());
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      removalTimeoutsRef.current.forEach((timeoutId) => {
+        clearTimeout(timeoutId);
+      });
+      removalTimeoutsRef.current.clear();
+    };
+  }, []);
 
   // Add activity entry
   const addActivity = useCallback((activity: Omit<ParticipantActivity, 'timestamp'>) => {
@@ -106,14 +119,22 @@ export function useEnhancedCollaboration(
 
   // Track user joins/leaves
   useEffect(() => {
-    const prevUsers = new Set<string>();
-    
+    const prevUsers = prevUsersRef.current;
+    const nextUsers = new Set<string>(baseCollaboration.users.map(user => user.id));
+
     baseCollaboration.users.forEach(user => {
       if (!prevUsers.has(user.id)) {
-        addActivity({ userId: user.id, type: 'joined' });
+        addActivity({ userId: user.id, userName: user.name, userColor: user.color, type: 'joined' });
       }
-      prevUsers.add(user.id);
     });
+
+    prevUsers.forEach(userId => {
+      if (!nextUsers.has(userId)) {
+        addActivity({ userId, type: 'left' });
+      }
+    });
+
+    prevUsersRef.current = nextUsers;
   }, [baseCollaboration.users, addActivity]);
 
   // Get followed user's cursor
@@ -146,6 +167,11 @@ export function useEnhancedCollaboration(
 
         // Update existing cursors with interpolation
         baseCollaboration.cursors.forEach((cursor, userId) => {
+          const pendingRemoval = removalTimeoutsRef.current.get(userId);
+          if (pendingRemoval) {
+            clearTimeout(pendingRemoval);
+            removalTimeoutsRef.current.delete(userId);
+          }
           const existing = next.get(userId);
           
           if (existing) {
@@ -189,13 +215,16 @@ export function useEnhancedCollaboration(
               hasChanges = true;
               
               // Remove after fade-out delay
-              setTimeout(() => {
+              const timeoutId = window.setTimeout(() => {
+                if (!isMountedRef.current) return;
                 setInterpolatedCursors(current => {
                   const updated = new Map(current);
                   updated.delete(userId);
                   return updated;
                 });
+                removalTimeoutsRef.current.delete(userId);
               }, 500);
+              removalTimeoutsRef.current.set(userId, timeoutId);
             }
           }
         });

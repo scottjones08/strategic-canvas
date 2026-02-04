@@ -43,35 +43,65 @@ export function useSnippets() {
 
   // Create snippet
   const handleCreateSnippet = useCallback(async (input: CreateSnippetInput) => {
-    const snippet = await createSnippet(input);
-    setSnippets((prev) => [...prev, snippet]);
-    const tags = await getAllTags();
-    setAllTags(tags);
-    return snippet;
+    try {
+      const snippet = await createSnippet(input);
+      setSnippets((prev) => [...prev, snippet]);
+      try {
+        const tags = await getAllTags();
+        setAllTags(tags);
+      } catch (err) {
+        console.error('Failed to refresh tags:', err);
+      }
+      return snippet;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to create snippet');
+      setError(error);
+      return null;
+    }
   }, []);
 
   // Update snippet
   const handleUpdateSnippet = useCallback(async (input: UpdateSnippetInput) => {
-    const snippet = await updateSnippet(input);
-    if (snippet) {
-      setSnippets((prev) =>
-        prev.map((s) => (s.id === snippet.id ? snippet : s))
-      );
-      const tags = await getAllTags();
-      setAllTags(tags);
+    try {
+      const snippet = await updateSnippet(input);
+      if (snippet) {
+        setSnippets((prev) =>
+          prev.map((s) => (s.id === snippet.id ? snippet : s))
+        );
+        try {
+          const tags = await getAllTags();
+          setAllTags(tags);
+        } catch (err) {
+          console.error('Failed to refresh tags:', err);
+        }
+      }
+      return snippet;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to update snippet');
+      setError(error);
+      return null;
     }
-    return snippet;
   }, []);
 
   // Delete snippet
   const handleDeleteSnippet = useCallback(async (id: string) => {
-    const success = await deleteSnippet(id);
-    if (success) {
-      setSnippets((prev) => prev.filter((s) => s.id !== id));
-      const tags = await getAllTags();
-      setAllTags(tags);
+    try {
+      const success = await deleteSnippet(id);
+      if (success) {
+        setSnippets((prev) => prev.filter((s) => s.id !== id));
+        try {
+          const tags = await getAllTags();
+          setAllTags(tags);
+        } catch (err) {
+          console.error('Failed to refresh tags:', err);
+        }
+      }
+      return success;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to delete snippet');
+      setError(error);
+      return false;
     }
-    return success;
   }, []);
 
   return {
@@ -153,14 +183,33 @@ export function useApiStatus() {
   });
 
   useEffect(() => {
-    checkApiStatus().then(setStatus);
+    let isMounted = true;
+
+    const refreshStatus = async () => {
+      try {
+        const nextStatus = await checkApiStatus();
+        if (isMounted) {
+          setStatus(nextStatus);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setStatus({ connected: false, message: 'Connection check failed' });
+        }
+        console.error('API status check failed:', err);
+      }
+    };
+
+    refreshStatus();
     
     // Recheck every 30 seconds
     const interval = setInterval(() => {
-      checkApiStatus().then(setStatus);
+      refreshStatus();
     }, 30000);
 
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   return status;

@@ -67,11 +67,16 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   // Refs
   const managerRef = useRef<CollaborationManager | null>(null);
   const onNodeChangeRef = useRef(onNodeChange);
+  const usersRef = useRef<UserPresence[]>([]);
 
   // Keep callback ref updated
   useEffect(() => {
     onNodeChangeRef.current = onNodeChange;
   }, [onNodeChange]);
+
+  useEffect(() => {
+    usersRef.current = users;
+  }, [users]);
 
   // Current user info
   const currentUser = useMemo(() => ({
@@ -113,10 +118,10 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
 
         onPresenceSync: (syncedUsers) => {
           setUsers(syncedUsers);
-          
-          // Update cursors map
-          setCursors(prev => {
-            const newCursors = new Map(prev);
+
+          // Rebuild cursors map to avoid stale entries
+          setCursors(() => {
+            const newCursors = new Map<string, { x: number; y: number; name: string; color: string }>();
             syncedUsers.forEach(user => {
               if (user.cursor) {
                 newCursors.set(user.id, {
@@ -163,7 +168,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
         onCursorMove: (cursorUserId, cursor) => {
           setCursors(prev => {
             const newCursors = new Map(prev);
-            const user = users.find(u => u.id === cursorUserId);
+            const user = usersRef.current.find(u => u.id === cursorUserId);
             if (cursor) {
               newCursors.set(cursorUserId, {
                 x: cursor.x,
@@ -217,7 +222,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       setConnectionError(message);
       return false;
     }
-  }, [enabled, boardId, userId, userName, userColor, users]);
+  }, [enabled, boardId, userId, userName, userColor]);
 
   // Disconnect from collaboration
   const disconnect = useCallback(async () => {
@@ -255,7 +260,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     return () => {
       disconnect();
     };
-  }, [enabled, boardId, userId]); // Only reconnect if these change
+  }, [enabled, boardId, userId, connect, disconnect]); // Only reconnect if these change
 
   // Create a stable cursor broadcaster
   const stableBroadcastCursor = useCallback((cursor: { x: number; y: number } | null) => {

@@ -465,11 +465,14 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
     return null;
   }, [editingNodes]);
 
-  const handleCopyLink = useCallback(() => {
-    if (shareUrl) {
-      navigator.clipboard.writeText(shareUrl);
+  const handleCopyLink = useCallback(async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy link:', error);
     }
   }, [shareUrl]);
 
@@ -484,10 +487,15 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
     if (!file) return;
 
     setUploadProgress('Preparing upload...');
-    await uploadAudio(file, (_status, message) => {
-      setUploadProgress(message);
-    });
-    setUploadProgress(null);
+    try {
+      await uploadAudio(file, (_status, message) => {
+        setUploadProgress(message);
+      });
+    } catch (error) {
+      console.error('Failed to upload audio:', error);
+    } finally {
+      setUploadProgress(null);
+    }
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -590,7 +598,11 @@ export const UnifiedLeftPanel: React.FC<UnifiedLeftPanelProps> = memo(({
   // Copy to clipboard
   const handleCopyToClipboard = useCallback(async () => {
     const text = exportAsText();
-    await navigator.clipboard.writeText(text);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (error) {
+      console.error('Failed to copy transcript:', error);
+    }
   }, [exportAsText]);
 
   // Save current transcript to saved list
