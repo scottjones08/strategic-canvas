@@ -125,6 +125,16 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
   
   // Start recording
   const startRecording = useCallback(async () => {
+    // Clean up any existing session first to prevent duplicates
+    if (sessionRef.current) {
+      try {
+        await sessionRef.current.stop();
+      } catch (e) {
+        // Ignore errors from stopping previous session
+      }
+      sessionRef.current = null;
+    }
+    
     try {
       setError(null);
       setInterimText('');
@@ -157,6 +167,10 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
       session.onSegment((segment) => {
         setTranscript(prev => {
           if (!prev) return prev;
+          // Prevent duplicate segments by checking if segment ID already exists
+          if (prev.segments.some(s => s.id === segment.id)) {
+            return prev; // Don't add duplicate
+          }
           const updated = {
             ...prev,
             segments: [...prev.segments, segment],

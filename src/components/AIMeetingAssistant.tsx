@@ -360,8 +360,8 @@ export const AIMeetingAssistant: React.FC<AIMeetingAssistantProps> = ({
     if (transcriptionRef.current) {
       try {
         const stopResult = transcriptionRef.current.stop();
-        if (stopResult && typeof (stopResult as Promise<void>).catch === 'function') {
-          (stopResult as Promise<void>).catch((error) => {
+        if (stopResult && typeof stopResult.catch === 'function') {
+          stopResult.catch((error: unknown) => {
             console.error('Error stopping transcription:', error);
           });
         }

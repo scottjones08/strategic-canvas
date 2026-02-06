@@ -5668,6 +5668,18 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     setClientComments(comments);
   }, [board.id]);
   
+  // Reset board-specific state when switching boards (prevents data bleeding)
+  useEffect(() => {
+    // Load action items from localStorage for this specific board
+    const savedActionItems = safeLocalStorage.get<ActionItem[]>(`board-action-items-${board.id}`, []);
+    setActionItems(savedActionItems);
+    
+    // Reset other transient state
+    setTranscript([]);
+    setParsedItems([]);
+    setSelectedNodeIds([]);
+  }, [board.id]);
+  
   // Handle resolving client comments
   const handleResolveClientComment = useCallback((commentId: string) => {
     toggleCommentResolved(commentId, currentUser.name);
@@ -6649,9 +6661,29 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
     setTimeout(() => setSaved(false), 2000);
   }, [board, onCreateAISummary, generateAISummary]);
 
-  const handleAddAction = useCallback((content: string) => { setActionItems(prev => [...prev, { id: generateId(), content, priority: 'medium', isComplete: false, timestamp: recordingDuration }]); }, [recordingDuration]);
-  const handleToggleActionComplete = useCallback((id: string) => { setActionItems(prev => prev.map(a => a.id === id ? { ...a, isComplete: !a.isComplete } : a)); }, []);
-  const handleAssignUser = useCallback((id: string, assigneeId: string | undefined) => { setActionItems(prev => prev.map(a => a.id === id ? { ...a, assigneeId } : a)); }, []);
+  const handleAddAction = useCallback((content: string) => { 
+    setActionItems(prev => {
+      const updated: ActionItem[] = [...prev, { id: generateId(), content, priority: 'medium' as const, isComplete: false, timestamp: recordingDuration }];
+      safeLocalStorage.set(`board-action-items-${board.id}`, updated);
+      return updated;
+    }); 
+  }, [recordingDuration, board.id]);
+  
+  const handleToggleActionComplete = useCallback((id: string) => { 
+    setActionItems(prev => {
+      const updated = prev.map(a => a.id === id ? { ...a, isComplete: !a.isComplete } : a);
+      safeLocalStorage.set(`board-action-items-${board.id}`, updated);
+      return updated;
+    }); 
+  }, [board.id]);
+  
+  const handleAssignUser = useCallback((id: string, assigneeId: string | undefined) => { 
+    setActionItems(prev => {
+      const updated = prev.map(a => a.id === id ? { ...a, assigneeId } : a);
+      safeLocalStorage.set(`board-action-items-${board.id}`, updated);
+      return updated;
+    }); 
+  }, [board.id]);
 
   // Saved transcripts handlers
   const handleSaveTranscript = useCallback((transcript: SavedTranscript) => {
@@ -7559,9 +7591,15 @@ const MeetingView = ({ board, onUpdateBoard, onBack, onCreateAISummary, onCreate
           boardId={board.id}
           boardName={board.name}
           clientId={board.clientId}
-          onCreateNote={(title, content, _actionItems) => {
+          onCreateNote={(title, content, extractedActionItems) => {
             if (onCreateTranscriptNote) {
               onCreateTranscriptNote(board.id, title, content, new Date(), new Date());
+            }
+            // Auto-populate action items from transcript
+            if (extractedActionItems && extractedActionItems.length > 0) {
+              extractedActionItems.forEach(actionContent => {
+                handleAddAction(actionContent);
+              });
             }
           }}
           onGenerateWhiteboard={(transcriptData) => {

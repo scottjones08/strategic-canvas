@@ -722,22 +722,31 @@ export function startRealtimeTranscription(
               };
 
               // For end_of_turn, add as final segment; otherwise update last segment
+              let isNewSegment = false;
               if (message.end_of_turn || message.turn_is_formatted) {
                 transcript.segments.push(segment);
+                isNewSegment = true;
               } else if (transcript.segments.length > 0) {
                 // Update the last segment with interim text
                 const lastIdx = transcript.segments.length - 1;
                 if (!transcript.segments[lastIdx].text.endsWith('.') && !transcript.segments[lastIdx].text.endsWith('?')) {
+                  // Just update in place - don't trigger callback for interim updates
                   transcript.segments[lastIdx] = segment;
+                  isNewSegment = false;
                 } else {
                   transcript.segments.push(segment);
+                  isNewSegment = true;
                 }
               } else {
                 transcript.segments.push(segment);
+                isNewSegment = true;
               }
               
               transcript.duration = Date.now() - startTime;
-              segmentCallbacks.forEach(cb => cb(segment));
+              // Only notify callbacks when a new final segment is added, not for interim updates
+              if (isNewSegment) {
+                segmentCallbacks.forEach(cb => cb(segment));
+              }
               return;
             }
 
