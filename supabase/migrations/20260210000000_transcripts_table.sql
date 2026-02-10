@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS transcripts (
   duration INTEGER DEFAULT 0,
   status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'final')),
   action_items JSONB DEFAULT '[]'::jsonb,
-  board_id UUID REFERENCES canvas_boards(id) ON DELETE SET NULL,
+  board_id TEXT REFERENCES canvas_boards(id) ON DELETE SET NULL,
   user_id UUID,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
