@@ -7,6 +7,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   TranscriptionConfig,
   TranscriptionSession,
+  HybridTranscriptionSession,
   FullTranscript,
   TranscriptSegment,
   startRealtimeTranscription,
@@ -36,6 +37,8 @@ export interface UseTranscriptionReturn {
   isRecording: boolean;
   isPaused: boolean;
   isProcessing: boolean;
+  isReprocessing: boolean;
+  reprocessingStatus: string | null;
   transcript: FullTranscript | null;
   currentSegment: TranscriptSegment | null;
   interimText: string;
@@ -52,11 +55,14 @@ export interface UseTranscriptionReturn {
   pauseRecording: () => void;
   resumeRecording: () => void;
   uploadAudio: (file: File, onProgress?: (status: string, message: string) => void) => Promise<FullTranscript | null>;
+  reprocessForSpeakers: () => Promise<FullTranscript | null>;
+  canReprocess: boolean;
   
   // Transcript manipulation
   updateSpeaker: (speakerId: string, newName: string) => void;
   mergeSpeakersWith: (speakerIdToRemove: string, speakerIdToKeep: string) => void;
   clearTranscript: () => void;
+  setTranscript: (transcript: FullTranscript | null) => void;
   
   // Export
   exportAsText: () => string;
@@ -90,9 +96,12 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
   const [error, setError] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [config, setConfig] = useState<TranscriptionConfig | null>(null);
+  const [isReprocessing, setIsReprocessing] = useState(false);
+  const [reprocessingStatus, setReprocessingStatus] = useState<string | null>(null);
   
   // Refs
   const sessionRef = useRef<TranscriptionSession | null>(null);
+  const lastSessionRef = useRef<TranscriptionSession | null>(null);
   const durationIntervalRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   
@@ -235,6 +244,8 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
       
       setIsRecording(false);
       setIsPaused(false);
+      // Keep reference for reprocessing
+      lastSessionRef.current = sessionRef.current;
       sessionRef.current = null;
       
       onTranscriptComplete?.(finalTranscript);
@@ -348,6 +359,44 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
     return transcript ? extractActionItems(transcript) : [];
   }, [transcript]);
   
+  // Reprocess recorded audio for speaker diarization
+  const reprocessForSpeakers = useCallback(async () => {
+    const session = sessionRef.current as HybridTranscriptionSession | null;
+    // Check the last session ref - it may have been cleared, so also check for stored session
+    const hybridSession = session || (lastSessionRef.current as HybridTranscriptionSession | null);
+    if (!hybridSession || !('reprocessWithDiarization' in hybridSession)) {
+      setError('No recorded audio available for speaker identification');
+      return null;
+    }
+
+    try {
+      setIsReprocessing(true);
+      setReprocessingStatus('Starting speaker identification...');
+      setError(null);
+
+      const result = await hybridSession.reprocessWithDiarization((status, message) => {
+        setReprocessingStatus(message);
+      });
+
+      setTranscript(result);
+      setReprocessingStatus(null);
+      onTranscriptComplete?.(result);
+      return result;
+    } catch (err: any) {
+      setError(`Speaker identification failed: ${err.message}`);
+      setReprocessingStatus(null);
+      return null;
+    } finally {
+      setIsReprocessing(false);
+    }
+  }, [onTranscriptComplete]);
+
+  // Track whether reprocessing is available
+  const canReprocess = !!(
+    (sessionRef.current as HybridTranscriptionSession)?.canReprocess ||
+    (lastSessionRef.current as HybridTranscriptionSession)?.canReprocess
+  ) && isConfigured && !isRecording;
+
   // Update config
   const updateConfig = useCallback((updates: Partial<TranscriptionConfig>) => {
     setConfig(prev => {
@@ -362,6 +411,8 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
     isRecording,
     isPaused,
     isProcessing,
+    isReprocessing,
+    reprocessingStatus,
     transcript,
     currentSegment,
     interimText,
@@ -378,11 +429,14 @@ export function useTranscription(options: UseTranscriptionOptions = {}): UseTran
     pauseRecording,
     resumeRecording,
     uploadAudio,
+    reprocessForSpeakers,
+    canReprocess,
     
     // Transcript manipulation
     updateSpeaker,
     mergeSpeakersWith,
     clearTranscript,
+    setTranscript,
     
     // Export
     exportAsText,

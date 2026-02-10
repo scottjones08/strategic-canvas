@@ -43,6 +43,13 @@ import {
 import useTranscription from '../hooks/useTranscription';
 import { FullTranscript, formatTimestamp, formatDuration } from '../lib/transcription';
 import { MeetingSummary, generateMeetingSummary, SummaryFormat } from '../lib/meeting-summary';
+import {
+  SavedTranscript,
+  saveTranscriptToSupabase,
+  listTranscriptsFromSupabase,
+  deleteTranscriptFromSupabase,
+  savedToFullTranscript,
+} from '../lib/transcripts-api';
 
 interface TranscriptionPanelProps {
   boardId?: string;
@@ -75,6 +82,8 @@ export default function TranscriptionPanel({
     isRecording,
     isPaused,
     isProcessing,
+    isReprocessing,
+    reprocessingStatus,
     transcript,
     error,
     duration,
@@ -85,8 +94,11 @@ export default function TranscriptionPanel({
     pauseRecording,
     resumeRecording,
     uploadAudio,
+    reprocessForSpeakers,
+    canReprocess,
     updateSpeaker,
     clearTranscript,
+    setTranscript,
     exportAsText,
     exportAsMarkdown,
     exportAsHTML,
@@ -119,6 +131,10 @@ export default function TranscriptionPanel({
   const [noteSaved, setNoteSaved] = useState(false);
   const [expandedView, setExpandedView] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [showSavedTranscripts, setShowSavedTranscripts] = useState(false);
+  const [savedTranscripts, setSavedTranscripts] = useState<SavedTranscript[]>([]);
+  const [loadingSaved, setLoadingSaved] = useState(false);
+  const [supabaseSaveId, setSupabaseSaveId] = useState<string | null>(null);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -139,6 +155,46 @@ export default function TranscriptionPanel({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [transcript?.segments.length, isRecording]);
+
+  // Load saved transcripts when drawer opens
+  useEffect(() => {
+    if (showSavedTranscripts) {
+      setLoadingSaved(true);
+      listTranscriptsFromSupabase({ limit: 20 })
+        .then(setSavedTranscripts)
+        .catch(console.error)
+        .finally(() => setLoadingSaved(false));
+    }
+  }, [showSavedTranscripts]);
+
+  // Auto-save to Supabase after recording stops and diarization completes (or is skipped)
+  useEffect(() => {
+    if (
+      transcript &&
+      transcript.status === 'completed' &&
+      transcript.segments.length > 0 &&
+      !isRecording &&
+      !isReprocessing &&
+      !supabaseSaveId
+    ) {
+      const title = `Meeting Transcript - ${boardName} - ${new Date().toLocaleDateString()}`;
+      saveTranscriptToSupabase(transcript, { title, boardId: undefined, status: 'draft' })
+        .then((saved) => {
+          if (saved) {
+            setSupabaseSaveId(saved.id);
+            console.log('Transcript saved to Supabase:', saved.id);
+          }
+        })
+        .catch((err) => console.error('Failed to save to Supabase:', err));
+    }
+  }, [transcript?.status, isRecording, isReprocessing, transcript?.segments.length, supabaseSaveId, boardName]);
+
+  // Reset supabase save ID when starting a new recording
+  useEffect(() => {
+    if (isRecording) {
+      setSupabaseSaveId(null);
+    }
+  }, [isRecording]);
 
   // Filter segments by search
   const filteredSegments = transcript?.segments.filter(segment =>
@@ -404,7 +460,7 @@ export default function TranscriptionPanel({
                 <button
                   onClick={async () => {
                     await stopRecording();
-                    setExpandedView(false);
+                    // Don't collapse - let user see diarization option
                   }}
                   className="px-3 sm:px-6 py-2 sm:py-3 bg-white text-red-600 rounded-xl font-semibold hover:bg-red-50 transition-colors flex items-center gap-1 sm:gap-2 text-sm sm:text-base"
                 >
@@ -616,6 +672,85 @@ export default function TranscriptionPanel({
         </div>
       </div>
 
+      {/* Saved Transcripts Toggle */}
+      <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+        <button
+          onClick={() => setShowSavedTranscripts(!showSavedTranscripts)}
+          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 font-medium"
+        >
+          <FileText className="w-4 h-4" />
+          Saved Transcripts
+          <ChevronDown className={`w-3 h-3 transition-transform ${showSavedTranscripts ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {/* Saved Transcripts Drawer */}
+      <AnimatePresence>
+        {showSavedTranscripts && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-b border-gray-200 overflow-hidden"
+          >
+            <div className="max-h-60 overflow-y-auto bg-gray-50">
+              {loadingSaved ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                </div>
+              ) : savedTranscripts.length === 0 ? (
+                <div className="py-6 text-center text-sm text-gray-400">
+                  No saved transcripts yet
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {savedTranscripts.map((saved) => (
+                    <div
+                      key={saved.id}
+                      className="px-4 py-3 hover:bg-white transition-colors flex items-center justify-between gap-2"
+                    >
+                      <button
+                        onClick={() => {
+                          setTranscript(savedToFullTranscript(saved));
+                          setShowSavedTranscripts(false);
+                        }}
+                        className="flex-1 min-w-0 text-left"
+                      >
+                        <p className="text-sm font-medium text-gray-800 truncate">{saved.title}</p>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span>{new Date(saved.created_at).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <span>{saved.segments?.length || 0} segments</span>
+                          <span>•</span>
+                          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                            saved.status === 'final' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {saved.status}
+                          </span>
+                        </div>
+                      </button>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm('Delete this transcript?')) {
+                            await deleteTranscriptFromSupabase(saved.id);
+                            setSavedTranscripts(prev => prev.filter(t => t.id !== saved.id));
+                          }
+                        }}
+                        className="p-1.5 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                        title="Delete"
+                      >
+                        <X className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Settings Panel */}
       <AnimatePresence>
         {showSettings && (
@@ -742,6 +877,60 @@ export default function TranscriptionPanel({
           </button>
         </div>
       )}
+
+      {/* Speaker Diarization Reprocessing */}
+      <AnimatePresence>
+        {isReprocessing && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="px-4 py-3 bg-purple-50 border-b border-purple-100"
+          >
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-5 h-5 text-purple-600 animate-spin flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-purple-800">Identifying speakers...</p>
+                <p className="text-xs text-purple-600 truncate">{reprocessingStatus || 'Processing...'}</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+        {!isRecording && !isReprocessing && canReprocess && transcript && transcript.segments.length > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="px-4 py-2 bg-purple-50 border-b border-purple-100"
+          >
+            <button
+              onClick={reprocessForSpeakers}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+            >
+              <Users className="w-4 h-4" />
+              Identify Speakers
+            </button>
+            <p className="text-xs text-purple-500 text-center mt-1">
+              Reprocess audio to identify who said what
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Supabase save indicator */}
+      <AnimatePresence>
+        {supabaseSaveId && !isRecording && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="px-4 py-1.5 bg-blue-50 border-b border-blue-100 flex items-center gap-2"
+          >
+            <Check className="w-3.5 h-3.5 text-blue-500" />
+            <span className="text-xs text-blue-600">Saved to cloud as draft</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Speakers bar */}
       {transcript && transcript.speakers.length > 0 && (
