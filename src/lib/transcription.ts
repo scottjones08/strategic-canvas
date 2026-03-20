@@ -2461,28 +2461,12 @@ export function saveTranscriptionConfig(config: Partial<TranscriptionConfig>): v
  * Checks localStorage first, then falls back to environment variable
  */
 export function loadTranscriptionConfig(): Partial<TranscriptionConfig> | null {
+  // API keys should come from user input (localStorage) or a server-side proxy.
+  // NEVER fall back to VITE_ env vars — they are bundled into client JS and visible to all users.
   try {
     const data = localStorage.getItem(CONFIG_STORAGE_KEY);
     if (data) {
-      const config = JSON.parse(data);
-      // If no API key in localStorage, check env variable
-      if (!config.apiKey) {
-        const envKey = import.meta.env.VITE_ASSEMBLYAI_API_KEY;
-        if (envKey) {
-          config.apiKey = envKey;
-        }
-      }
-      return config;
-    }
-    // No localStorage config, check for env variable
-    const envKey = import.meta.env.VITE_ASSEMBLYAI_API_KEY;
-    if (envKey) {
-      return {
-        apiKey: envKey,
-        enableDiarization: true,
-        punctuate: true,
-        formatText: true,
-      };
+      return JSON.parse(data);
     }
   } catch (e) {
     console.error('Failed to load config:', e);
@@ -2496,10 +2480,5 @@ export function loadTranscriptionConfig(): Partial<TranscriptionConfig> | null {
  */
 export function isAssemblyAIConfigured(): boolean {
   const config = loadTranscriptionConfig();
-  if (config?.apiKey && config.apiKey.length > 10) {
-    return true;
-  }
-  // Also check env variable directly
-  const envKey = import.meta.env.VITE_ASSEMBLYAI_API_KEY;
-  return !!(envKey && envKey.length > 10);
+  return !!(config?.apiKey && config.apiKey.length > 10);
 }

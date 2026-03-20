@@ -3,6 +3,7 @@
 // with multiple rendering strategies: client-side libs, OnlyOffice, or MS Office embed
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { sanitizeHtml } from '../lib/sanitize';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText,
@@ -656,7 +657,7 @@ const WordDocumentRenderer: React.FC<WordDocumentRendererProps> = ({ content, zo
         <style>{content.styles}</style>
         <div
           className="mammoth-document"
-          dangerouslySetInnerHTML={{ __html: content.html }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(content.html) }}
         />
       </div>
 
@@ -920,7 +921,7 @@ const PowerPointRenderer: React.FC<PowerPointRendererProps> = ({
             {currentSlide ? (
               <div
                 className="w-full h-full p-8"
-                dangerouslySetInnerHTML={{ __html: currentSlide.content }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentSlide.content) }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-400">

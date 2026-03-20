@@ -11,11 +11,13 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.91.1",
+    "@types/dompurify": "^3.0.5",
     "@types/jszip": "^3.4.0",
     "@types/pdfjs-dist": "^2.10.377",
     "@types/qrcode": "^1.5.6",
     "@types/signature_pad": "^2.3.6",
     "clsx": "^2.0.0",
+    "dompurify": "^3.3.3",
     "exceljs": "^4.4.0",
     "fabric": "^7.1.0",
     "framer-motion": "^10.16.0",

@@ -62,17 +62,18 @@ function generateToken(length: number = 24): string {
   return Array.from(array, (x) => chars[x % chars.length]).join('');
 }
 
-// Simple hash function for password (in production, use bcrypt on server)
-export function hashPassword(password: string): string {
-  // In a real app, this would be server-side bcrypt
-  // For now, we use a simple hash for demo purposes
-  let hash = 0;
-  for (let i = 0; i < password.length; i++) {
-    const char = password.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return `sha256:${Math.abs(hash).toString(16)}`;
+/**
+ * Hash password using Web Crypto SHA-256.
+ * Production should use server-side bcrypt/argon2; this is a client-side improvement
+ * over the previous trivial bitwise hash.
+ */
+export async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return `sha256:${hashHex}`;
 }
 
 // Convert database row to ShareLink interface
@@ -94,7 +95,7 @@ function dbRowToShareLink(row: any): ShareLink {
 }
 
 // Generate a new share link for a board
-export function generateShareLink(boardId: string, options: ShareLinkOptions): ShareLink {
+export async function generateShareLink(boardId: string, options: ShareLinkOptions): Promise<ShareLink> {
   const now = new Date();
   const expiresAt = options.expiresInDays
     ? new Date(now.getTime() + options.expiresInDays * 24 * 60 * 60 * 1000)
@@ -106,7 +107,7 @@ export function generateShareLink(boardId: string, options: ShareLinkOptions): S
     clientId: options.clientId,
     clientName: options.clientName,
     token: generateToken(),
-    password: options.password ? hashPassword(options.password) : undefined,
+    password: options.password ? await hashPassword(options.password) : undefined,
     expiresAt,
     permissions: options.permissions,
     createdAt: now,
@@ -117,10 +118,10 @@ export function generateShareLink(boardId: string, options: ShareLinkOptions): S
 }
 
 // Validate a share link
-export function validateShareLink(
+export async function validateShareLink(
   shareLink: ShareLink | null,
   password?: string
-): { valid: boolean; error?: string } {
+): Promise<{ valid: boolean; error?: string }> {
   if (!shareLink) {
     return { valid: false, error: 'Share link not found' };
   }
@@ -137,7 +138,7 @@ export function validateShareLink(
     if (!password) {
       return { valid: false, error: 'Password required' };
     }
-    if (hashPassword(password) !== shareLink.password) {
+    if (await hashPassword(password) !== shareLink.password) {
       return { valid: false, error: 'Incorrect password' };
     }
   }
@@ -260,7 +261,7 @@ export async function getShareLinkByTokenFromSupabase(token: string): Promise<Sh
     const timeoutId = setTimeout(() => controller.abort(), 10000);
     
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/board_magic_links?token=eq.${token}&limit=1`,
+      `${supabaseUrl}/rest/v1/board_magic_links?token=eq.${encodeURIComponent(token)}&limit=1`,
       {
         method: 'GET',
         headers: {
@@ -309,7 +310,7 @@ export async function getShareLinksForBoardFromSupabase(boardId: string): Promis
     const timeoutId = setTimeout(() => controller.abort(), 10000);
     
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/board_magic_links?board_id=eq.${boardId}&order=created_at.desc`,
+      `${supabaseUrl}/rest/v1/board_magic_links?board_id=eq.${encodeURIComponent(boardId)}&order=created_at.desc`,
       {
         method: 'GET',
         headers: {

@@ -194,7 +194,7 @@ export const boardsApi = {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
-    const response = await fetch(`${supabaseUrl}/rest/v1/canvas_boards?id=eq.${boardId}&limit=1`, {
+    const response = await fetch(`${supabaseUrl}/rest/v1/canvas_boards?id=eq.${encodeURIComponent(boardId)}&limit=1`, {
       method: 'GET',
       headers: {
         'apikey': supabaseKey,
@@ -300,7 +300,7 @@ export const boardsApi = {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
-    const response = await fetch(`${supabaseUrl}/rest/v1/canvas_boards?id=eq.${boardId}`, {
+    const response = await fetch(`${supabaseUrl}/rest/v1/canvas_boards?id=eq.${encodeURIComponent(boardId)}`, {
       method: 'PATCH',
       headers: {
         'apikey': supabaseKey,
@@ -470,7 +470,7 @@ export const notesApi = {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
-    const response = await fetch(`${supabaseUrl}/rest/v1/project_notes?id=eq.${noteId}`, {
+    const response = await fetch(`${supabaseUrl}/rest/v1/project_notes?id=eq.${encodeURIComponent(noteId)}`, {
       method: 'PATCH',
       headers: {
         'apikey': supabaseKey,

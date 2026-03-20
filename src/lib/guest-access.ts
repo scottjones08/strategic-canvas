@@ -57,16 +57,17 @@ function generateSecureToken(length: number = 32): string {
 }
 
 /**
- * Simple hash function for password (in production, use bcrypt on server)
+ * Hash password using Web Crypto SHA-256.
+ * Production should use server-side bcrypt/argon2; this is a client-side improvement
+ * over the previous trivial bitwise hash.
  */
-export function hashPassword(password: string): string {
-  let hash = 0;
-  for (let i = 0; i < password.length; i++) {
-    const char = password.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return `sha256:${Math.abs(hash).toString(16)}`;
+export async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return `sha256:${hashHex}`;
 }
 
 /**
@@ -98,7 +99,7 @@ export async function generateGuestToken(
 ): Promise<GuestToken> {
   const token = generateSecureToken();
   const expiresAt = calculateExpiration(options.expiration);
-  const hashedPassword = options.password ? hashPassword(options.password) : undefined;
+  const hashedPassword = options.password ? await hashPassword(options.password) : undefined;
 
   const guestToken: GuestToken = {
     id: crypto.randomUUID(),
@@ -214,7 +215,7 @@ export async function validateGuestToken(
     if (!password) {
       return { valid: false, requiresPassword: true, guestToken };
     }
-    if (hashPassword(password) !== guestToken.password) {
+    if (await hashPassword(password) !== guestToken.password) {
       return { valid: false, error: 'Incorrect password', requiresPassword: true, guestToken };
     }
   }
@@ -262,7 +263,7 @@ async function getGuestTokenFromSupabase(token: string): Promise<GuestToken | nu
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/board_magic_links?token=eq.${token}&limit=1`,
+      `${supabaseUrl}/rest/v1/board_magic_links?token=eq.${encodeURIComponent(token)}&limit=1`,
       {
         method: 'GET',
         headers: {
@@ -323,7 +324,7 @@ async function incrementUseCount(tokenId: string): Promise<void> {
 
     // First get current count
     const getResponse = await fetch(
-      `${supabaseUrl}/rest/v1/board_magic_links?id=eq.${tokenId}&select=use_count`,
+      `${supabaseUrl}/rest/v1/board_magic_links?id=eq.${encodeURIComponent(tokenId)}&select=use_count`,
       {
         method: 'GET',
         headers: {
@@ -339,7 +340,7 @@ async function incrementUseCount(tokenId: string): Promise<void> {
 
     // Update count
     await fetch(
-      `${supabaseUrl}/rest/v1/board_magic_links?id=eq.${tokenId}`,
+      `${supabaseUrl}/rest/v1/board_magic_links?id=eq.${encodeURIComponent(tokenId)}`,
       {
         method: 'PATCH',
         headers: {
@@ -376,7 +377,7 @@ export async function deactivateGuestToken(tokenId: string): Promise<boolean> {
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/board_magic_links?id=eq.${tokenId}`,
+      `${supabaseUrl}/rest/v1/board_magic_links?id=eq.${encodeURIComponent(tokenId)}`,
       {
         method: 'PATCH',
         headers: {
@@ -408,7 +409,7 @@ export async function getGuestTokensForBoard(boardId: string): Promise<GuestToke
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/board_magic_links?board_id=eq.${boardId}&order=created_at.desc`,
+        `${supabaseUrl}/rest/v1/board_magic_links?board_id=eq.${encodeURIComponent(boardId)}&order=created_at.desc`,
         {
           method: 'GET',
           headers: {

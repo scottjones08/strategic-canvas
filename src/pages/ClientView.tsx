@@ -105,7 +105,7 @@ export default function ClientView() {
       }
 
       // Validate link
-      const validation = validateShareLink(link);
+      const validation = await validateShareLink(link);
       if (!validation.valid) {
         setError(validation.error || 'Invalid share link');
         setLoading(false);
@@ -157,7 +157,7 @@ export default function ClientView() {
   const handlePasswordSubmit = async () => {
     if (!shareLink || !password) return;
 
-    const validation = validateShareLink(shareLink, password);
+    const validation = await validateShareLink(shareLink, password);
     if (!validation.valid) {
       setPasswordError(validation.error || 'Invalid password');
       return;

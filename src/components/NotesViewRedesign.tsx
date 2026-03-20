@@ -2,6 +2,7 @@
 // Modern UI with collapsible sections and beautiful design
 
 import React, { useState, useRef, useMemo } from 'react';
+import { sanitizeHtml } from '../lib/sanitize';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BookOpen, Plus, Search, FileText, Trash2, Link as LinkIcon, 
@@ -293,7 +294,7 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
           </p>
           {!compact && (
             <p className="text-xs text-gray-500 truncate mt-0.5" 
-               dangerouslySetInnerHTML={{ __html: note.content.replace(/<[^>]+>/g, ' ').slice(0, 60) || 'No content' }} 
+               dangerouslySetInnerHTML={{ __html: sanitizeHtml(note.content.replace(/<[^>]+>/g, ' ').slice(0, 60) || 'No content') }} 
             />
           )}
         </div>
@@ -697,7 +698,7 @@ export const NotesViewRedesigned: React.FC<NotesViewProps> = ({
                   setEditingContent(content);
                   handleUpdateNote(selectedNoteData.id, { content });
                 }}
-                dangerouslySetInnerHTML={{ __html: editingContent }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(editingContent) }}
                 className="prose prose-sm max-w-none min-h-[400px] focus:outline-none 
                   [&>h1]:text-3xl [&>h1]:font-bold [&>h1]:mb-4 [&>h1]:text-gray-900
                   [&>h2]:text-xl [&>h2]:font-semibold [&>h2]:mb-3 [&>h2]:text-gray-800

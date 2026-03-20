@@ -102,7 +102,7 @@ export default function ShareBoardModal({
           : undefined,
       };
 
-      const newLink = generateShareLink(boardId, options);
+      const newLink = await generateShareLink(boardId, options);
 
       // Save to Supabase first
       try {

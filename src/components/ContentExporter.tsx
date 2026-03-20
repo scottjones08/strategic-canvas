@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
+import { sanitizeHtml } from '../lib/sanitize';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -571,7 +572,7 @@ export const ContentExporter: React.FC<ContentExporterProps> = ({
                     {config.format === 'email' ? (
                       <div
                         className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm"
-                        dangerouslySetInnerHTML={{ __html: generatedOutput }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(generatedOutput) }}
                       />
                     ) : (
                       <pre className="bg-gray-50 border border-gray-200 rounded-xl p-6 text-sm text-gray-800 whitespace-pre-wrap font-mono leading-relaxed overflow-auto max-h-[60vh]">
